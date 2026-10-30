@@ -1,0 +1,10 @@
+.next
+node_modules
+.yarn
+coverage
+out
+build
+next-env.d.ts
+yarn.lock
+package-lock.json
+supabase/.temp
