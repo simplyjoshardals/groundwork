@@ -44,3 +44,6 @@ next-env.d.ts
 # Supabase local
 supabase/.temp
 supabase/.branches
+
+# Provider spike raw results (sanitized, but keep them out of git)
+spikes/provider/results/
