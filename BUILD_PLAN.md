@@ -77,13 +77,13 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
   - **Done when:**
     - [ ] A pushed branch shows a green check; a deliberately broken test turns it red (then revert).
 
-- [ ] **0.5 ⚠ SPIKE: AI provider access and limits** · 3 h · deps: none · **riskiest task in the plan**
+- [x] **0.5 ⚠ SPIKE: AI provider access and limits** · 3 h · deps: none · **riskiest task in the plan**
   - **Build:** Throwaway scripts (and a temporary `/api/spike` route) that: get a free embeddings key and an LLM key **without a card from Nigeria**; embed ~100 text chunks in batches; stream one LLM answer; do the same from the **deployed** Vercel route; repeat the LLM call with Groq as a second provider. Check whether the embedding model can output **768 dimensions** (DATA_MODEL §0).
   - **Done when:**
-    - [ ] `docs/spikes/provider.md` records: models chosen (exact IDs), embedding dimension, observed rate limits (read them from your own AI Studio console), latency numbers, behavior on HTTP 429, and the free-tier data-use and region terms you read.
-    - [ ] Embedding 100 chunks completes without manual retries, or you've written down the batch size and delay that makes it work.
-    - [ ] **Decision recorded in `docs/decisions.md`:** embedding model and dimension (this fixes `vector(768)` or changes it).
-    - [ ] If signup from Nigeria failed for the primary provider, you have a working alternative (e.g. Cloudflare Workers AI or Jina for embeddings) before moving on.
+    - [x] `docs/spikes/provider.md` records: models chosen (exact IDs), embedding dimension, observed rate limits (read them from your own AI Studio console), latency numbers, behavior on HTTP 429, and the free-tier data-use and region terms you read. (Qualification: 3 x 429 were observed in an unpaced run and none when paced, but exact 429 response metadata — headers/body, `Retry-After`/`retryDelay`, quota named — was not captured and no deliberate test was done; see provider.md section 5.7. Card requirement and Groq training use remain unconfirmed.)
+    - [x] Embedding 100 chunks completes without manual retries, or you've written down the batch size and delay that makes it work. (Batch 10, 10 s delay: 100/100, 0 retries, 0 x 429, for both embedding models; provider.md sections 5.1 and 5.6.)
+    - [x] **Decision recorded in `docs/decisions.md`:** embedding model and dimension (this fixes `vector(768)` or changes it). (`gemini-embedding-2`, 768; `vector(768)` stays.)
+    - [x] If signup from Nigeria failed for the primary provider, you have a working alternative (e.g. Cloudflare Workers AI or Jina for embeddings) before moving on. (Not triggered: signup succeeded for both providers.)
 
 - [ ] **0.6 ⚠ SPIKE: PDF text extraction on Vercel** · 3 h · deps: 0.3
   - **Build:** Try one pure-JS extractor in a deployed route using 3 PDFs (single column, two column, one with a table) plus one scanned/image-only PDF and one encrypted PDF.
@@ -537,7 +537,7 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 
 ### Decision gates (stop and decide before continuing)
 
-- [ ] **After 0.5:** which embedding model and dimension? (Blocks task 1.1.)
+- [x] **After 0.5:** which embedding model and dimension? (Blocks task 1.1.)
 - [ ] **After 0.7:** direct highlight first, or passage panel first?
 - [ ] **After 2.2:** is baseline hit@k acceptable? If it's poor, fix chunking and retrieval before building more.
 - [ ] **After 2.3:** are the answerable and unanswerable score distributions separable enough?
