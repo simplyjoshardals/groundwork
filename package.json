@@ -11,12 +11,14 @@
     "test": "vitest run --passWithNoTests",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "spike:provider": "tsx --env-file=.env.local spikes/provider/run.ts"
+    "spike:provider": "tsx --env-file=.env.local spikes/provider/run.ts",
+    "spike:pdf": "tsx --env-file=.env.local spikes/pdf/run.ts"
   },
   "dependencies": {
     "next": "16.4.3",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "unpdf": "1.9.1"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",

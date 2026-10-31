@@ -1,0 +1,66 @@
+{
+  "file": "table.pdf",
+  "kind": "table",
+  "pages": [
+    {
+      "page": 1,
+      "fragments": [
+        "Item Owner Due date Budget Status",
+        "Help Desk 100 Marcus 25 Jan 2027 1464.89 Done",
+        "Newsletter 101 Dana 06 Apr 2027 3803.70 Review",
+        "Fire Drill 102 Aiko 23 Feb 2027 1896.58 Blocked",
+        "Book Exchange 103 Dana 17 Feb 2027 1380.71 Review",
+        "Bicycle Store 104 Ife 07 Jan 2027 3397.56 Blocked",
+        "Book Exchange 105 Aiko 27 May 2027 1939.58 Open",
+        "Newsletter 106 Aiko 16 Jan 2027 5617.96 Open",
+        "Laptop Refresh 107 Dana 14 Feb 2027 437.34 Blocked",
+        "Recycling Rota 108 Ife 11 Mar 2027 1448.70 Open",
+        "Printer Queue 109 Lena 05 Apr 2027 2027.50 Done",
+        "Help Desk 110 Tunde 20 Jan 2027 1266.38 Open",
+        "Help Desk 111 Dana 11 May 2027 5964.28 Blocked",
+        "Lost Property 112 Tunde 04 Feb 2027 2356.36 Open",
+        "Expense Claim 113 Lena 14 Jan 2027 8057.32 Done"
+      ]
+    },
+    {
+      "page": 2,
+      "fragments": [
+        "Item Owner Due date Budget Status",
+        "Parking Permit 200 Dana 02 Apr 2027 1347.49 Done",
+        "Expense Claim 201 Dana 01 Mar 2027 8216.70 Done",
+        "Printer Queue 202 Lena 06 Mar 2027 5284.97 Done",
+        "Parking Permit 203 Tunde 07 Mar 2027 7024.21 Review",
+        "Book Exchange 204 Tunde 13 Jan 2027 3845.07 Blocked",
+        "Book Exchange 205 Ife 15 Jan 2027 5212.93 Review",
+        "Expense Claim 206 Lena 26 Jan 2027 7811.06 Review",
+        "Visitor Badge 207 Aiko 12 Feb 2027 1973.54 Done",
+        "Parking Permit 208 Dana 02 Mar 2027 1364.94 Review",
+        "Expense Claim 209 Tunde 03 Jan 2027 2697.66 Open",
+        "Visitor Badge 210 Dana 19 Apr 2027 6795.94 Blocked",
+        "Laptop Refresh 211 Marcus 04 Mar 2027 1309.58 Open",
+        "Meeting Room 212 Lena 04 Mar 2027 4196.00 Open",
+        "Printer Queue 213 Lena 25 Feb 2027 8596.22 Open"
+      ]
+    },
+    {
+      "page": 3,
+      "fragments": [
+        "Item Owner Due date Budget Status",
+        "Laptop Refresh 300 Lena 09 Jan 2027 4053.70 Blocked",
+        "Meeting Room 301 Marcus 24 Jan 2027 5353.10 Blocked",
+        "Recycling Rota 302 Aiko 19 Apr 2027 8932.37 Done",
+        "Help Desk 303 Aiko 03 Mar 2027 6430.70 Open",
+        "Newsletter 304 Ife 03 Mar 2027 1944.20 Done",
+        "Fire Drill 305 Dana 13 Jan 2027 4018.26 Blocked",
+        "Bicycle Store 306 Aiko 22 Apr 2027 6424.51 Open",
+        "Newsletter 307 Tunde 14 Feb 2027 106.48 Done",
+        "Laptop Refresh 308 Ife 11 May 2027 3308.81 Blocked",
+        "Parking Permit 309 Dana 13 Jan 2027 2823.61 Open",
+        "Help Desk 310 Lena 03 Apr 2027 7248.22 Review",
+        "Laptop Refresh 311 Marcus 18 May 2027 8939.38 Open",
+        "Recycling Rota 312 Aiko 03 May 2027 402.81 Review",
+        "Printer Queue 313 Lena 23 Apr 2027 7322.62 Blocked"
+      ]
+    }
+  ]
+}
