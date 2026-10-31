@@ -57,20 +57,20 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] `.gitignore` covers `.env*` (except `.env.example`).
     - [x] README stub states the one-line pitch.
 
-- [ ] **0.2 Supabase local and hosted** · 2 h · deps: none
+- [x] **0.2 Supabase local and hosted** · 2 h · deps: none
   - **Build:** `supabase init`, `supabase start` (needs Docker), create the hosted free project, link it. Create `.env.example` with placeholders and `.env.local` with real values.
   - **Done when:**
-    - [ ] Local Studio opens and `supabase status` shows healthy.
-    - [ ] Hosted project exists and `supabase link` succeeds.
-    - [ ] GitHub secret scanning is enabled on the repo.
-    - [ ] Anonymous sign-ins enabled in **local config** (`supabase/config.toml`) and in the hosted dashboard.
+    - [x] Local Studio opens and `supabase status` shows healthy.
+    - [x] Hosted project exists and `supabase link` succeeds.
+    - [x] GitHub secret scanning is enabled on the repo.
+    - [x] Anonymous sign-ins enabled in **local config** (`supabase/config.toml`) and in the hosted dashboard.
 
-- [ ] **0.3 Vercel skeleton deploy and secret hygiene** · 1 h · deps: 0.1
+- [x] **0.3 Vercel skeleton deploy and secret hygiene** · 1 h · deps: 0.1
   - **Build:** Connect the repo to Vercel, add env vars (server-only vs `NEXT_PUBLIC_`), deploy.
   - **Done when:**
-    - [ ] Deployed URL loads.
-    - [ ] Searching the built client bundle (`.next/static`) for your service-role key and provider keys finds nothing.
-    - [ ] Preview deployments appear for pull requests.
+    - [x] Deployed URL loads.
+    - [x] Searching the built client bundle (`.next/static`) for your service-role key and provider keys finds nothing.
+    - [x] Preview deployments appear for pull requests.
 
 - [ ] **0.4 CI** · 1.5 h · deps: 0.1
   - **Build:** GitHub Actions: install, lint, typecheck, unit tests, build.

@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "startedAtUtc": "2026-10-31T09:37:50.419Z",
+    "target": "local",
+    "task": "stream",
+    "node": "v22.18.0",
+    "elapsedMs": 959
+  },
+  "result": {
+    "provider": "gemini",
+    "model": "gemini-2.5-flash-lite",
+    "prompt": "rag",
+    "promptChars": 9347,
+    "ok": false,
+    "error": "This model models/gemini-2.5-flash-lite is no longer available to new users. Please update your code to use models/gemini-3.5-flash-lite for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).",
+    "attempts": [
+      {
+        "status": 404,
+        "latencyMs": 953,
+        "retryAfter": null,
+        "errorStatus": "NOT_FOUND",
+        "errorMessage": "This model models/gemini-2.5-flash-lite is no longer available to new users. Please update your code to use models/gemini-3.5-flash-lite for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started)."
+      }
+    ],
+    "responseHeaders": {},
+    "headersMs": null,
+    "ttftMs": null,
+    "ttfReasoningMs": null,
+    "totalMs": 955,
+    "textEvents": 0,
+    "textChars": 0,
+    "reasoningEvents": 0,
+    "reasoningChars": 0,
+    "maxGapBetweenTextEventsMs": null,
+    "finishReason": null,
+    "usage": null,
+    "containsExpected": null,
+    "answerPreview": "",
+    "streamError": null
+  }
+}
