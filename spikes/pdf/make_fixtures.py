@@ -9,6 +9,9 @@ page in reading order, used by spikes/pdf/score.ts to score extraction.
 Needs: Python 3, reportlab, Pillow, qpdf, pdftoppm (poppler).
 The generated files are committed, so you only rerun this to change them:
     python3 spikes/pdf/make_fixtures.py
+A full run regenerates the encrypted fixtures with new random keys. To write
+only the highlighting edge-case fixture (Task 0.7), leaving the rest untouched:
+    python3 spikes/pdf/make_fixtures.py --only=highlight-edge
 
 Synthetic PDFs are cleaner than real-world ones (no odd fonts, no layout
 quirks), so results are a baseline, not a guarantee.
@@ -23,7 +26,9 @@ from PIL import Image
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.pdfmetrics import stringWidth
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Frame, Paragraph, Table, TableStyle
 from reportlab.lib import colors
@@ -200,12 +205,78 @@ def sparse(path: Path) -> list[list[str]]:
     return expected
 
 
+# ----------------------------------------------------------------- edge cases
+FONT_CANDIDATES = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+    "/usr/share/fonts/dejavu/DejaVuSerif.ttf",
+    "/Library/Fonts/DejaVuSerif.ttf",
+]
+
+
+def highlight_edge(path: Path) -> list[list[str]]:
+    """
+    One page for the highlighting spike (Task 0.7). The PDF text differs from
+    the clean passages in the ways a highlighter must tolerate: real ligature
+    glyphs (U+FB00..FB03), words broken with a hyphen at the end of a line, and
+    curly quotes with an en dash. The returned fragments are the CLEAN
+    passages: plain letters, unbroken words, straight quotes.
+    """
+    font_path = next((p for p in FONT_CANDIDATES if Path(p).exists()), None)
+    if font_path is None:
+        raise SystemExit("DejaVu Serif not found; install it or add its path to FONT_CANDIDATES.")
+    pdfmetrics.registerFont(TTFont("DejaVuSerif", font_path))
+    size = 10.5
+
+    lines = [
+        "Brindlemoor note E.1: the ﬁnal oﬃce ﬂoor plan was ﬁled by the",
+        "facilities group after the ﬂagship ﬁre drill, and the ﬁnished ﬁgures",
+        "were oﬃcially signed oﬀ in March.",
+        "",
+        "Brindlemoor note E.2: the revised parking-",
+        "permit policy is reviewed every 12 weeks, and the quarterly reim-",
+        "bursement process is logged under reference 5521 by the finance office.",
+        "",
+        "Brindlemoor note E.3: the team’s “quick-start” guide – version 2 – is",
+        "logged under reference 7730.",
+    ]
+
+    c = new_canvas(path)
+    c.setFont("DejaVuSerif", 14)
+    c.drawString(MARGIN, PAGE_H - MARGIN, "Edge cases for highlighting")
+    y = PAGE_H - MARGIN - 14 * mm
+    for line in lines:
+        if line:
+            assert stringWidth(line, "DejaVuSerif", size) <= PAGE_W - 2 * MARGIN, f"line too wide: {line!r}"
+            c.setFont("DejaVuSerif", size)
+            c.drawString(MARGIN, y, line)
+        y -= LEADING
+    c.showPage()
+    c.save()
+
+    return [[
+        "Brindlemoor note E.1: the final office floor plan was filed by the facilities group after the flagship fire drill,",
+        "and the finished figures were officially signed off in March.",
+        "Brindlemoor note E.2: the revised parking-permit policy is reviewed every 12 weeks,",
+        "and the quarterly reimbursement process is logged under reference 5521 by the finance office.",
+        "Brindlemoor note E.3: the team's \"quick-start\" guide - version 2 - is logged under reference 7730.",
+    ]]
+
+
 def run_qpdf(*args: str) -> None:
     subprocess.run(["qpdf", *args], check=True)
 
 
-def main() -> None:
+def main(only=None) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
+
+    if only == "highlight-edge":
+        # Writes only the new fixture; the others (the encrypted ones use random
+        # keys) are left byte-for-byte as they are.
+        write_expected("highlight-edge", "edge-cases", highlight_edge(OUT / "highlight-edge.pdf"))
+        print("wrote highlight-edge.pdf and highlight-edge.expected.json")
+        return
+    if only is not None:
+        raise SystemExit(f"unknown --only value: {only!r} (supported: highlight-edge)")
 
     p = OUT / "single-column.pdf"
     write_expected("single-column", "single-column", single_column_pages(p, 10, 8, 100))
@@ -233,9 +304,14 @@ def main() -> None:
     (OUT / "corrupt-garbage.pdf").write_bytes(b"%PDF-1.7\n" + bytes(rnd.randrange(256) for _ in range(4096)))
     (OUT / "fake-exe.pdf").write_bytes(b"MZ" + bytes(rnd.randrange(256) for _ in range(2048)))
 
+    write_expected("highlight-edge", "edge-cases", highlight_edge(OUT / "highlight-edge.pdf"))
+
     for f in sorted(OUT.glob("*.pdf")):
         print(f"{f.name:34s}{f.stat().st_size:>10,d} bytes")
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    only_args = [a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--only=")]
+    main(only_args[0] if only_args else None)
