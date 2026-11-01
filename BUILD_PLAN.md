@@ -92,12 +92,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] A characters-per-page threshold reliably flags the scanned PDF and does not flag the text PDFs.
     - [x] Encrypted and corrupt files produce a catchable error, not a crash.
 
-- [ ] **0.7 ⚠ SPIKE: citation highlighting feasibility** · 3 h (timebox 4 h) · deps: 0.6
+- [x] **0.7 ⚠ SPIKE: citation highlighting feasibility** · 3 h (timebox 4 h) · deps: 0.6
   - **Build:** A client-only page using `react-pdf`. Load a local PDF, jump to page N, take a known passage, normalize both sides, and try to find it in the rendered text layer.
   - **Done when:**
-    - [ ] `docs/spikes/highlight.md` records the success rate on the 3 test PDFs (how many of ~5 known passages each highlighted correctly).
-    - [ ] It works in a **production build** (`next build && next start`), not only in dev. The PDF.js worker setup is the usual snag.
-    - [ ] **Gate:** if direct highlighting succeeds on fewer than about 40% of single-column passages, the design becomes "page jump + passage panel first, highlight as a bonus". Record that decision.
+    - [x] `docs/spikes/highlight.md` records the success rate on the 3 test PDFs (how many of ~5 known passages each highlighted correctly).
+    - [x] It works in a **production build** (`next build && next start`), not only in dev. The PDF.js worker setup is the usual snag.
+    - [x] **Gate:** if direct highlighting succeeds on fewer than about 40% of single-column passages, the design becomes "page jump + passage panel first, highlight as a bonus". Record that decision.
 
 - [ ] **0.8 SPIKE: streaming through Vercel** · 1.5 h · deps: 0.3
   - **Build:** A route that emits an event every 300 ms for 5 seconds, plus a client that renders them as they arrive.
@@ -538,7 +538,7 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 ### Decision gates (stop and decide before continuing)
 
 - [x] **After 0.5:** which embedding model and dimension? (Blocks task 1.1.)
-- [ ] **After 0.7:** direct highlight first, or passage panel first?
+- [x] **After 0.7:** direct highlight first, or passage panel first?
 - [ ] **After 2.2:** is baseline hit@k acceptable? If it's poor, fix chunking and retrieval before building more.
 - [ ] **After 2.3:** are the answerable and unanswerable score distributions separable enough?
 - [ ] **After 5.7:** what are the real global caps?
