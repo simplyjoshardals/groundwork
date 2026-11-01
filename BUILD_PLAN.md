@@ -120,12 +120,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 
 **Goal:** The smallest working version of the core feature, end to end, **deployed**: demo click → question → streamed grounded answer → source list.
 
-- [ ] **1.1 Migrations 0001-0004 and generated types** · 3 h · deps: 0.2, 0.5
+- [x] **1.1 Migrations 0001-0004 and generated types** · 3 h · deps: 0.2, 0.5
   - **Build:** Apply DATA_MODEL §2.1-§2.4 plus the policy blocks tagged 0002/0003/0004 in §3.2. Set the vector dimension from task 0.5. Generate TypeScript types.
   - **Done when:**
-    - [ ] `supabase db reset` runs clean from zero.
-    - [ ] `supabase gen types typescript --local` output is committed to `types/`.
-    - [ ] You can explain, in one sentence each, why `owner_id` is nullable and why `match_chunks` is `SECURITY INVOKER`.
+    - [x] `supabase db reset` runs clean from zero.
+    - [x] `supabase gen types typescript --local` output is committed to `types/`.
+    - [x] You can explain, in one sentence each, why `owner_id` is nullable and why `match_chunks` is `SECURITY INVOKER`.
 
 - [ ] **1.2 Dev seed and SQL security tests (subset)** · 3 h · deps: 1.1
   - **Build:** Add `supabase/seed.sql` (DATA_MODEL §6.2) and the tests T01-T11 and T17 from `supabase/tests/security.sql` (DATA_MODEL §7.1). Skip tests whose functions don't exist yet.
