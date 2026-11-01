@@ -8,3 +8,4 @@ next-env.d.ts
 yarn.lock
 package-lock.json
 supabase/.temp
+types/database.ts

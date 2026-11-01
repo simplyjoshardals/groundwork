@@ -19,3 +19,4 @@ Next.js (App Router) · TypeScript · Tailwind · Supabase (Auth, Storage, Postg
 | `yarn build`        | Production build                          |
 | `yarn format`       | Format everything with Prettier           |
 | `yarn format:check` | Check formatting without writing          |
+| `yarn db:types`     | Regenerate DB types from the local stack  |

@@ -11,6 +11,7 @@
     "test": "vitest run --passWithNoTests",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "db:types": "supabase gen types typescript --local > types/database.ts",
     "spike:provider": "tsx --env-file=.env.local spikes/provider/run.ts",
     "spike:pdf": "tsx --env-file=.env.local spikes/pdf/run.ts"
   },

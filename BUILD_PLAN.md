@@ -18,7 +18,7 @@ Companion to `REQUIREMENTS.md`, `ARCHITECTURE.md`, and `DATA_MODEL.md`. Tick box
 
 ### Progress tracker
 
-- [ ] **Slice 0:** Foundations and de-risking spikes (~20 h)
+- [x] **Slice 0:** Foundations and de-risking spikes (~20 h)
 - [ ] **Slice 1:** Ask the sample documents (walking skeleton) (~28 h)
 - [ ] **Slice 2:** Honest answers and the eval (~18 h)
 - [ ] **Slice 3:** Verify a citation: PDF viewer with highlight (~17 h)
@@ -88,7 +88,7 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 - [x] **0.6 ⚠ SPIKE: PDF text extraction on Vercel** · 3 h · deps: 0.3
   - **Build:** Try one pure-JS extractor in a deployed route using 3 PDFs (single column, two column, one with a table) plus one scanned/image-only PDF and one encrypted PDF.
   - **Done when:**
-    - [x] `docs/spikes/pdf.md` records the chosen library and version, per-page output quality on each PDF, and runtime on Vercel (cold start and duration for a 30-page file).
+    - [x] `docs/spikes/pdf.md` records the chosen library and version, per-page output quality on each PDF, and runtime on Vercel (cold start and duration for a 30-page file). (Qualification: the cold start is one sample taken on the 10-page file and the 30-page runs were warm only; see `docs/spikes/pdf.md` sections 6.2 to 6.4.)
     - [x] A characters-per-page threshold reliably flags the scanned PDF and does not flag the text PDFs.
     - [x] Encrypted and corrupt files produce a catchable error, not a crash.
 
@@ -112,7 +112,7 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] `facts.md` lists at least 25 facts with page numbers (you'll mine this for eval questions in Slice 2).
     - [x] At least 3 facts span two adjacent paragraphs, and at least 2 pages contain a table or list (to stress chunking).
 
-**Slice 0 done:** [ ] Global DoD (section 4) · [ ] All three decision gates recorded in `docs/decisions.md`
+**Slice 0 done:** [ ] Global DoD (section 4) · [x] Both Slice 0 decision gates recorded in `docs/decisions.md`
 
 ---
 
@@ -654,5 +654,5 @@ Record each one (screen capture or GIF). Keep them in a private folder; M3, M5, 
 
 ## Start Here
 
-- [ ] Do **0.1 → 0.2 → 0.3** (about 4.5 h) to get a deployed skeleton.
-- [ ] Then do **0.5** (provider spike) before anything else. Its result decides the schema, and it's the task most likely to force a change of plan.
+- [x] Do **0.1 → 0.2 → 0.3** (about 4.5 h) to get a deployed skeleton.
+- [x] Then do **0.5** (provider spike) before anything else. Its result decides the schema, and it's the task most likely to force a change of plan.
