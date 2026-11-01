@@ -105,12 +105,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] On the **deployed** URL, events appear incrementally rather than all at once at the end.
     - [x] You've confirmed the function's max duration from Vercel's current docs and set it explicitly in the route. (Sources I found disagree on the Hobby limit, so verify.)
 
-- [ ] **0.9 Sample documents** · 3 h · deps: none
+- [x] **0.9 Sample documents** · 3 h · deps: none
   - **Build:** Create two documents **you own** (synthetic, so you control every fact): a ~10-page text-based PDF (e.g. a fictional company policy handbook with distinct, checkable facts on specific pages) and a short Markdown FAQ. Keep a `facts.md` listing each fact and its page.
   - **Done when:**
-    - [ ] The PDF has selectable text, ≤ 30 pages, ≤ 5 MB.
-    - [ ] `facts.md` lists at least 25 facts with page numbers (you'll mine this for eval questions in Slice 2).
-    - [ ] At least 3 facts span two adjacent paragraphs, and at least 2 pages contain a table or list (to stress chunking).
+    - [x] The PDF has selectable text, ≤ 30 pages, ≤ 5 MB.
+    - [x] `facts.md` lists at least 25 facts with page numbers (you'll mine this for eval questions in Slice 2).
+    - [x] At least 3 facts span two adjacent paragraphs, and at least 2 pages contain a table or list (to stress chunking).
 
 **Slice 0 done:** [ ] Global DoD (section 4) · [ ] All three decision gates recorded in `docs/decisions.md`
 
