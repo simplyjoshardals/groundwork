@@ -85,12 +85,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] **Decision recorded in `docs/decisions.md`:** embedding model and dimension (this fixes `vector(768)` or changes it). (`gemini-embedding-2`, 768; `vector(768)` stays.)
     - [x] If signup from Nigeria failed for the primary provider, you have a working alternative (e.g. Cloudflare Workers AI or Jina for embeddings) before moving on. (Not triggered: signup succeeded for both providers.)
 
-- [ ] **0.6 ⚠ SPIKE: PDF text extraction on Vercel** · 3 h · deps: 0.3
+- [x] **0.6 ⚠ SPIKE: PDF text extraction on Vercel** · 3 h · deps: 0.3
   - **Build:** Try one pure-JS extractor in a deployed route using 3 PDFs (single column, two column, one with a table) plus one scanned/image-only PDF and one encrypted PDF.
   - **Done when:**
-    - [ ] `docs/spikes/pdf.md` records the chosen library and version, per-page output quality on each PDF, and runtime on Vercel (cold start and duration for a 30-page file).
-    - [ ] A characters-per-page threshold reliably flags the scanned PDF and does not flag the text PDFs.
-    - [ ] Encrypted and corrupt files produce a catchable error, not a crash.
+    - [x] `docs/spikes/pdf.md` records the chosen library and version, per-page output quality on each PDF, and runtime on Vercel (cold start and duration for a 30-page file).
+    - [x] A characters-per-page threshold reliably flags the scanned PDF and does not flag the text PDFs.
+    - [x] Encrypted and corrupt files produce a catchable error, not a crash.
 
 - [ ] **0.7 ⚠ SPIKE: citation highlighting feasibility** · 3 h (timebox 4 h) · deps: 0.6
   - **Build:** A client-only page using `react-pdf`. Load a local PDF, jump to page N, take a known passage, normalize both sides, and try to find it in the rendered text layer.
