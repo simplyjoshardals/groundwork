@@ -1,0 +1,54 @@
+{
+  "file": "sparse-text.pdf",
+  "kind": "sparse",
+  "pages": [
+    {
+      "page": 1,
+      "fragments": [
+        "Slide 1: quarterly review",
+        "Owner 1: facilities group",
+        "Target 1: 10 weeks"
+      ]
+    },
+    {
+      "page": 2,
+      "fragments": [
+        "Slide 2: quarterly review",
+        "Owner 2: facilities group",
+        "Target 2: 13 weeks"
+      ]
+    },
+    {
+      "page": 3,
+      "fragments": [
+        "Slide 3: quarterly review",
+        "Owner 3: facilities group",
+        "Target 3: 16 weeks"
+      ]
+    },
+    {
+      "page": 4,
+      "fragments": [
+        "Slide 4: quarterly review",
+        "Owner 4: facilities group",
+        "Target 4: 19 weeks"
+      ]
+    },
+    {
+      "page": 5,
+      "fragments": [
+        "Slide 5: quarterly review",
+        "Owner 5: facilities group",
+        "Target 5: 22 weeks"
+      ]
+    },
+    {
+      "page": 6,
+      "fragments": [
+        "Slide 6: quarterly review",
+        "Owner 6: facilities group",
+        "Target 6: 25 weeks"
+      ]
+    }
+  ]
+}

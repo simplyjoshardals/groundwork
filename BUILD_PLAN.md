@@ -30,15 +30,15 @@ Companion to `REQUIREMENTS.md`, `ARCHITECTURE.md`, and `DATA_MODEL.md`. Tick box
 
 ## 1. Vertical Slices (what each one delivers)
 
-| Slice | A user can now... | Layers touched |
-|-------|-------------------|----------------|
-| **0** | (nothing yet) You know provider access works from Nigeria, PDF extraction runs on Vercel, streaming isn't buffered, and highlighting is feasible. A skeleton is deployed. | Repo, CI, hosting, spikes |
-| **1** | Click "Try demo", ask a question about a pre-loaded sample document, and watch a streamed answer appear with a list of source passages (document and page). | UI, anonymous auth, retrieval, LLM streaming, DB schema + RLS, ingestion pipeline (via admin script) |
-| **2** | Get "I couldn't find that in your documents" when the answer isn't there, see validated citation chips, and you can measure all of this with an eval script. | Refusal gates, prompt hardening, citation validation, eval harness |
-| **3** | Click a citation and see the PDF open at the right page with the passage highlighted (or the exact passage shown beside the page if highlighting can't be trusted). | Viewer UI, storage policies, signed URLs, chunk fetch |
-| **4** | Sign up, upload a PDF/txt/md, watch it process, ask questions about it, and delete it. Errors like scanned PDFs are explained clearly. | Auth UI, upload, ingest API, status polling, delete + outbox, Playwright E2E |
-| **5** | The app survives strangers: per-user and global limits, CAPTCHA on demo, provider failover, cleanup jobs, and a tested security boundary. | Usage functions, CAPTCHA, failover, cron, load and security tests |
-| **6** | A recruiter has a polished experience, and you have a README with eval numbers, a diagram, and a demo video. | Accessibility, UX polish, docs |
+| Slice | A user can now...                                                                                                                                                         | Layers touched                                                                                       |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **0** | (nothing yet) You know provider access works from Nigeria, PDF extraction runs on Vercel, streaming isn't buffered, and highlighting is feasible. A skeleton is deployed. | Repo, CI, hosting, spikes                                                                            |
+| **1** | Click "Try demo", ask a question about a pre-loaded sample document, and watch a streamed answer appear with a list of source passages (document and page).               | UI, anonymous auth, retrieval, LLM streaming, DB schema + RLS, ingestion pipeline (via admin script) |
+| **2** | Get "I couldn't find that in your documents" when the answer isn't there, see validated citation chips, and you can measure all of this with an eval script.              | Refusal gates, prompt hardening, citation validation, eval harness                                   |
+| **3** | Click a citation and see the PDF open at the right page with the passage highlighted (or the exact passage shown beside the page if highlighting can't be trusted).       | Viewer UI, storage policies, signed URLs, chunk fetch                                                |
+| **4** | Sign up, upload a PDF/txt/md, watch it process, ask questions about it, and delete it. Errors like scanned PDFs are explained clearly.                                    | Auth UI, upload, ingest API, status polling, delete + outbox, Playwright E2E                         |
+| **5** | The app survives strangers: per-user and global limits, CAPTCHA on demo, provider failover, cleanup jobs, and a tested security boundary.                                 | Usage functions, CAPTCHA, failover, cron, load and security tests                                    |
+| **6** | A recruiter has a polished experience, and you have a README with eval numbers, a diagram, and a demo video.                                                              | Accessibility, UX polish, docs                                                                       |
 
 ---
 
@@ -72,10 +72,10 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] Searching the built client bundle (`.next/static`) for your service-role key and provider keys finds nothing.
     - [x] Preview deployments appear for pull requests.
 
-- [ ] **0.4 CI** · 1.5 h · deps: 0.1
+- [x] **0.4 CI** · 1.5 h · deps: 0.1
   - **Build:** GitHub Actions: install, lint, typecheck, unit tests, build.
   - **Done when:**
-    - [ ] A pushed branch shows a green check; a deliberately broken test turns it red (then revert).
+    - [x] A pushed branch shows a green check; a deliberately broken test turns it red (then revert).
 
 - [x] **0.5 ⚠ SPIKE: AI provider access and limits** · 3 h · deps: none · **riskiest task in the plan**
   - **Build:** Throwaway scripts (and a temporary `/api/spike` route) that: get a free embeddings key and an LLM key **without a card from Nigeria**; embed ~100 text chunks in batches; stream one LLM answer; do the same from the **deployed** Vercel route; repeat the LLM call with Groq as a second provider. Check whether the embedding model can output **768 dimensions** (DATA_MODEL §0).
@@ -85,12 +85,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] **Decision recorded in `docs/decisions.md`:** embedding model and dimension (this fixes `vector(768)` or changes it). (`gemini-embedding-2`, 768; `vector(768)` stays.)
     - [x] If signup from Nigeria failed for the primary provider, you have a working alternative (e.g. Cloudflare Workers AI or Jina for embeddings) before moving on. (Not triggered: signup succeeded for both providers.)
 
-- [ ] **0.6 ⚠ SPIKE: PDF text extraction on Vercel** · 3 h · deps: 0.3
+- [x] **0.6 ⚠ SPIKE: PDF text extraction on Vercel** · 3 h · deps: 0.3
   - **Build:** Try one pure-JS extractor in a deployed route using 3 PDFs (single column, two column, one with a table) plus one scanned/image-only PDF and one encrypted PDF.
   - **Done when:**
-    - [ ] `docs/spikes/pdf.md` records the chosen library and version, per-page output quality on each PDF, and runtime on Vercel (cold start and duration for a 30-page file).
-    - [ ] A characters-per-page threshold reliably flags the scanned PDF and does not flag the text PDFs.
-    - [ ] Encrypted and corrupt files produce a catchable error, not a crash.
+    - [x] `docs/spikes/pdf.md` records the chosen library and version, per-page output quality on each PDF, and runtime on Vercel (cold start and duration for a 30-page file).
+    - [x] A characters-per-page threshold reliably flags the scanned PDF and does not flag the text PDFs.
+    - [x] Encrypted and corrupt files produce a catchable error, not a crash.
 
 - [ ] **0.7 ⚠ SPIKE: citation highlighting feasibility** · 3 h (timebox 4 h) · deps: 0.6
   - **Build:** A client-only page using `react-pdf`. Load a local PDF, jump to page N, take a known passage, normalize both sides, and try to find it in the rendered text layer.
@@ -524,16 +524,16 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 
 ### Risky tasks and why
 
-| Task | Risk | Why it's risky | How to find out cheaply |
-|------|------|----------------|-------------------------|
-| **0.5** Provider access and limits | Free tier unavailable, tighter than expected, or changed | It decides the embedding model and dimension, which fix your schema. Free-tier limits and terms change often. | The spike itself: real signup, real calls, deployed and local |
-| **0.7 / 3.5** Highlighting | Text-layer matching fails on real PDFs | PDF.js splits text unpredictably; multi-column layouts and hyphenation break naive matching. | Spike on 3 layouts; cap the time; fallback panel is designed in |
-| **2.3** Refusal threshold | Similarity scores for answerable vs unanswerable overlap | Thresholds are model-specific and the eval set is small. | Plot both distributions before building the gate |
-| **0.6 / 4.4** PDF extraction and ingest on Vercel | Timeouts, bundling problems, poor extraction | Serverless limits and library quirks | Spike deployed, not just local; set `maxDuration` explicitly |
-| **0.8 / 1.9** Streaming | Responses buffered by the platform | Works on localhost, breaks when deployed | Deploy the 20-line spike first |
-| **1.2 / 4.10** RLS and isolation | A policy gap leaks data | Column grants, restrictive policies, storage policies, and RPC grants are easy to get subtly wrong | SQL tests from day one; deliberately break a policy once to see the test catch it |
-| **5.4 / 5.7** CAPTCHA and abuse | Public link drains free quota | Free tiers have hard caps and no spending cushion | Load test with 50 anonymous sessions before sharing |
-| **4.1** Email confirmation | Default email sending is rate-limited | A real signup could silently fail | Decide the approach in Slice 4, not at launch |
+| Task                                              | Risk                                                     | Why it's risky                                                                                                | How to find out cheaply                                                           |
+| ------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| **0.5** Provider access and limits                | Free tier unavailable, tighter than expected, or changed | It decides the embedding model and dimension, which fix your schema. Free-tier limits and terms change often. | The spike itself: real signup, real calls, deployed and local                     |
+| **0.7 / 3.5** Highlighting                        | Text-layer matching fails on real PDFs                   | PDF.js splits text unpredictably; multi-column layouts and hyphenation break naive matching.                  | Spike on 3 layouts; cap the time; fallback panel is designed in                   |
+| **2.3** Refusal threshold                         | Similarity scores for answerable vs unanswerable overlap | Thresholds are model-specific and the eval set is small.                                                      | Plot both distributions before building the gate                                  |
+| **0.6 / 4.4** PDF extraction and ingest on Vercel | Timeouts, bundling problems, poor extraction             | Serverless limits and library quirks                                                                          | Spike deployed, not just local; set `maxDuration` explicitly                      |
+| **0.8 / 1.9** Streaming                           | Responses buffered by the platform                       | Works on localhost, breaks when deployed                                                                      | Deploy the 20-line spike first                                                    |
+| **1.2 / 4.10** RLS and isolation                  | A policy gap leaks data                                  | Column grants, restrictive policies, storage policies, and RPC grants are easy to get subtly wrong            | SQL tests from day one; deliberately break a policy once to see the test catch it |
+| **5.4 / 5.7** CAPTCHA and abuse                   | Public link drains free quota                            | Free tiers have hard caps and no spending cushion                                                             | Load test with 50 anonymous sessions before sharing                               |
+| **4.1** Email confirmation                        | Default email sending is rate-limited                    | A real signup could silently fail                                                                             | Decide the approach in Slice 4, not at launch                                     |
 
 ### Decision gates (stop and decide before continuing)
 
@@ -550,37 +550,44 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 Copy this list into each slice's pull request description and tick it. **A slice isn't finished until every box is ticked or consciously deferred with a written reason.**
 
 ### Works
+
 - [ ] Every acceptance criterion in the slice's tasks is ticked.
 - [ ] The slice works on the **deployed preview**, not only on localhost.
 - [ ] Happy path and at least two failure paths were tried by hand.
 - [ ] Loading, empty, and error states exist for every new screen.
 
 ### Tested
+
 - [ ] New pure logic has Vitest tests (chunker, parsers, validators, gates).
 - [ ] Any change to schema, policies, grants, or functions has SQL tests, and the **whole** SQL suite passes.
 - [ ] Any new user flow has a Playwright test (from Slice 4 onward).
 - [ ] `npm run lint && npm run typecheck && npm test && npm run build` pass and CI is green.
 
 ### Errors handled
+
 - [ ] Every external call (Supabase, providers, storage) has a failure path with a user-readable message.
 - [ ] No stack traces, SQL errors, or provider messages reach the browser.
 - [ ] Inputs are validated on the server (zod), regardless of client checks.
 - [ ] No unhandled promise rejections or errors in the server logs during your manual run.
 
 ### Clean
+
 - [ ] No console errors or warnings in the browser (including hydration warnings).
 - [ ] No leftover `console.log`, commented-out code, or dead files.
 
 ### Secrets and security
+
 - [ ] No secrets in the repo, in the client bundle, or in logs; `.env.example` updated if new variables were added.
 - [ ] Any new table has RLS enabled and explicit grants; any new function has `REVOKE` from `PUBLIC` and a deliberate `GRANT`.
 - [ ] The service-role client is only used in server code that needs it.
 - [ ] No endpoint reveals whether another user's data exists.
 
 ### Accessibility basics
+
 - [ ] New interactive elements are reachable and operable by keyboard, with visible focus and accessible names.
 
 ### Committed and recorded
+
 - [ ] Small, meaningfully named commits; branch merged; tag `slice-N` created.
 - [ ] `docs/decisions.md` updated if a design decision changed.
 - [ ] README or docs updated for anything a new developer would need.
@@ -592,40 +599,40 @@ Copy this list into each slice's pull request description and tick it. **A slice
 
 Hours are focused working hours. "Likely" is the sum of the task estimates above. The range reflects the unknowns: the RAG-specific pieces are new to you, and free-tier behavior can surprise you.
 
-| Slice | Optimistic | Likely | Pessimistic | Main source of overrun |
-|-------|-----------:|-------:|------------:|------------------------|
-| 0 Foundations and spikes | 17 | 20 | 24 | Provider signup or limits; PDF library problems on Vercel |
-| 1 Ask the sample | 24 | 28 | 36 | RLS + pgvector + streaming integration; anonymous auth quirks |
-| 2 Honest answers and eval | 15 | 18 | 24 | Poor retrieval needing chunking and prompt iteration |
-| 3 Verify a citation | 14 | 17 | 26 | Highlight matching on real PDFs; PDF.js worker setup |
-| 4 Your own documents | 22 | 26 | 34 | Ingestion edge cases; email confirmation; Playwright setup |
-| 5 Public-ready | 20 | 24 | 30 | CAPTCHA integration; load-test findings; cron setup |
-| 6 Ship | 18 | 23 | 28 | README and polish expand to fill available time |
-| **Total** | **130** | **155** | **202** | |
+| Slice                     | Optimistic |  Likely | Pessimistic | Main source of overrun                                        |
+| ------------------------- | ---------: | ------: | ----------: | ------------------------------------------------------------- |
+| 0 Foundations and spikes  |         17 |      20 |          24 | Provider signup or limits; PDF library problems on Vercel     |
+| 1 Ask the sample          |         24 |      28 |          36 | RLS + pgvector + streaming integration; anonymous auth quirks |
+| 2 Honest answers and eval |         15 |      18 |          24 | Poor retrieval needing chunking and prompt iteration          |
+| 3 Verify a citation       |         14 |      17 |          26 | Highlight matching on real PDFs; PDF.js worker setup          |
+| 4 Your own documents      |         22 |      26 |          34 | Ingestion edge cases; email confirmation; Playwright setup    |
+| 5 Public-ready            |         20 |      24 |          30 | CAPTCHA integration; load-test findings; cron setup           |
+| 6 Ship                    |         18 |      23 |          28 | README and polish expand to fill available time               |
+| **Total**                 |    **130** | **155** |     **202** |                                                               |
 
-**Calendar translation** (at the *likely* total, adding about 30% buffer for the unexpected, roughly 200 h):
+**Calendar translation** (at the _likely_ total, adding about 30% buffer for the unexpected, roughly 200 h):
 
-| Pace | Focused hours/week | Approximate duration |
-|------|-------------------:|---------------------:|
-| Part-time | 15-20 | 10-13 weeks |
-| Serious side project | 25-30 | 7-8 weeks |
-| Full-time | 35-40 | 5-6 weeks |
+| Pace                 | Focused hours/week | Approximate duration |
+| -------------------- | -----------------: | -------------------: |
+| Part-time            |              15-20 |          10-13 weeks |
+| Serious side project |              25-30 |            7-8 weeks |
+| Full-time            |              35-40 |            5-6 weeks |
 
 **If you have a hard deadline:** work backwards from **Milestone M5**. Slices 0-5 are the minimum shippable project (about 132 h at the likely estimates, a little less if you take some of the cuts below). Slice 6 is what makes it impressive, so budget at least the README and demo video (6.6, 6.7) even in the tightest version.
 
 ### What to cut if time runs out (in this order)
 
-| # | Cut | Saves | Cost of cutting |
-|---|-----|------:|-----------------|
-| 1 | 6.4 Responsive polish | ~2 h | Mobile experience is rougher; most reviewers use desktop |
-| 2 | 5.10 Structured logging (keep basic logs) | ~1 h | Harder debugging |
-| 3 | 6.3 Landing page polish (keep a minimal button and example questions) | ~1.5 h | Less polished first impression |
-| 4 | 3.7 Text/Markdown highlighting (just show the passage) | ~2 h | `.md`/`.txt` citations are less impressive |
-| 5 | 6.2 Single-document filter | ~2 h | One fewer feature (a "should", not a "must") |
-| 6 | 5.9 Failure drills (do two or three, not all) | ~1 h | Less proof of resilience |
-| 7 | 2.8 Eval v2 automation (grade answers by hand and record the table) | ~1.5 h | Eval is less repeatable |
-| 8 | 5.5 LLM failover (show sources with a "can't answer now" note instead) | ~3 h | Demo is more fragile when the primary provider is rate-limited |
-| 9 | txt/md upload support (PDF only) | ~4 h across slices | Fewer file types; update README to say so |
+| #   | Cut                                                                    |              Saves | Cost of cutting                                                |
+| --- | ---------------------------------------------------------------------- | -----------------: | -------------------------------------------------------------- |
+| 1   | 6.4 Responsive polish                                                  |               ~2 h | Mobile experience is rougher; most reviewers use desktop       |
+| 2   | 5.10 Structured logging (keep basic logs)                              |               ~1 h | Harder debugging                                               |
+| 3   | 6.3 Landing page polish (keep a minimal button and example questions)  |             ~1.5 h | Less polished first impression                                 |
+| 4   | 3.7 Text/Markdown highlighting (just show the passage)                 |               ~2 h | `.md`/`.txt` citations are less impressive                     |
+| 5   | 6.2 Single-document filter                                             |               ~2 h | One fewer feature (a "should", not a "must")                   |
+| 6   | 5.9 Failure drills (do two or three, not all)                          |               ~1 h | Less proof of resilience                                       |
+| 7   | 2.8 Eval v2 automation (grade answers by hand and record the table)    |             ~1.5 h | Eval is less repeatable                                        |
+| 8   | 5.5 LLM failover (show sources with a "can't answer now" note instead) |               ~3 h | Demo is more fragile when the primary provider is rate-limited |
+| 9   | txt/md upload support (PDF only)                                       | ~4 h across slices | Fewer file types; update README to say so                      |
 
 **Never cut:** the SQL security tests, the isolation test (4.10), refusal behavior (2.4-2.5), citation validation (2.6), usage limits and CAPTCHA (5.2, 5.4), the eval write-up (6.5), and the README (6.6). Those are what distinguish this from a template clone.
 
@@ -635,13 +642,13 @@ Hours are focused working hours. "Likely" is the sum of the task estimates above
 
 Record each one (screen capture or GIF). Keep them in a private folder; M3, M5, and M6 feed the README and your applications.
 
-- [ ] **M0: End of Slice 0 · Private.** Screenshot of the deployed skeleton plus the three spike findings (`docs/spikes/`). *Shows: you de-risked before building. Good for your own morale and a "decisions" section in the README.*
-- [ ] **M1: End of Slice 1 · Show a friend.** 30-second clip: click Try demo → ask a question about the sample → answer streams in → sources listed with pages. *First proof the core works end to end on a deployed URL.*
-- [ ] **M2: End of Slice 2 · Show a technical friend.** Two clips: an answerable question with citation chips, and an unanswerable one returning "I couldn't find that". Plus a terminal screenshot of the eval table. *Shows measurement, not vibes.*
-- [ ] **M3: End of Slice 3 · Your best clip.** 60 seconds: ask → click citation → the PDF opens at the page with the passage highlighted → then a case where the fallback panel appears. *This is the hero demo; lead your README with it.*
-- [ ] **M4: End of Slice 4 · Show someone non-technical.** Sign up → upload → watch status → ask → delete. Include the scanned-PDF error. Add a short capture of the Playwright isolation test passing. *Proves the app works for real users and that user A can't see user B.*
-- [ ] **M5: End of Slice 5 · Safe to publish the link.** Clips of: the limit message and remaining-questions counter, the CAPTCHA, a provider failure falling back gracefully, and the load-test summary. *Only after this may the URL go on your CV.*
-- [ ] **M6: End of Slice 6 · Launch.** Final 60-90 second video, README with eval numbers, cold-test feedback addressed. *Add to your CV, GitHub profile, and applications.*
+- [ ] **M0: End of Slice 0 · Private.** Screenshot of the deployed skeleton plus the three spike findings (`docs/spikes/`). _Shows: you de-risked before building. Good for your own morale and a "decisions" section in the README._
+- [ ] **M1: End of Slice 1 · Show a friend.** 30-second clip: click Try demo → ask a question about the sample → answer streams in → sources listed with pages. _First proof the core works end to end on a deployed URL._
+- [ ] **M2: End of Slice 2 · Show a technical friend.** Two clips: an answerable question with citation chips, and an unanswerable one returning "I couldn't find that". Plus a terminal screenshot of the eval table. _Shows measurement, not vibes._
+- [ ] **M3: End of Slice 3 · Your best clip.** 60 seconds: ask → click citation → the PDF opens at the page with the passage highlighted → then a case where the fallback panel appears. _This is the hero demo; lead your README with it._
+- [ ] **M4: End of Slice 4 · Show someone non-technical.** Sign up → upload → watch status → ask → delete. Include the scanned-PDF error. Add a short capture of the Playwright isolation test passing. _Proves the app works for real users and that user A can't see user B._
+- [ ] **M5: End of Slice 5 · Safe to publish the link.** Clips of: the limit message and remaining-questions counter, the CAPTCHA, a provider failure falling back gracefully, and the load-test summary. _Only after this may the URL go on your CV._
+- [ ] **M6: End of Slice 6 · Launch.** Final 60-90 second video, README with eval numbers, cold-test feedback addressed. _Add to your CV, GitHub profile, and applications._
 
 ---
 
