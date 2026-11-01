@@ -99,11 +99,11 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] It works in a **production build** (`next build && next start`), not only in dev. The PDF.js worker setup is the usual snag.
     - [x] **Gate:** if direct highlighting succeeds on fewer than about 40% of single-column passages, the design becomes "page jump + passage panel first, highlight as a bonus". Record that decision.
 
-- [ ] **0.8 SPIKE: streaming through Vercel** · 1.5 h · deps: 0.3
+- [x] **0.8 SPIKE: streaming through Vercel** · 1.5 h · deps: 0.3
   - **Build:** A route that emits an event every 300 ms for 5 seconds, plus a client that renders them as they arrive.
   - **Done when:**
-    - [ ] On the **deployed** URL, events appear incrementally rather than all at once at the end.
-    - [ ] You've confirmed the function's max duration from Vercel's current docs and set it explicitly in the route. (Sources I found disagree on the Hobby limit, so verify.)
+    - [x] On the **deployed** URL, events appear incrementally rather than all at once at the end.
+    - [x] You've confirmed the function's max duration from Vercel's current docs and set it explicitly in the route. (Sources I found disagree on the Hobby limit, so verify.)
 
 - [ ] **0.9 Sample documents** · 3 h · deps: none
   - **Build:** Create two documents **you own** (synthetic, so you control every fact): a ~10-page text-based PDF (e.g. a fictional company policy handbook with distinct, checkable facts on specific pages) and a short Markdown FAQ. Keep a `facts.md` listing each fact and its page.
