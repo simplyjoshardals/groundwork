@@ -237,6 +237,7 @@ sequenceDiagram
 - **Alternatives:** document-level chunking with a page map; semantic chunking.
 - **Why:** Page-bounded chunks make citations trivially correct. The cost is that an idea spanning two pages gets split. Acceptable for MVP; the eval will tell you if it hurts.
 - **Change my mind if:** eval shows answers failing specifically at page breaks.
+- **Built (Task 1.4):** `lib/chunking/` exports `chunkPages(pages, options) → Chunk[]` (page-bounded, paragraph-aware, overlap that snaps to paragraph, sentence or word starts; offsets into the normalized page text), `normalizePageText` with `PIPELINE_VERSION = 1`, and `paginateText` for virtual pages of about 4000 characters for txt and md. Defaults are 1200 characters per chunk and 150 overlap, provisional until the eval; chunk size is in characters, not tokens. The 30-page limit is enforced by extraction, not here. Details: `docs/decisions.md` (2026-11-02).
 
 ### 3.8 Embeddings provider
 
@@ -423,6 +424,7 @@ document-qa/
 │  ├─ providers/             # EmbeddingProvider / LlmProvider interfaces + adapters
 │  ├─ supabase/              # browser, server (user-scoped), admin (service-role) clients
 │  ├─ pdf/                   # extraction (PDF, txt, md) + scanned-PDF detection
+│  ├─ chunking/              # normalization, page-bounded chunker, txt/md virtual pages
 │  └─ config.ts              # limits, thresholds, model IDs (all tunable in one place)
 ├─ types/                    # generated DB types, shared event contract types
 ├─ proxy.ts                    # session refresh (Next 16 name for middleware)

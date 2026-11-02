@@ -140,10 +140,10 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] A smoke script returns a vector of exactly the expected length and a streamed answer. (`yarn provider:smoke` against the real Gemini API: 768-dimension, all-finite vectors for a document and a query, and a streamed answer with a `stop` finish event; one run, reported by the project owner.)
     - [x] Importing the provider module from a client component fails the build (`server-only`). (A temporary `"use client"` page importing `@/lib/providers` failed `yarn build` with the `server-only` error; the page was then deleted and `yarn build` passed. Reported by the project owner.)
 
-- [ ] **1.4 Chunker** · 2.5 h · deps: none
+- [x] **1.4 Chunker** · 2.5 h · deps: none
   - **Build:** Pure function: `pages[] → chunks[]` (page-bounded, paragraph-aware, small overlap, offsets into normalized page text, virtual pages for txt/md). Put the normalization function in one place and give it a version number (`pipeline_version`).
   - **Done when:**
-    - [ ] Vitest cases: never crosses a page boundary; `text.slice(char_start, char_end)` equals the chunk content; empty pages skipped; oversized paragraphs split; chunk size within limits; deterministic output.
+    - [x] Vitest cases: never crosses a page boundary; `text.slice(char_start, char_end)` equals the chunk content; empty pages skipped; oversized paragraphs split; chunk size within limits; deterministic output. (`tests/unit/chunking-chunk-pages.test.ts`, `chunking-normalize.test.ts` and `chunking-paginate.test.ts`, 82 test blocks in total, including a generated-input invariants test and the 4000-character `chunks.content` ceiling. Marked done by the project owner; the full unit suite also passed in Claude's sandbox, where the only failing file was `sample-docs.test.ts` because its seed PDF was missing from the repository snapshot. The defaults of 1200 characters per chunk and 150 overlap are provisional until the Slice 2 eval.)
 
 - [x] **1.5 Extraction module** · 2 h · deps: 0.6
   - **Build:** `extractPages(buffer, mimeType) → pages[]` using the library from the spike, including magic-byte sniffing, page-count enforcement (> 30 throws), and scanned-PDF detection.
