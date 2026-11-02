@@ -140,15 +140,15 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] A smoke script returns a vector of exactly the expected length and a streamed answer. (`yarn provider:smoke` against the real Gemini API: 768-dimension, all-finite vectors for a document and a query, and a streamed answer with a `stop` finish event; one run, reported by the project owner.)
     - [x] Importing the provider module from a client component fails the build (`server-only`). (A temporary `"use client"` page importing `@/lib/providers` failed `yarn build` with the `server-only` error; the page was then deleted and `yarn build` passed. Reported by the project owner.)
 
-- [x] **1.4 Chunker** · 2.5 h · deps: none
+- [ ] **1.4 Chunker** · 2.5 h · deps: none
   - **Build:** Pure function: `pages[] → chunks[]` (page-bounded, paragraph-aware, small overlap, offsets into normalized page text, virtual pages for txt/md). Put the normalization function in one place and give it a version number (`pipeline_version`).
   - **Done when:**
-    - [x] Vitest cases: never crosses a page boundary; `text.slice(char_start, char_end)` equals the chunk content; empty pages skipped; oversized paragraphs split; chunk size within limits; deterministic output. (Tests are in `tests/unit/chunking-*.test.ts`. `yarn lint`, `yarn typecheck`, Prettier, the full `yarn test` suite (259 tests across 11 files) and `yarn build` all passed locally, as reported by the project owner; they were not run in Claude's sandbox. Defaults `maxChars=1200` and `overlapChars=150` are provisional, not validated against retrieval; see `docs/decisions.md`.)
+    - [ ] Vitest cases: never crosses a page boundary; `text.slice(char_start, char_end)` equals the chunk content; empty pages skipped; oversized paragraphs split; chunk size within limits; deterministic output.
 
-- [ ] **1.5 Extraction module** · 2 h · deps: 0.6
+- [x] **1.5 Extraction module** · 2 h · deps: 0.6
   - **Build:** `extractPages(buffer, mimeType) → pages[]` using the library from the spike, including magic-byte sniffing, page-count enforcement (> 30 throws), and scanned-PDF detection.
   - **Done when:**
-    - [ ] Unit tests with fixture files: normal PDF, scanned PDF (throws `ScannedPdfError`), 31-page PDF (`TooManyPagesError`), corrupt file, `.exe` renamed `.pdf` (rejected by sniffing), txt and md.
+    - [x] Unit tests with fixture files: normal PDF, scanned PDF (throws `ScannedPdfError`), 31-page PDF (`TooManyPagesError`), corrupt file, `.exe` renamed `.pdf` (rejected by sniffing), txt and md. (`tests/unit/pdf-extract.test.ts`, 45 tests, also covering blank pages, encrypted PDFs, empty and invalid input, unsupported MIME types, the 30/31 boundary for virtual text pages, and PDF.js cleanup on success and failure. Fixtures were copied from `spikes/pdf/fixtures/` into `tests/fixtures/pdf/`; the 31-page PDF is built inside the test. Lint, typecheck and unit tests pass locally, as reported by the project owner. The scanned-PDF threshold is provisional; see `docs/decisions.md`.)
 
 - [ ] **1.6 Ingestion service and sample seeding script** · 3 h · deps: 1.1, 1.3, 1.4, 1.5, 0.9
   - **Build:** `ingestDocument(documentId)` in `features/ingestion/` using the claim → insert chunk batches → finalize flow (DATA_MODEL §2.6; add migration 0006 here if you want to use the functions already, or call them in Slice 4 and use direct admin writes for now). A script `npm run seed:samples` uploads your sample files to `samples/`, inserts `is_public` document rows with the service role, and runs ingestion.

@@ -33,7 +33,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "prettier": "^3.9.10",
-    "supabase": "2.122.0",
+    "supabase": "3.0.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",

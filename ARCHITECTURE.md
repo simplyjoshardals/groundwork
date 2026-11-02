@@ -229,6 +229,7 @@ sequenceDiagram
 - **Why:** You need page numbers, and you need it to run on Vercel without native binaries.
 - **Change my mind if:** extraction quality is poor on your three test PDFs. **🔎 VERIFY** current maintenance status and Next.js/Vercel compatibility before committing.
 - **Scanned-PDF detection:** if average extracted characters per page is below a small threshold, reject with the "scanned PDF" error.
+- **Built (Task 1.5):** `lib/pdf/` exports `extractPages(buffer, mimeType) → { page, text }[]` for PDF, `text/plain` and `text/markdown` (text and Markdown become virtual pages through the chunker's `paginateText`). It sniffs magic bytes, rejects more than 30 pages (physical or virtual) and files over 5 MiB, and throws typed `ExtractionError` subclasses whose `code` matches `documents.error_reason`. The scanned threshold is 25 non-whitespace characters per page on average; it is provisional (synthetic evidence only) and is not OCR detection. Details and limits: `docs/decisions.md` (2026-11-02).
 
 ### 3.7 Chunking
 
@@ -421,7 +422,7 @@ document-qa/
 ├─ lib/
 │  ├─ providers/             # EmbeddingProvider / LlmProvider interfaces + adapters
 │  ├─ supabase/              # browser, server (user-scoped), admin (service-role) clients
-│  ├─ pdf/                   # extraction + scanned-PDF detection
+│  ├─ pdf/                   # extraction (PDF, txt, md) + scanned-PDF detection
 │  └─ config.ts              # limits, thresholds, model IDs (all tunable in one place)
 ├─ types/                    # generated DB types, shared event contract types
 ├─ proxy.ts                    # session refresh (Next 16 name for middleware)
