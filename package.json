@@ -12,6 +12,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:types": "supabase gen types typescript --local > types/database.ts",
+    "provider:smoke": "tsx --conditions=react-server --env-file=.env.local scripts/provider-smoke.ts",
     "spike:provider": "tsx --env-file=.env.local spikes/provider/run.ts",
     "spike:pdf": "tsx --env-file=.env.local spikes/pdf/run.ts"
   },
@@ -21,6 +22,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-pdf": "11.0.0",
+    "server-only": "0.0.1",
     "unpdf": "1.9.1"
   },
   "devDependencies": {

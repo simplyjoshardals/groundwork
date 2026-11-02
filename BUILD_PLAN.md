@@ -127,18 +127,18 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] `supabase gen types typescript --local` output is committed to `types/`.
     - [x] You can explain, in one sentence each, why `owner_id` is nullable and why `match_chunks` is `SECURITY INVOKER`.
 
-- [ ] **1.2 Dev seed and SQL security tests (subset)** · 3 h · deps: 1.1
+- [x] **1.2 Dev seed and SQL security tests (subset)** · 3 h · deps: 1.1
   - **Build:** Add `supabase/seed.sql` (DATA_MODEL §6.2) and the tests T01-T11 and T17 from `supabase/tests/security.sql` (DATA_MODEL §7.1). Skip tests whose functions don't exist yet.
   - **Done when:**
-    - [ ] The script runs under `psql -v ON_ERROR_STOP=1` and ends with `ROLLBACK` with zero assertion failures.
-    - [ ] You deliberately weaken one policy (e.g. `using (true)`), see a test fail, then restore it.
+    - [x] The script runs under `psql -v ON_ERROR_STOP=1` and ends with `ROLLBACK` with zero assertion failures.
+    - [x] You deliberately weaken one policy (e.g. `using (true)`), see a test fail, then restore it.
 
-- [ ] **1.3 Provider interfaces and Gemini adapters** · 3 h · deps: 0.5
+- [x] **1.3 Provider interfaces and Gemini adapters** · 3 h · deps: 0.5
   - **Build:** `EmbeddingProvider` (`embed(texts[]) → vectors`) and `LlmProvider` (`stream(messages) → async iterator`) in `lib/providers/`, plus the adapters from your spike. Normalize errors into `RateLimitError`, `ProviderUnavailableError`, `BadRequestError`. Keys read only from server env.
   - **Done when:**
-    - [ ] Unit tests with mocked `fetch` cover success, 429, 5xx, and malformed responses.
-    - [ ] A smoke script returns a vector of exactly the expected length and a streamed answer.
-    - [ ] Importing the provider module from a client component fails the build (`server-only`).
+    - [x] Unit tests with mocked `fetch` cover success, 429, 5xx, and malformed responses. (`yarn lint`, `yarn typecheck` and `yarn test` pass locally, as reported by the project owner; tests are in `tests/unit/providers-*.test.ts`. The 429 and 5xx cases use mocked responses in Google's documented error format, not a captured real response.)
+    - [x] A smoke script returns a vector of exactly the expected length and a streamed answer. (`yarn provider:smoke` against the real Gemini API: 768-dimension, all-finite vectors for a document and a query, and a streamed answer with a `stop` finish event; one run, reported by the project owner.)
+    - [x] Importing the provider module from a client component fails the build (`server-only`). (A temporary `"use client"` page importing `@/lib/providers` failed `yarn build` with the `server-only` error; the page was then deleted and `yarn build` passed. Reported by the project owner.)
 
 - [ ] **1.4 Chunker** · 2.5 h · deps: none
   - **Build:** Pure function: `pages[] → chunks[]` (page-bounded, paragraph-aware, small overlap, offsets into normalized page text, virtual pages for txt/md). Put the normalization function in one place and give it a version number (`pipeline_version`).
