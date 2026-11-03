@@ -158,12 +158,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] A simulated 429 mid-run is retried with backoff and the run completes. (Unit-tested with simulated `RateLimitError`s in `tests/unit/ingestion-ingest-document.test.ts`: retry waits of 15 s then 30 s, a longer provider hint honoured up to 65 s, and the run then completes without duplicate chunks. No real 429 was observed or provoked.)
     - [x] Chunks in the DB all carry the same `embedding_model`. (Supabase queries by the project owner: one `embedding_model` per document, `gemini-embedding-2`.)
 
-- [ ] **1.7 Supabase clients, proxy, anonymous demo session** · 3 h · deps: 0.2, 1.1
+- [x] **1.7 Supabase clients, proxy, anonymous demo session** · 3 h · deps: 0.2, 1.1
   - **Build:** Three clients (browser, server-as-user, admin) in `lib/supabase/`; `@supabase/ssr` cookie handling; `proxy.ts` (Next 16's replacement for middleware) that refreshes the session; a "Try demo" button that calls anonymous sign-in. (CAPTCHA comes in Slice 5.)
   - **Done when:**
-    - [ ] Clicking "Try demo" creates a session that survives a refresh; the decoded JWT shows `is_anonymous: true`.
-    - [ ] The admin client can't be imported from client code (the build fails if you try).
-    - [ ] A demo user querying `documents` sees exactly the 2 public samples.
+    - [x] Clicking "Try demo" creates a session that survives a refresh; the decoded JWT shows `is_anonymous: true`. (Local Supabase, as reported by the project owner: anonymous sign-in works, the session survives a refresh and `is_anonymous` is true. Tests are in `tests/unit/supabase-*.test.ts`; the proxy was also smoke-tested in Claude's sandbox without a Supabase stack.)
+    - [x] The admin client can't be imported from client code (the build fails if you try). (`lib/supabase/admin.ts` imports `server-only`; a client component importing it fails `next build`, as reported by the project owner and also seen in Claude's sandbox. `eslint.config.mjs` additionally forbids the import in `app/`, `components/`, `lib/` and `proxy.ts`.)
+    - [ ] A demo user querying `documents` sees exactly the 2 public samples. (**Unresolved.** On a database seeded with `supabase/seed.sql`, a demo user sees 4 public documents: the 2 real samples plus the Northwind and Fabrikam placeholder rows. The seed fixtures were deliberately left unchanged because `supabase/tests/security.sql` T00d and T00e assert exactly 2 public documents and 14 chunks; reconciling the fixtures and those tests is tracked separately. Not checked against a hosted database.)
 
 - [ ] **1.8 Stream event contract and client parser** · 2 h · deps: none
   - **Build:** Shared types for the events `sources`, `token`, `done`, `not_found`, `limit`, `error`, plus a client-side parser for the response stream.
