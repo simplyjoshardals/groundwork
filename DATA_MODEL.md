@@ -714,6 +714,8 @@ end;
 $$;
 ```
 
+> **Implemented in Task 1.6** as `supabase/migrations/20261102120000_ingestion_functions.sql` (label 0006: the SQL above plus the 0006 grants in §3.2, unchanged). The service layer (`features/ingestion/`) writes chunk batches as an upsert on `(document_id, chunk_index)`, so a repeated batch cannot duplicate rows. If `finalize_ingestion` raises `document_not_processing` (the document was re-claimed after the stale timeout), the run stops without calling `fail_ingestion`, because that function deletes the document's chunks and would remove the new owner's rows. The reasons written to `documents.error_reason` are the extraction codes plus `provider_unavailable`; anything else is `internal_error`.
+
 ### 2.7 Storage bucket
 
 ```sql

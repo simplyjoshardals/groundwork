@@ -150,13 +150,13 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
   - **Done when:**
     - [x] Unit tests with fixture files: normal PDF, scanned PDF (throws `ScannedPdfError`), 31-page PDF (`TooManyPagesError`), corrupt file, `.exe` renamed `.pdf` (rejected by sniffing), txt and md. (`tests/unit/pdf-extract.test.ts`, 45 tests, also covering blank pages, encrypted PDFs, empty and invalid input, unsupported MIME types, the 30/31 boundary for virtual text pages, and PDF.js cleanup on success and failure. Fixtures were copied from `spikes/pdf/fixtures/` into `tests/fixtures/pdf/`; the 31-page PDF is built inside the test. Lint, typecheck and unit tests pass locally, as reported by the project owner. The scanned-PDF threshold is provisional; see `docs/decisions.md`.)
 
-- [ ] **1.6 Ingestion service and sample seeding script** · 3 h · deps: 1.1, 1.3, 1.4, 1.5, 0.9
+- [x] **1.6 Ingestion service and sample seeding script** · 3 h · deps: 1.1, 1.3, 1.4, 1.5, 0.9
   - **Build:** `ingestDocument(documentId)` in `features/ingestion/` using the claim → insert chunk batches → finalize flow (DATA_MODEL §2.6; add migration 0006 here if you want to use the functions already, or call them in Slice 4 and use direct admin writes for now). A script `npm run seed:samples` uploads your sample files to `samples/`, inserts `is_public` document rows with the service role, and runs ingestion.
   - **Done when:**
-    - [ ] Both samples reach `ready` with sensible chunk counts.
-    - [ ] Re-running the script is safe (no duplicate rows or chunks).
-    - [ ] A simulated 429 mid-run is retried with backoff and the run completes.
-    - [ ] Chunks in the DB all carry the same `embedding_model`.
+    - [x] Both samples reach `ready` with sensible chunk counts. (Real `yarn seed:samples` against the local Supabase with `gemini-embedding-2`, as reported by the project owner: Employee Handbook 10 pages and 11 chunks, Employee FAQ 1 page and 3 chunks. Chunk size and overlap stay provisional until the Slice 2 eval. Implementation and verification details are in `docs/decisions.md` (2026-11-03).)
+    - [x] Re-running the script is safe (no duplicate rows or chunks). (A second `yarn seed:samples` skipped both documents as already `ready`, and the stored chunk counts matched the document records, as reported by the project owner. Re-ingesting a document that is not `ready` (the claim wipes old chunks and chunk inserts are upserts on `(document_id, chunk_index)`) was checked in unit tests and on a scratch Postgres in Claude's sandbox, not in a live run.)
+    - [x] A simulated 429 mid-run is retried with backoff and the run completes. (Unit-tested with simulated `RateLimitError`s in `tests/unit/ingestion-ingest-document.test.ts`: retry waits of 15 s then 30 s, a longer provider hint honoured up to 65 s, and the run then completes without duplicate chunks. No real 429 was observed or provoked.)
+    - [x] Chunks in the DB all carry the same `embedding_model`. (Supabase queries by the project owner: one `embedding_model` per document, `gemini-embedding-2`.)
 
 - [ ] **1.7 Supabase clients, proxy, anonymous demo session** · 3 h · deps: 0.2, 1.1
   - **Build:** Three clients (browser, server-as-user, admin) in `lib/supabase/`; `@supabase/ssr` cookie handling; `proxy.ts` (Next 16's replacement for middleware) that refreshes the session; a "Try demo" button that calls anonymous sign-in. (CAPTCHA comes in Slice 5.)
