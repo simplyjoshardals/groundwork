@@ -170,12 +170,17 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
   - **Done when:**
     - [x] Vitest cases: an event split across two network chunks, two events in one chunk, an unknown event type (ignored), a stream that ends without `done` (surfaces as an error). (`tests/unit/ask-stream-events.test.ts` and `tests/unit/ask-stream-parse.test.ts`, ~70 tests. The four BUILD_PLAN cases are in the "four acceptance cases" block of the parse test. The parser is stricter than the criterion: it throws `StreamIncompleteError` for a stream that ends without **any** terminal event, not only without `done`. The full Vitest suite, `yarn lint` and `yarn typecheck` pass locally, as reported by the project owner. Implementation details: `docs/decisions.md` (2026-11-03).)
 
-- [ ] **1.9 `/api/ask` v1** · 3 h · deps: 1.1, 1.3, 1.7, 1.8
+- [x] **1.9 `/api/ask` v1** · 3 h · deps: 1.1, 1.3, 1.7, 1.8
   - **Build:** Route handler: validate with zod, require a session, embed the question, call `match_chunks` **as the user**, build a prompt with numbered passages, stream `sources` then `token` then `done`. No refusal logic, usage limits, or citation validation yet.
   - **Done when:**
-    - [ ] With a demo token, `curl` shows incremental events and the `sources` event carries doc title and page for each passage.
-    - [ ] A request with no session returns 401. A malformed body returns 400 with a safe message.
-    - [ ] The route uses the user-scoped client for retrieval (grep: no admin client in this file).
+    - [x] With a demo token, `curl` shows incremental events and the `sources` event carries doc title and page for each passage. (An authenticated live request against the local stack returned `sources`, incremental `token` events and `done`, as reported by the project owner. Each `sources` entry carries `documentTitle` and `page`; this is covered in `tests/unit/ask-stream.test.ts` and `tests/unit/ask-route.test.ts`. The route authenticates from the Supabase cookie session only (no Bearer header), so "demo token" here means the demo session cookie. Implementation details: `docs/decisions.md` (2026-11-03).)
+    - [x] A request with no session returns 401. A malformed body returns 400 with a safe message. (An unauthenticated request returned 401 and an invalid request returned 400 in the live check, as reported by the project owner. Unit tests in `tests/unit/ask-route.test.ts` and `tests/unit/ask-request.test.ts` cover invalid JSON, an invalid shape, a `getClaims` error and missing claims; the messages are fixed strings that echo nothing from the request or the schema. A malformed body is rejected before the session check.)
+    - [x] The route uses the user-scoped client for retrieval (grep: no admin client in this file). (`app/api/ask/route.ts` imports only `createServerSupabase` from `lib/supabase/server`; a grep for `admin` in the exported file finds nothing, and `tests/unit/ask-route.test.ts` asserts the source never matches `supabase/admin` or `createAdminSupabase`. `eslint.config.mjs` also forbids the admin import under `app/`. Retrieval runs through `match_chunks`, which is `SECURITY INVOKER`, so RLS applies.)
+  - **Deferred (not part of 1.9, still open):**
+    - Refusal logic: the `not_found` event, refusal gate #1 (similarity threshold, Tasks 2.3 and 2.4) and gate #2 (sentinel, Task 2.5). Until then the route always calls the LLM, even when no passages are found.
+    - Usage limits: the `limit` event, `consume_usage` and `refund_usage` (Task 5.2).
+    - Citation validation: `done` carries empty `citations` and `invalidCitations` arrays until Task 2.6.
+    - Ask UI: nothing in the app consumes the route yet (Task 1.10; citation chips and the not-found UI are Task 2.7).
 
 - [ ] **1.10 Ask UI v1** · 3 h · deps: 1.8, 1.9
   - **Build:** Question box, streaming answer, source list (doc, page, snippet), loading and error states.
