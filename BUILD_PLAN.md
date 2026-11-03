@@ -180,13 +180,13 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - Refusal logic: the `not_found` event, refusal gate #1 (similarity threshold, Tasks 2.3 and 2.4) and gate #2 (sentinel, Task 2.5). Until then the route always calls the LLM, even when no passages are found.
     - Usage limits: the `limit` event, `consume_usage` and `refund_usage` (Task 5.2).
     - Citation validation: `done` carries empty `citations` and `invalidCitations` arrays until Task 2.6.
-    - Ask UI: nothing in the app consumes the route yet (Task 1.10; citation chips and the not-found UI are Task 2.7).
+    - Ask UI: done in Task 1.10 (citation chips and the not-found UI remain Task 2.7).
 
-- [ ] **1.10 Ask UI v1** · 3 h · deps: 1.8, 1.9
+- [x] **1.10 Ask UI v1** · 3 h · deps: 1.8, 1.9
   - **Build:** Question box, streaming answer, source list (doc, page, snippet), loading and error states.
   - **Done when:**
-    - [ ] On localhost, "How many remote days per week are allowed?" (use a real fact from your sample) streams an answer and lists sources with page numbers.
-    - [ ] Network failure mid-stream shows an error state, not a frozen spinner.
+    - [x] On localhost, "How many remote days per week are allowed?" (use a real fact from your sample) streams an answer and lists sources with page numbers. (As reported by the project owner, local stack: the ask UI renders, a submitted question streams an answer, and each source shows its document title, page number and snippet; a response with no answer also displays correctly. The exact question asked was not recorded. Components: `components/ask-panel.tsx`, `components/source-list.tsx`; logic in `lib/ask-client/`. Implementation details: `docs/decisions.md` (2026-11-04).)
+    - [x] Network failure mid-stream shows an error state, not a frozen spinner. (As reported by the project owner: going offline during a request shows "Connection lost. Check your network and retry." with a working Retry button, and an expired session shows the reload message. A stalled connection was confirmed in Chrome with a temporary route edit that never responded (since reverted): the stalled-connection message appeared after the 30 s idle timeout. DevTools Offline cannot test that timeout, because it makes `fetch` fail at once. A silent stall after the first event was not tried in a browser; it is covered by unit tests and by a real-`fetch` check in Claude's sandbox. `yarn format`, `lint`, `typecheck` and `test` pass locally. Navigating away mid-stream cancels the `/api/ask` request, per Chrome's Network panel.)
 
 - [ ] **1.11 First deploy of the slice** · 1.5 h · deps: 1.1-1.10
   - **Build:** Push migrations to the hosted project, run `seed:samples` against it, set Vercel env vars, deploy.

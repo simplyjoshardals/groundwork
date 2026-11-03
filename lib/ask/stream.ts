@@ -130,7 +130,11 @@ export function createAskResponseStream(
           if (closed) return;
 
           if (step.done) {
-            emit(controller, { type: "done", citations: [], invalidCitations: [] });
+            emit(controller, {
+              type: "done",
+              citations: [],
+              invalidCitations: [],
+            });
             close(controller);
             return;
           }

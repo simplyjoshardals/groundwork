@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { MAX_QUESTION_LENGTH } from "./limits";
 
-/** Longest question accepted, in characters (after trimming). */
-export const MAX_QUESTION_LENGTH = 500;
+// Re-exported so existing imports from this module keep working.
+export { MAX_QUESTION_LENGTH };
 
 const askRequestSchema = z.object({
   question: z.string().trim().min(1).max(MAX_QUESTION_LENGTH),
@@ -14,8 +15,7 @@ export interface AskRequest {
 }
 
 export type ParseAskRequestResult =
-  | { ok: true; data: AskRequest }
-  | { ok: false; message: string };
+  { ok: true; data: AskRequest } | { ok: false; message: string };
 
 /**
  * Validates a decoded request body. Failure messages are fixed strings chosen

@@ -51,7 +51,10 @@ export async function POST(request: Request): Promise<Response> {
   }
   const parsed = parseAskRequest(body);
   if (!parsed.ok) {
-    return jsonError(400, { error: "invalid_request", message: parsed.message });
+    return jsonError(400, {
+      error: "invalid_request",
+      message: parsed.message,
+    });
   }
   const { question, documentId } = parsed.data;
 
@@ -99,7 +102,10 @@ export async function POST(request: Request): Promise<Response> {
     });
     return new Response(stream, { headers: SSE_HEADERS });
   } catch (error) {
-    console.error("[ask] request failed before streaming:", describeError(error));
+    console.error(
+      "[ask] request failed before streaming:",
+      describeError(error),
+    );
     if (
       error instanceof RateLimitError ||
       error instanceof ProviderUnavailableError ||

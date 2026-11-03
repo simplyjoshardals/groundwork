@@ -262,6 +262,7 @@ sequenceDiagram
 - **Change my mind if:** the hand-rolled parser gets fiddly on partial chunks and reconnects.
 - **Built (Task 1.8):** `types/ask-stream.ts` and `lib/ask-stream/` hold the contract and parser. Wire format: each event is one SSE frame (`data: {...}\n\n`), with the type inside the JSON and no `event`: field; comment frames are skipped; unknown event types are ignored so the contract can grow additively. Exactly one terminal event (`done`, `not_found`, `limit`, `error`) ends a complete stream, and the reader stops and cancels right after it. Malformed payloads throw `StreamProtocolError`, a stream that closes without a terminal event throws `StreamIncompleteError`, and a failed read throws `StreamInterruptedError` (an `AbortError` is rethrown as-is). No server-only import, so the server encodes and the browser parses from the same module. Details: `docs/decisions.md` (2026-11-03).
 - **Built (Task 1.9):** `POST /api/ask` (`app/api/ask/route.ts`, helpers in `lib/ask/`) streams `sources`, then one `token` per LLM text chunk, then `done`, using the Task 1.8 contract. It validates the body (zod), checks the cookie session, embeds the question, and searches with `match_chunks` through the user-scoped client (6 passages, RLS applies) before streaming. Failures before streaming are JSON errors (400, 401, 503, 500); an LLM failure once streaming has started is an `error` event (`llm_unavailable`, or `interrupted` after tokens). Not built yet: refusal gates, usage limits, citation validation (`done` carries empty arrays) and the Ask UI. Details: `docs/decisions.md` (2026-11-03).
+- **Built (Task 1.10):** The ask UI is `components/ask-panel.tsx` (client: question form, streamed answer, loading, error and retry states) and `components/source-list.tsx` (marker, document, page, snippet), mounted by `app/page.tsx` for any session; signed out, the page still shows "Try demo". Browser-side logic is in `lib/ask-client/` as plain TypeScript: `requestAnswer` (POST to `/api/ask`, then the Task 1.8 parser), `askReducer` (answer state) and `describeFailure` (error text). The UI handles non-2xx JSON responses by status only and in-stream `error` events by code; the server's `message` is never shown. A 30 s idle timeout (`IDLE_TIMEOUT_MS`, reset on every event) turns a stalled connection into a retryable error instead of a spinner. `not_found` and `limit` get a one-line message until Tasks 2.7 and 5.2.
 
 ### 3.11 Rate limiting and abuse control
 
@@ -427,7 +428,9 @@ document-qa/
 │  ├─ supabase/              # browser, server (user-scoped), admin (service-role) clients
 │  ├─ pdf/                   # extraction (PDF, txt, md) + scanned-PDF detection
 │  ├─ chunking/              # normalization, page-bounded chunker, txt/md virtual pages
+│  ├─ ask/                   # /api/ask helpers: request validation, prompt, response stream, error text, limits (server-side; limits.ts is also used by the browser)
 │  ├─ ask-stream/            # shared ask event types + client parser (no server-only)
+│  ├─ ask-client/            # browser-side ask logic: request, answer reducer, failure text (no server-only)
 │  └─ config.ts              # limits, thresholds, model IDs (all tunable in one place)
 ├─ types/                    # generated DB types, shared event contract types
 ├─ proxy.ts                    # session refresh (Next 16 name for middleware)

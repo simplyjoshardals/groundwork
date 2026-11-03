@@ -22,7 +22,9 @@ describe("buildAskMessages", () => {
 
   it("numbers passages from 1 in order and includes title, page and question", () => {
     const user = buildAskMessages("How long is notice?", passages)[1].content;
-    expect(user.indexOf('<passage n="1" title="Contract" page="3">')).toBeGreaterThanOrEqual(0);
+    expect(
+      user.indexOf('<passage n="1" title="Contract" page="3">'),
+    ).toBeGreaterThanOrEqual(0);
     expect(user.indexOf('n="2"')).toBeGreaterThan(user.indexOf('n="1"'));
     expect(user).toContain("Notice is 30 days.");
     expect(user).toContain("Question: How long is notice?");

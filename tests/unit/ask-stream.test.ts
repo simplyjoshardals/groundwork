@@ -16,7 +16,9 @@ function decodeFrame(frame: string): AskStreamEvent {
   return JSON.parse(frame.replace(/^data: /, "")) as AskStreamEvent;
 }
 
-async function readAll(stream: ReadableStream<Uint8Array>): Promise<AskStreamEvent[]> {
+async function readAll(
+  stream: ReadableStream<Uint8Array>,
+): Promise<AskStreamEvent[]> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let text = "";
@@ -25,14 +27,14 @@ async function readAll(stream: ReadableStream<Uint8Array>): Promise<AskStreamEve
     if (done) break;
     text += decoder.decode(value, { stream: true });
   }
-  return text
-    .split("\n\n")
-    .filter(Boolean)
-    .map(decodeFrame);
+  return text.split("\n\n").filter(Boolean).map(decodeFrame);
 }
 
-const llmFrom = (gen: (signal?: AbortSignal) => AsyncGenerator<LlmStreamEvent>) => ({
-  stream: (_m: unknown, options?: { signal?: AbortSignal }) => gen(options?.signal),
+const llmFrom = (
+  gen: (signal?: AbortSignal) => AsyncGenerator<LlmStreamEvent>,
+) => ({
+  stream: (_m: unknown, options?: { signal?: AbortSignal }) =>
+    gen(options?.signal),
 });
 
 const finish: LlmStreamEvent = { type: "finish", reason: "stop" };
@@ -49,14 +51,31 @@ describe("toStreamSources", () => {
       { doc_id: "b", doc_title: "B", page_number: 7, content: "two" },
     ]);
     expect(result).toEqual([
-      { marker: 1, documentId: "a", documentTitle: "A", page: 1, snippet: "one" },
-      { marker: 2, documentId: "b", documentTitle: "B", page: 7, snippet: "two" },
+      {
+        marker: 1,
+        documentId: "a",
+        documentTitle: "A",
+        page: 1,
+        snippet: "one",
+      },
+      {
+        marker: 2,
+        documentId: "b",
+        documentTitle: "B",
+        page: 7,
+        snippet: "two",
+      },
     ]);
   });
 
   it("collapses whitespace and caps long snippets", () => {
     const [source] = toStreamSources([
-      { doc_id: "a", doc_title: "A", page_number: 1, content: `  a\n\n b ${"x".repeat(1000)}` },
+      {
+        doc_id: "a",
+        doc_title: "A",
+        page_number: 1,
+        content: `  a\n\n b ${"x".repeat(1000)}`,
+      },
     ]);
     expect(source.snippet.startsWith("a b x")).toBe(true);
     expect(Array.from(source.snippet)).toHaveLength(MAX_SNIPPET_LENGTH);
@@ -72,7 +91,9 @@ describe("createAskResponseStream", () => {
       yield { type: "text", text: "lo [1]" };
       yield finish;
     });
-    const events = await readAll(createAskResponseStream({ sources, messages, llm }));
+    const events = await readAll(
+      createAskResponseStream({ sources, messages, llm }),
+    );
     expect(events).toEqual([
       { type: "sources", sources },
       { type: "token", text: "Hel" },
@@ -90,9 +111,14 @@ describe("createAskResponseStream", () => {
       yield { type: "text", text: "second" };
       yield finish;
     });
-    const reader = createAskResponseStream({ sources, messages, llm }).getReader();
+    const reader = createAskResponseStream({
+      sources,
+      messages,
+      llm,
+    }).getReader();
     const decoder = new TextDecoder();
-    const read = async () => decodeFrame(decoder.decode((await reader.read()).value).trim());
+    const read = async () =>
+      decodeFrame(decoder.decode((await reader.read()).value).trim());
 
     expect((await read()).type).toBe("sources");
     expect(await read()).toEqual({ type: "token", text: "first" }); // gate still closed
@@ -105,7 +131,9 @@ describe("createAskResponseStream", () => {
     const llm = llmFrom(async function* () {
       throw new Error("secret provider detail");
     });
-    const events = await readAll(createAskResponseStream({ sources, messages, llm }));
+    const events = await readAll(
+      createAskResponseStream({ sources, messages, llm }),
+    );
     expect(events.map((e) => e.type)).toEqual(["sources", "error"]);
     const error = events[1];
     expect(error).toMatchObject({ type: "error", code: "llm_unavailable" });
@@ -117,7 +145,9 @@ describe("createAskResponseStream", () => {
       yield { type: "text", text: "partial" };
       throw new Error("boom");
     });
-    const events = await readAll(createAskResponseStream({ sources, messages, llm }));
+    const events = await readAll(
+      createAskResponseStream({ sources, messages, llm }),
+    );
     expect(events.map((e) => e.type)).toEqual(["sources", "token", "error"]);
     expect(events[2]).toMatchObject({ code: "interrupted" });
   });
@@ -126,8 +156,13 @@ describe("createAskResponseStream", () => {
     const llm = llmFrom(async function* () {
       yield { type: "finish", reason: "blocked" };
     });
-    const events = await readAll(createAskResponseStream({ sources, messages, llm }));
-    expect(events.at(-1)).toMatchObject({ type: "error", code: "llm_unavailable" });
+    const events = await readAll(
+      createAskResponseStream({ sources, messages, llm }),
+    );
+    expect(events.at(-1)).toMatchObject({
+      type: "error",
+      code: "llm_unavailable",
+    });
   });
 
   it("aborts the LLM and ends quietly when the request signal aborts", async () => {
@@ -168,7 +203,11 @@ describe("createAskResponseStream", () => {
         cleanedUp = true;
       }
     });
-    const reader = createAskResponseStream({ sources, messages, llm }).getReader();
+    const reader = createAskResponseStream({
+      sources,
+      messages,
+      llm,
+    }).getReader();
     await reader.read(); // sources
     await reader.read(); // token "a"
     await reader.cancel();
