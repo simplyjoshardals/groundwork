@@ -260,6 +260,7 @@ sequenceDiagram
 - **Alternatives:** Vercel AI SDK (data streams, provider adapters); WebSockets.
 - **Why:** Your custom events (sources first, validated citations last) don't map neatly onto generic chat helpers, and a ~100-line contract is easier to explain in an interview than a library's internals. If you _want_ to learn the AI SDK, it's a reasonable "new thing" to try; its streaming helpers are worth a look at the spike stage.
 - **Change my mind if:** the hand-rolled parser gets fiddly on partial chunks and reconnects.
+- **Built (Task 1.8):** `types/ask-stream.ts` and `lib/ask-stream/` hold the contract and parser. Wire format: each event is one SSE frame (`data: {...}\n\n`), with the type inside the JSON and no `event`: field; comment frames are skipped; unknown event types are ignored so the contract can grow additively. Exactly one terminal event (`done`, `not_found`, `limit`, `error`) ends a complete stream, and the reader stops and cancels right after it. Malformed payloads throw `StreamProtocolError`, a stream that closes without a terminal event throws `StreamIncompleteError`, and a failed read throws `StreamInterruptedError` (an `AbortError` is rethrown as-is). No server-only import, so the server encodes and the browser parses from the same module. Details: `docs/decisions.md` (2026-11-03).
 
 ### 3.11 Rate limiting and abuse control
 
@@ -425,6 +426,7 @@ document-qa/
 │  ├─ supabase/              # browser, server (user-scoped), admin (service-role) clients
 │  ├─ pdf/                   # extraction (PDF, txt, md) + scanned-PDF detection
 │  ├─ chunking/              # normalization, page-bounded chunker, txt/md virtual pages
+│  ├─ ask-stream/            # shared ask event types + client parser (no server-only)
 │  └─ config.ts              # limits, thresholds, model IDs (all tunable in one place)
 ├─ types/                    # generated DB types, shared event contract types
 ├─ proxy.ts                    # session refresh (Next 16 name for middleware)

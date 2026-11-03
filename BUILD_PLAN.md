@@ -165,10 +165,10 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] The admin client can't be imported from client code (the build fails if you try). (`lib/supabase/admin.ts` imports `server-only`; a client component importing it fails `next build`, as reported by the project owner and also seen in Claude's sandbox. `eslint.config.mjs` additionally forbids the import in `app/`, `components/`, `lib/` and `proxy.ts`.)
     - [ ] A demo user querying `documents` sees exactly the 2 public samples. (**Unresolved.** On a database seeded with `supabase/seed.sql`, a demo user sees 4 public documents: the 2 real samples plus the Northwind and Fabrikam placeholder rows. The seed fixtures were deliberately left unchanged because `supabase/tests/security.sql` T00d and T00e assert exactly 2 public documents and 14 chunks; reconciling the fixtures and those tests is tracked separately. Not checked against a hosted database.)
 
-- [ ] **1.8 Stream event contract and client parser** · 2 h · deps: none
+- [x] **1.8 Stream event contract and client parser** · 2 h · deps: none
   - **Build:** Shared types for the events `sources`, `token`, `done`, `not_found`, `limit`, `error`, plus a client-side parser for the response stream.
   - **Done when:**
-    - [ ] Vitest cases: an event split across two network chunks, two events in one chunk, an unknown event type (ignored), a stream that ends without `done` (surfaces as an error).
+    - [x] Vitest cases: an event split across two network chunks, two events in one chunk, an unknown event type (ignored), a stream that ends without `done` (surfaces as an error). (`tests/unit/ask-stream-events.test.ts` and `tests/unit/ask-stream-parse.test.ts`, ~70 tests. The four BUILD_PLAN cases are in the "four acceptance cases" block of the parse test. The parser is stricter than the criterion: it throws `StreamIncompleteError` for a stream that ends without **any** terminal event, not only without `done`. The full Vitest suite, `yarn lint` and `yarn typecheck` pass locally, as reported by the project owner. Implementation details: `docs/decisions.md` (2026-11-03).)
 
 - [ ] **1.9 `/api/ask` v1** · 3 h · deps: 1.1, 1.3, 1.7, 1.8
   - **Build:** Route handler: validate with zod, require a session, embed the question, call `match_chunks` **as the user**, build a prompt with numbered passages, stream `sources` then `token` then `done`. No refusal logic, usage limits, or citation validation yet.
