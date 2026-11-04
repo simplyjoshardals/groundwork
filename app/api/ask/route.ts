@@ -1,3 +1,4 @@
+import { retrieveChunks, SearchFailedError } from "@/features/qa";
 import { describeError } from "@/lib/ask/errors";
 import { buildAskMessages } from "@/lib/ask/prompt";
 import { parseAskRequest } from "@/lib/ask/request";
@@ -14,22 +15,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Passages sent to the model (the plan's `match_count`). */
-const MATCH_COUNT = 6;
-
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
   "Cache-Control": "no-cache, no-transform",
   "X-Accel-Buffering": "no",
 };
-
-/** `match_chunks` returned an error (database or network problem). */
-class SearchFailedError extends Error {
-  constructor(detail: string) {
-    super(`match_chunks failed: ${detail}`);
-    this.name = "SearchFailedError";
-  }
-}
 
 function jsonError(status: number, body: Record<string, string>): Response {
   return Response.json(body, {
@@ -70,28 +60,14 @@ export async function POST(request: Request): Promise<Response> {
     const embedder = createGeminiEmbeddingProvider();
     const llm = createGeminiLlmProvider();
 
-    // 3. Embed the question.
-    const [vector] = await embedder.embed([question], "query");
-    if (!vector || vector.length !== embedder.dimensions) {
-      throw new Error("The embedding provider returned an unexpected shape.");
-    }
-
-    // 4. Search through RLS (user-scoped client, SECURITY INVOKER function).
-    const { data: rows, error: searchError } = await supabase.rpc(
-      "match_chunks",
-      {
-        query_embedding: `[${vector.join(",")}]`,
-        p_embedding_model: embedder.model,
-        match_count: MATCH_COUNT,
-        ...(documentId ? { p_document_id: documentId } : {}),
-      },
-    );
-    if (searchError) {
-      throw new SearchFailedError(
-        `${searchError.code ?? "no code"}: ${searchError.message}`,
-      );
-    }
-    const passages = rows ?? [];
+    // 3 and 4. Embed the question, then search through RLS (user-scoped
+    // client, SECURITY INVOKER function). Shared with the eval runner.
+    const passages = await retrieveChunks({
+      supabase,
+      embedder,
+      question,
+      documentId,
+    });
 
     // 5. Stream.
     const stream = createAskResponseStream({

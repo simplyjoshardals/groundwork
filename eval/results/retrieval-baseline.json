@@ -1,0 +1,1107 @@
+{
+  "meta": {
+    "label": "baseline",
+    "generatedAt": "2026-11-04T22:30:53.637Z",
+    "k": 6,
+    "embeddingModel": "gemini-embedding-2"
+  },
+  "summary": {
+    "k": 6,
+    "total": 20,
+    "errors": 0,
+    "answerable": 15,
+    "answerableScored": 15,
+    "hits": 15,
+    "hitAtK": 1,
+    "allPagesHits": 15,
+    "allPagesHitRate": 1,
+    "byCategory": [
+      {
+        "category": "direct",
+        "scored": 6,
+        "hits": 6
+      },
+      {
+        "category": "paraphrase",
+        "scored": 4,
+        "hits": 4
+      },
+      {
+        "category": "multi_chunk",
+        "scored": 4,
+        "hits": 4
+      },
+      {
+        "category": "injection",
+        "scored": 1,
+        "hits": 1
+      }
+    ],
+    "answerableTop1": {
+      "count": 15,
+      "min": 0.670512,
+      "mean": 0.736387,
+      "max": 0.819849
+    },
+    "unanswerableTop1": {
+      "count": 5,
+      "min": 0.628204,
+      "mean": 0.680389,
+      "max": 0.714225
+    }
+  },
+  "results": [
+    {
+      "id": "Q01",
+      "category": "direct",
+      "question": "How many days of paid annual leave does a full-time employee get each leave year?",
+      "answerable": true,
+      "document": "handbook",
+      "expectedPages": [
+        3
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.819849
+        },
+        {
+          "rank": 2,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.7671
+        },
+        {
+          "rank": 3,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.718964
+        },
+        {
+          "rank": 4,
+          "doc": "handbook",
+          "page": 4,
+          "similarity": 0.716984
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 10,
+          "similarity": 0.680849
+        },
+        {
+          "rank": 6,
+          "doc": "handbook",
+          "page": 2,
+          "similarity": 0.677147
+        }
+      ],
+      "top1Similarity": 0.819849,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q02",
+      "category": "direct",
+      "question": "By what time must I tell my line manager that I am sick on the first day of absence?",
+      "answerable": true,
+      "document": "handbook",
+      "expectedPages": [
+        4
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 4,
+          "similarity": 0.711601
+        },
+        {
+          "rank": 2,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.673228
+        },
+        {
+          "rank": 3,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.666285
+        },
+        {
+          "rank": 4,
+          "doc": "handbook",
+          "page": 2,
+          "similarity": 0.662648
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.657828
+        },
+        {
+          "rank": 6,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.631716
+        }
+      ],
+      "top1Similarity": 0.711601,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q03",
+      "category": "direct",
+      "question": "How many employees does Kestrel & Vane Ltd have?",
+      "answerable": true,
+      "document": "handbook",
+      "expectedPages": [
+        1
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 1,
+          "similarity": 0.743935
+        },
+        {
+          "rank": 2,
+          "doc": "handbook",
+          "page": 5,
+          "similarity": 0.734308
+        },
+        {
+          "rank": 3,
+          "doc": "handbook",
+          "page": 10,
+          "similarity": 0.709807
+        },
+        {
+          "rank": 4,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.703144
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 2,
+          "similarity": 0.69492
+        },
+        {
+          "rank": 6,
+          "doc": "handbook",
+          "page": 8,
+          "similarity": 0.682922
+        }
+      ],
+      "top1Similarity": 0.743935,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q04",
+      "category": "direct",
+      "question": "Within how many hours must I report a suspected phishing email?",
+      "answerable": true,
+      "document": "handbook",
+      "expectedPages": [
+        7
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 7,
+          "similarity": 0.670512
+        },
+        {
+          "rank": 2,
+          "doc": "handbook",
+          "page": 8,
+          "similarity": 0.625764
+        },
+        {
+          "rank": 3,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.623475
+        },
+        {
+          "rank": 4,
+          "doc": "handbook",
+          "page": 6,
+          "similarity": 0.581282
+        },
+        {
+          "rank": 5,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.579716
+        },
+        {
+          "rank": 6,
+          "doc": "handbook",
+          "page": 9,
+          "similarity": 0.573378
+        }
+      ],
+      "top1Similarity": 0.670512,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q05",
+      "category": "direct",
+      "question": "Where is the fire assembly point at the Harbour Street office?",
+      "answerable": true,
+      "document": "handbook",
+      "expectedPages": [
+        9
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 9,
+          "similarity": 0.751708
+        },
+        {
+          "rank": 2,
+          "doc": "handbook",
+          "page": 5,
+          "similarity": 0.643589
+        },
+        {
+          "rank": 3,
+          "doc": "handbook",
+          "page": 1,
+          "similarity": 0.613687
+        },
+        {
+          "rank": 4,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.608457
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 8,
+          "similarity": 0.608306
+        },
+        {
+          "rank": 6,
+          "doc": "handbook",
+          "page": 2,
+          "similarity": 0.603853
+        }
+      ],
+      "top1Similarity": 0.751708,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q06",
+      "category": "direct",
+      "question": "How many hours is the contracted working week?",
+      "answerable": true,
+      "document": "handbook",
+      "expectedPages": [
+        2
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 2,
+          "similarity": 0.73345
+        },
+        {
+          "rank": 2,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.668369
+        },
+        {
+          "rank": 3,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.650056
+        },
+        {
+          "rank": 4,
+          "doc": "handbook",
+          "page": 5,
+          "similarity": 0.642973
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 1,
+          "similarity": 0.641686
+        },
+        {
+          "rank": 6,
+          "doc": "handbook",
+          "page": 10,
+          "similarity": 0.641584
+        }
+      ],
+      "top1Similarity": 0.73345,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q07",
+      "category": "paraphrase",
+      "question": "How much does the company chip in towards my home internet bill each month?",
+      "answerable": true,
+      "document": "handbook",
+      "expectedPages": [
+        5
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 5,
+          "similarity": 0.724457
+        },
+        {
+          "rank": 2,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.661515
+        },
+        {
+          "rank": 3,
+          "doc": "handbook",
+          "page": 10,
+          "similarity": 0.642242
+        },
+        {
+          "rank": 4,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.637597
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 6,
+          "similarity": 0.601848
+        },
+        {
+          "rank": 6,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.59694
+        }
+      ],
+      "top1Similarity": 0.724457,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q08",
+      "category": "paraphrase",
+      "question": "If someone gives me a present worth over fifty dollars, how quickly do I have to tell the company?",
+      "answerable": true,
+      "document": "handbook",
+      "expectedPages": [
+        8
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 8,
+          "similarity": 0.737836
+        },
+        {
+          "rank": 2,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.670025
+        },
+        {
+          "rank": 3,
+          "doc": "handbook",
+          "page": 7,
+          "similarity": 0.646975
+        },
+        {
+          "rank": 4,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.644781
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 10,
+          "similarity": 0.63529
+        },
+        {
+          "rank": 6,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.633328
+        }
+      ],
+      "top1Similarity": 0.737836,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q09",
+      "category": "paraphrase",
+      "question": "How long after spending my own money do I have to hand in the claim to get it back?",
+      "answerable": true,
+      "document": "handbook",
+      "expectedPages": [
+        6
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 6,
+          "similarity": 0.695561
+        },
+        {
+          "rank": 2,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.689122
+        },
+        {
+          "rank": 3,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.633271
+        },
+        {
+          "rank": 4,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.626167
+        },
+        {
+          "rank": 5,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.621461
+        },
+        {
+          "rank": 6,
+          "doc": "handbook",
+          "page": 8,
+          "similarity": 0.620163
+        }
+      ],
+      "top1Similarity": 0.695561,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q10",
+      "category": "paraphrase",
+      "question": "How many vacation days can I roll into next year, and what is the deadline for using them?",
+      "answerable": true,
+      "document": "handbook",
+      "expectedPages": [
+        3
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.69197
+        },
+        {
+          "rank": 2,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.671925
+        },
+        {
+          "rank": 3,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.636307
+        },
+        {
+          "rank": 4,
+          "doc": "handbook",
+          "page": 6,
+          "similarity": 0.625428
+        },
+        {
+          "rank": 5,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.62402
+        },
+        {
+          "rank": 6,
+          "doc": "handbook",
+          "page": 10,
+          "similarity": 0.621965
+        }
+      ],
+      "top1Similarity": 0.69197,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q11",
+      "category": "multi_chunk",
+      "question": "How many days of annual leave does an employee with six completed years of service get?",
+      "answerable": true,
+      "document": "handbook",
+      "expectedPages": [
+        3
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.807698
+        },
+        {
+          "rank": 2,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.752133
+        },
+        {
+          "rank": 3,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.716367
+        },
+        {
+          "rank": 4,
+          "doc": "handbook",
+          "page": 4,
+          "similarity": 0.706406
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 10,
+          "similarity": 0.69991
+        },
+        {
+          "rank": 6,
+          "doc": "handbook",
+          "page": 2,
+          "similarity": 0.651135
+        }
+      ],
+      "top1Similarity": 0.807698,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q12",
+      "category": "multi_chunk",
+      "question": "After I file a speak-up report and it is acknowledged, how long until an investigator is assigned, and how long should the investigation normally take?",
+      "answerable": true,
+      "document": "handbook",
+      "expectedPages": [
+        8
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 8,
+          "similarity": 0.740522
+        },
+        {
+          "rank": 2,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.661728
+        },
+        {
+          "rank": 3,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.623462
+        },
+        {
+          "rank": 4,
+          "doc": "handbook",
+          "page": 7,
+          "similarity": 0.613093
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.611965
+        },
+        {
+          "rank": 6,
+          "doc": "handbook",
+          "page": 6,
+          "similarity": 0.595506
+        }
+      ],
+      "top1Similarity": 0.740522,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q13",
+      "category": "multi_chunk",
+      "question": "While I am on probation, how many days a week must I be in the office, and how much notice does either side have to give?",
+      "answerable": true,
+      "document": "handbook",
+      "expectedPages": [
+        5,
+        10
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.743922
+        },
+        {
+          "rank": 2,
+          "doc": "handbook",
+          "page": 5,
+          "similarity": 0.743899
+        },
+        {
+          "rank": 3,
+          "doc": "handbook",
+          "page": 10,
+          "similarity": 0.698434
+        },
+        {
+          "rank": 4,
+          "doc": "handbook",
+          "page": 2,
+          "similarity": 0.674455
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.660521
+        },
+        {
+          "rank": 6,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.643835
+        }
+      ],
+      "top1Similarity": 0.743922,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q14",
+      "category": "multi_chunk",
+      "question": "When am I allowed to fly premium economy, and how far ahead must flights be booked?",
+      "answerable": true,
+      "document": "handbook",
+      "expectedPages": [
+        6
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 6,
+          "similarity": 0.698746
+        },
+        {
+          "rank": 2,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.619887
+        },
+        {
+          "rank": 3,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.610974
+        },
+        {
+          "rank": 4,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.608067
+        },
+        {
+          "rank": 5,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.60504
+        },
+        {
+          "rank": 6,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.597869
+        }
+      ],
+      "top1Similarity": 0.698746,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q15",
+      "category": "injection",
+      "question": "What time does the staff canteen serve hot lunch?",
+      "answerable": true,
+      "document": "injection-memo",
+      "expectedPages": [
+        1
+      ],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "injection-memo",
+          "page": 1,
+          "similarity": 0.774039
+        },
+        {
+          "rank": 2,
+          "doc": "handbook",
+          "page": 2,
+          "similarity": 0.676383
+        },
+        {
+          "rank": 3,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.665957
+        },
+        {
+          "rank": 4,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.63958
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 9,
+          "similarity": 0.631122
+        },
+        {
+          "rank": 6,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.62233
+        }
+      ],
+      "top1Similarity": 0.774039,
+      "hit": true,
+      "allPagesHit": true
+    },
+    {
+      "id": "Q16",
+      "category": "unanswerable",
+      "question": "How many weeks of maternity leave does the company offer?",
+      "answerable": false,
+      "document": null,
+      "expectedPages": [],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.680246
+        },
+        {
+          "rank": 2,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.674049
+        },
+        {
+          "rank": 3,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.670203
+        },
+        {
+          "rank": 4,
+          "doc": "handbook",
+          "page": 4,
+          "similarity": 0.663699
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.662258
+        },
+        {
+          "rank": 6,
+          "doc": "handbook",
+          "page": 10,
+          "similarity": 0.659858
+        }
+      ],
+      "top1Similarity": 0.680246,
+      "hit": null,
+      "allPagesHit": null
+    },
+    {
+      "id": "Q17",
+      "category": "unanswerable",
+      "question": "Is there an annual bonus, and how is it calculated?",
+      "answerable": false,
+      "document": null,
+      "expectedPages": [],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 10,
+          "similarity": 0.714225
+        },
+        {
+          "rank": 2,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.688515
+        },
+        {
+          "rank": 3,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.670001
+        },
+        {
+          "rank": 4,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.663044
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 5,
+          "similarity": 0.660852
+        },
+        {
+          "rank": 6,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.660593
+        }
+      ],
+      "top1Similarity": 0.714225,
+      "hit": null,
+      "allPagesHit": null
+    },
+    {
+      "id": "Q18",
+      "category": "unanswerable",
+      "question": "What is the dress code for client meetings?",
+      "answerable": false,
+      "document": null,
+      "expectedPages": [],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 6,
+          "similarity": 0.628204
+        },
+        {
+          "rank": 2,
+          "doc": "handbook",
+          "page": 8,
+          "similarity": 0.618102
+        },
+        {
+          "rank": 3,
+          "doc": "handbook",
+          "page": 5,
+          "similarity": 0.617089
+        },
+        {
+          "rank": 4,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.612145
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 2,
+          "similarity": 0.604754
+        },
+        {
+          "rank": 6,
+          "doc": "handbook",
+          "page": 10,
+          "similarity": 0.598755
+        }
+      ],
+      "top1Similarity": 0.628204,
+      "hit": null,
+      "allPagesHit": null
+    },
+    {
+      "id": "Q19",
+      "category": "unanswerable",
+      "question": "Do employees receive stock options after their first year?",
+      "answerable": false,
+      "document": null,
+      "expectedPages": [],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "handbook",
+          "page": 3,
+          "similarity": 0.673412
+        },
+        {
+          "rank": 2,
+          "doc": "handbook",
+          "page": 10,
+          "similarity": 0.668233
+        },
+        {
+          "rank": 3,
+          "doc": "handbook",
+          "page": 5,
+          "similarity": 0.665018
+        },
+        {
+          "rank": 4,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.660658
+        },
+        {
+          "rank": 5,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.660423
+        },
+        {
+          "rank": 6,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.65462
+        }
+      ],
+      "top1Similarity": 0.673412,
+      "hit": null,
+      "allPagesHit": null
+    },
+    {
+      "id": "Q20",
+      "category": "unanswerable",
+      "question": "Does the company subsidise train or bus passes for getting to work?",
+      "answerable": false,
+      "document": null,
+      "expectedPages": [],
+      "status": "ok",
+      "error": null,
+      "topK": [
+        {
+          "rank": 1,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.705857
+        },
+        {
+          "rank": 2,
+          "doc": "handbook",
+          "page": 5,
+          "similarity": 0.691295
+        },
+        {
+          "rank": 3,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.683758
+        },
+        {
+          "rank": 4,
+          "doc": "faq",
+          "page": 1,
+          "similarity": 0.668352
+        },
+        {
+          "rank": 5,
+          "doc": "handbook",
+          "page": 10,
+          "similarity": 0.664757
+        },
+        {
+          "rank": 6,
+          "doc": "handbook",
+          "page": 6,
+          "similarity": 0.663281
+        }
+      ],
+      "top1Similarity": 0.705857,
+      "hit": null,
+      "allPagesHit": null
+    }
+  ],
+  "resultsHash": "b0ea0d79002174ed"
+}
