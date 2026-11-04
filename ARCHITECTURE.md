@@ -299,6 +299,7 @@ sequenceDiagram
 - **Alternatives:** Running Playwright in CI against a local Supabase stack (Docker); promptfoo for evals.
 - **Why:** CI-with-Supabase is a time sink. Run E2E locally and against a preview deployment first.
 - **Change my mind if:** you want a green CI badge on E2E specifically; then invest in the local-stack setup.
+- **Built (Task 2.1):** The eval dataset is `eval/dataset/qa.json` (20 entries), with `facts.md` as its ground truth and `injection-memo.md` as the injection fixture (not seeded into the demo). `eval/dataset.ts` exports `loadEvalDataset` and `parseEvalDataset` (strict zod schema, snake_case on disk, camelCase out, `EvalDatasetError` listing every issue); `eval/facts.ts` exports `parseHandbookFacts` and `checkAgainstFacts`; `yarn eval:validate` runs both. `expected_pages` are pages of each entry's own `document`, never FAQ pages, so the runner (Task 2.2) should score hit@k on handbook pages only and must ingest the memo somewhere retrievable. Details: `docs/decisions.md` (2026-11-04).
 - **🔎 VERIFY:** GitHub Actions free minutes for your repo type (public repos have historically been free).
 
 ---
@@ -435,7 +436,10 @@ document-qa/
 ├─ types/                    # generated DB types, shared event contract types
 ├─ proxy.ts                    # session refresh (Next 16 name for middleware)
 ├─ eval/
-│  ├─ dataset/                  # sample doc + question/answer/page pairs (incl. unanswerable + injection)
+│  ├─ dataset/                  # facts.md (ground truth), qa.json (question/answer/page pairs incl. unanswerable + injection), injection-memo.md (fixture)
+│  ├─ dataset.ts                # zod schema + loader for qa.json
+│  ├─ facts.ts                  # facts.md parser + qa.json cross-check
+│  ├─ validate-dataset.ts       # `yarn eval:validate`
 │  ├─ run.ts                    # runs pipeline, writes results
 │  └─ results/                  # committed Markdown tables for the README
 ├─ tests/

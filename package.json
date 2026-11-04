@@ -13,6 +13,7 @@
     "format:check": "prettier --check .",
     "db:types": "supabase gen types typescript --local > types/database.ts",
     "seed:samples": "tsx --conditions=react-server --env-file=.env.local scripts/seed-samples.ts",
+    "eval:validate": "tsx eval/validate-dataset.ts",
     "provider:smoke": "tsx --conditions=react-server --env-file=.env.local scripts/provider-smoke.ts",
     "spike:provider": "tsx --env-file=.env.local spikes/provider/run.ts",
     "spike:pdf": "tsx --env-file=.env.local spikes/pdf/run.ts"

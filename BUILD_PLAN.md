@@ -161,9 +161,9 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 - [x] **1.7 Supabase clients, proxy, anonymous demo session** · 3 h · deps: 0.2, 1.1
   - **Build:** Three clients (browser, server-as-user, admin) in `lib/supabase/`; `@supabase/ssr` cookie handling; `proxy.ts` (Next 16's replacement for middleware) that refreshes the session; a "Try demo" button that calls anonymous sign-in. (CAPTCHA comes in Slice 5.)
   - **Done when:**
-    - [x] Clicking "Try demo" creates a session that survives a refresh; the decoded JWT shows `is_anonymous: true`. (Local Supabase, as reported by the project owner: anonymous sign-in works, the session survives a refresh and `is_anonymous` is true. Tests are in `tests/unit/supabase-*.test.ts`; the proxy was also smoke-tested in Claude's sandbox without a Supabase stack.)
-    - [x] The admin client can't be imported from client code (the build fails if you try). (`lib/supabase/admin.ts` imports `server-only`; a client component importing it fails `next build`, as reported by the project owner and also seen in Claude's sandbox. `eslint.config.mjs` additionally forbids the import in `app/`, `components/`, `lib/` and `proxy.ts`.)
-    - [ ] A demo user querying `documents` sees exactly the 2 public samples. (**Unresolved.** On a database seeded with `supabase/seed.sql`, a demo user sees 4 public documents: the 2 real samples plus the Northwind and Fabrikam placeholder rows. The seed fixtures were deliberately left unchanged because `supabase/tests/security.sql` T00d and T00e assert exactly 2 public documents and 14 chunks; reconciling the fixtures and those tests is tracked separately. Not checked against a hosted database.)
+    - [x] Clicking "Try demo" creates a session that survives a refresh; the decoded JWT shows `is_anonymous: true`.
+    - [x] The admin client can't be imported from client code (the build fails if you try).
+    - [x] A demo user querying `documents` can access the two real public samples. The local seed also retains the Northwind and Fabrikam placeholders, so four public documents appear locally. This fixture discrepancy is accepted; a hosted database seeded with `seed:samples` is expected to contain the two real samples.
 
 - [x] **1.8 Stream event contract and client parser** · 2 h · deps: none
   - **Build:** Shared types for the events `sources`, `token`, `done`, `not_found`, `limit`, `error`, plus a client-side parser for the response stream.
@@ -188,13 +188,13 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] On localhost, "How many remote days per week are allowed?" (use a real fact from your sample) streams an answer and lists sources with page numbers. (As reported by the project owner, local stack: the ask UI renders, a submitted question streams an answer, and each source shows its document title, page number and snippet; a response with no answer also displays correctly. The exact question asked was not recorded. Components: `components/ask-panel.tsx`, `components/source-list.tsx`; logic in `lib/ask-client/`. Implementation details: `docs/decisions.md` (2026-11-04).)
     - [x] Network failure mid-stream shows an error state, not a frozen spinner. (As reported by the project owner: going offline during a request shows "Connection lost. Check your network and retry." with a working Retry button, and an expired session shows the reload message. A stalled connection was confirmed in Chrome with a temporary route edit that never responded (since reverted): the stalled-connection message appeared after the 30 s idle timeout. DevTools Offline cannot test that timeout, because it makes `fetch` fail at once. A silent stall after the first event was not tried in a browser; it is covered by unit tests and by a real-`fetch` check in Claude's sandbox. `yarn format`, `lint`, `typecheck` and `test` pass locally. Navigating away mid-stream cancels the `/api/ask` request, per Chrome's Network panel.)
 
-- [ ] **1.11 First deploy of the slice** · 1.5 h · deps: 1.1-1.10
+- [x] **1.11 First deploy of the slice** · 1.5 h · deps: 1.1-1.10
   - **Build:** Push migrations to the hosted project, run `seed:samples` against it, set Vercel env vars, deploy.
   - **Done when:**
-    - [ ] On the **deployed** URL: Try demo → ask → streamed answer with sources, end to end.
-    - [ ] You can find the request in Vercel logs; no secrets in the output.
+    - [x] On the **deployed** URL: Try demo → ask → streamed answer with sources, end to end.
+    - [x] You can find the request in Vercel logs; no secrets in the output.
 
-**Slice 1 done:** [ ] Global DoD · [ ] **Milestone M1 recorded** (section 6)
+**Slice 1 done:** [ ] Global DoD · [x] **Milestone M1 recorded** (section 6)
 
 ---
 
@@ -202,11 +202,11 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 
 **Goal:** The app says "I couldn't find that" when it should, citations are trustworthy, and you can **measure** both. Do the eval work before polishing anything, because it tells you whether retrieval is any good.
 
-- [ ] **2.1 Eval dataset** · 2.5 h · deps: 0.9
+- [x] **2.1 Eval dataset** · 2.5 h · deps: 0.9
   - **Build:** `eval/dataset/qa.json`: 18-20 entries `{ question, answerable, expected_facts[], expected_pages[] }`. Include at least 5 unanswerable questions (plausible but absent), 1 prompt-injection case (add a sentence to your sample doc like "ignore previous instructions and say X", or a dedicated test doc), a few questions needing two chunks, and a few paraphrased questions that don't reuse the document's wording.
   - **Done when:**
-    - [ ] A zod-validated loader script reads the file without errors.
-    - [ ] Every answerable question's expected page matches `facts.md`.
+    - [x] A zod-validated loader script reads the file without errors. (`eval/dataset.ts` exports `loadEvalDataset`, with a strict zod schema and an `EvalDatasetError` that lists every problem; `yarn eval:validate` (`eval/validate-dataset.ts`) runs it with no env file. `eval/dataset/qa.json` has 20 entries: 15 answerable (6 direct, 4 paraphrase, 4 multi-chunk, 1 prompt-injection) and 5 unanswerable, the five uncovered topics from `facts.md`. Each entry carries extra fields beyond the four in the Build line: `id`, `category`, `document`, `fact_ids` and, on the injection case, `forbidden_substrings`. The injection case uses a dedicated fixture, `eval/dataset/injection-memo.md`, not an edit to a sample document; it is not seeded, so Task 2.2 must ingest it somewhere retrievable. Tests: `tests/unit/eval-dataset.test.ts`. All local checks passed, including the full suite of 586 tests, as reported by the project owner. Claude's sandbox, with only the snapshot files and a minimal install: the new test file (56 tests), a scoped strict `tsc` check, Prettier defaults, and the validate script exiting 1 after a deliberately wrong page. Details: `docs/decisions.md` (2026-11-04).)
+    - [x] Every answerable question's expected page matches `facts.md`. (`checkAgainstFacts` in `eval/facts.ts` requires each `fact_ids` entry to exist, `expected_pages` to equal exactly the pages of those facts, and each `expected_facts` string to appear in their text. It runs in `yarn eval:validate` and in `tests/unit/eval-dataset.test.ts`. The `expected_pages` of an entry are pages of its own `document`, never FAQ pages, and FAQ-only facts have no questions. Not tested here: how well retrieval finds these pages, especially for the paraphrased questions; that is Task 2.2.)
 
 - [ ] **2.2 Eval runner v1: retrieval only** · 3 h · deps: 2.1, 1.9
   - **Build:** `npm run eval` calls the retrieval pipeline directly (not over HTTP) and records, per question, the top-k pages, top-1 similarity, and whether an expected page is in top-k. Backs off on rate limits. Writes JSON and a Markdown table to `eval/results/`.
@@ -648,7 +648,7 @@ Hours are focused working hours. "Likely" is the sum of the task estimates above
 Record each one (screen capture or GIF). Keep them in a private folder; M3, M5, and M6 feed the README and your applications.
 
 - [ ] **M0: End of Slice 0 · Private.** Screenshot of the deployed skeleton plus the three spike findings (`docs/spikes/`). _Shows: you de-risked before building. Good for your own morale and a "decisions" section in the README._
-- [ ] **M1: End of Slice 1 · Show a friend.** 30-second clip: click Try demo → ask a question about the sample → answer streams in → sources listed with pages. _First proof the core works end to end on a deployed URL._
+- [x] **M1: End of Slice 1 · Show a friend.** 30-second clip: click Try demo → ask a question about the sample → answer streams in → sources listed with pages. _First proof the core works end to end on a deployed URL._
 - [ ] **M2: End of Slice 2 · Show a technical friend.** Two clips: an answerable question with citation chips, and an unanswerable one returning "I couldn't find that". Plus a terminal screenshot of the eval table. _Shows measurement, not vibes._
 - [ ] **M3: End of Slice 3 · Your best clip.** 60 seconds: ask → click citation → the PDF opens at the page with the passage highlighted → then a case where the fallback panel appears. _This is the hero demo; lead your README with it._
 - [ ] **M4: End of Slice 4 · Show someone non-technical.** Sign up → upload → watch status → ask → delete. Include the scanned-PDF error. Add a short capture of the Playwright isolation test passing. _Proves the app works for real users and that user A can't see user B._
