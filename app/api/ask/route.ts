@@ -1,4 +1,9 @@
-import { retrieveChunks, SearchFailedError } from "@/features/qa";
+import {
+  checkRefusalGate1,
+  retrieveChunks,
+  SearchFailedError,
+} from "@/features/qa";
+import { encodeStreamEvent } from "@/lib/ask-stream/events";
 import { describeError } from "@/lib/ask/errors";
 import { buildAskMessages } from "@/lib/ask/prompt";
 import { parseAskRequest } from "@/lib/ask/request";
@@ -69,7 +74,22 @@ export async function POST(request: Request): Promise<Response> {
       documentId,
     });
 
-    // 5. Stream.
+    // 5. Refusal gate #1: when even the best passage is below the calibrated
+    // threshold, answer `not_found` and never call the LLM. It is a normal
+    // outcome, so the status is 200 and the body is a one-frame stream.
+    // `closest` is left out when nothing was retrieved.
+    if (checkRefusalGate1(passages).refuse) {
+      const closest = toStreamSources(passages);
+      return new Response(
+        encodeStreamEvent({
+          type: "not_found",
+          ...(closest.length > 0 ? { closest } : {}),
+        }),
+        { headers: SSE_HEADERS },
+      );
+    }
+
+    // 6. Stream.
     const stream = createAskResponseStream({
       sources: toStreamSources(passages),
       messages: buildAskMessages(question, passages),

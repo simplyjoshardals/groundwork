@@ -8,3 +8,5 @@ export {
   retrieveChunks,
 } from "./retrieve";
 export type { MatchedChunk, RetrieveChunksInput } from "./retrieve";
+export { checkRefusalGate1 } from "./refusal";
+export type { PassageSimilarity, RefusalDecision } from "./refusal";

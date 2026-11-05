@@ -23,6 +23,7 @@ vi.mock("@/lib/providers", async (importOriginal) => ({
 }));
 
 import * as route from "@/app/api/ask/route";
+import { REFUSAL_SIMILARITY_THRESHOLD } from "@/lib/config";
 import { ProviderUnavailableError } from "@/lib/providers";
 import type { AskStreamEvent } from "@/types/ask-stream";
 
@@ -164,6 +165,57 @@ describe("POST /api/ask: success", () => {
   it("omits p_document_id when none is given", async () => {
     await (await post({ question: "Q" })).text();
     expect(rpc.mock.calls[0][1]).not.toHaveProperty("p_document_id");
+  });
+});
+
+describe("POST /api/ask: refusal gate #1", () => {
+  it("answers not_found with the closest matches and never calls the LLM below the threshold", async () => {
+    rpc.mockResolvedValue({
+      data: [{ ...ROW, similarity: 0.6 }],
+      error: null,
+    });
+    const response = await post({ question: "Q" });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/event-stream");
+
+    // The body is fully read, so a lazy LLM call would have happened by now.
+    const events = await readEvents(response);
+    expect(llmStream).not.toHaveBeenCalled();
+    expect(events).toEqual([
+      {
+        type: "not_found",
+        closest: [
+          {
+            marker: 1,
+            documentId: UUID,
+            documentTitle: "Handbook",
+            page: 4,
+            snippet: "Notice is 30 days.",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("answers not_found without `closest` when nothing was retrieved", async () => {
+    rpc.mockResolvedValue({ data: [], error: null });
+    const events = await readEvents(await post({ question: "Q" }));
+    expect(llmStream).not.toHaveBeenCalled();
+    expect(events).toEqual([{ type: "not_found" }]);
+  });
+
+  it("still calls the LLM at exactly the threshold", async () => {
+    rpc.mockResolvedValue({
+      data: [{ ...ROW, similarity: REFUSAL_SIMILARITY_THRESHOLD }],
+      error: null,
+    });
+    const events = await readEvents(await post({ question: "Q" }));
+    expect(llmStream).toHaveBeenCalledTimes(1);
+    expect(events.map((event) => event.type)).toEqual([
+      "sources",
+      "token",
+      "done",
+    ]);
   });
 });
 
