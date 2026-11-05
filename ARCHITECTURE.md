@@ -206,6 +206,7 @@ sequenceDiagram
 - **Why:** ≤ ~1,000 chunks per user means brute force is milliseconds and always correct. A separate vector DB would break your RLS story and add a second system.
 - **Change my mind if:** total rows grow into the hundreds of thousands, or measured latency exceeds your budget. Then add HNSW and test recall against the exact results. **🔎 VERIFY** the pgvector version Supabase ships and whether iterative index scans are available for filtered queries.
 - **Dimension choice:** some embedding models let you reduce output dimensions. Smaller vectors mean a smaller database. **🔎 VERIFY** what your chosen model supports and decide before ingesting anything.
+- **Built (Task 2.3):** `lib/config.ts` now exists and holds `REFUSAL_SIMILARITY_THRESHOLD` (0.65) and `REFUSAL_THRESHOLD_EMBEDDING_MODEL` (`gemini-embedding-2`); other limits stay beside their code for now. On the Task 2.2 baseline the answerable and unanswerable top-1 similarities overlap (0.6705 to 0.7142), so 0.65 is a conservative floor, not a separator: refusal gate #1 only catches clearly off-topic questions and gate #2 (Task 2.5) carries the rest. The threshold is model-specific and provisional. `yarn eval:calibrate` recomputes the distributions from an eval report with no API calls. Details and the deferred retrieval tuning: `docs/decisions.md` (2026-11-05).
 
 ### 3.4 Auth
 
