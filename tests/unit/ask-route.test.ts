@@ -219,6 +219,40 @@ describe("POST /api/ask: refusal gate #1", () => {
   });
 });
 
+describe("POST /api/ask: refusal gate #2 (sentinel)", () => {
+  it("answers a single not_found frame, with closest, when the model replies NOT_FOUND", async () => {
+    llmStream.mockImplementation(async function* () {
+      yield { type: "text", text: "NOT_" };
+      yield { type: "text", text: "FOUND" };
+      yield { type: "finish", reason: "stop" };
+    });
+    const response = await post({ question: "Q" });
+    expect(response.status).toBe(200);
+    const events = await readEvents(response);
+    expect(llmStream).toHaveBeenCalledTimes(1);
+    expect(events).toEqual([
+      {
+        type: "not_found",
+        closest: [
+          {
+            marker: 1,
+            documentId: UUID,
+            documentTitle: "Handbook",
+            page: 4,
+            snippet: "Notice is 30 days.",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("asks the model for the sentinel in the system prompt", async () => {
+    await (await post({ question: "Q" })).text();
+    const messages = llmStream.mock.calls[0][0] as { content: string }[];
+    expect(messages[0].content).toContain("NOT_FOUND");
+  });
+});
+
 describe("POST /api/ask: pre-stream failures", () => {
   it("returns 503 when the embedding provider is unavailable, without leaking details", async () => {
     embed.mockRejectedValue(

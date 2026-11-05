@@ -6,6 +6,7 @@ import type {
 } from "@/lib/providers/types";
 import type { AskStreamEvent, StreamSource } from "@/types/ask-stream";
 import { describeError } from "./errors";
+import { createSentinelDetector } from "./sentinel";
 
 /** The fields of a `match_chunks` row that the stream needs. */
 export interface AskSourceRow {
@@ -55,6 +56,15 @@ const INTERRUPTED_MESSAGE = "The answer was interrupted. Please try again.";
  * Builds the SSE body: `sources`, then one `token` per LLM text chunk, then
  * one terminal event (`done`, or `error` if the LLM fails mid-stream).
  *
+ * Refusal gate #2 (Task 2.5): the start of the model output is held back until
+ * it is clear whether it is the `NOT_FOUND` sentinel (see `sentinel.ts`). If it
+ * is, the whole response is a single `not_found` event carrying the sources as
+ * `closest`, like gate #1, and the LLM call is aborted. Otherwise `sources` is
+ * sent just before the first text, so an answered response still starts with
+ * `sources`. The only cost is that `sources` waits for the first few
+ * characters of the answer instead of preceding the LLM call. If the LLM fails
+ * before any text was released, the response is the `error` event alone.
+ *
  * The LLM is pulled only as fast as the client reads. A client disconnect
  * (request signal or stream cancel) aborts the LLM call and ends the stream
  * quietly, with no error event, since nobody is listening.
@@ -73,7 +83,9 @@ export function createAskResponseStream(
   if (signal?.aborted) abort.abort();
   else signal?.addEventListener("abort", onClientAbort, { once: true });
 
+  const detector = createSentinelDetector();
   let iterator: AsyncIterator<LlmStreamEvent> | undefined;
+  let sourcesSent = false;
   let tokensSent = false;
   let closed = false;
 
@@ -84,6 +96,21 @@ export function createAskResponseStream(
     controller: ReadableStreamDefaultController<Uint8Array>,
     event: AskStreamEvent,
   ) => controller.enqueue(encoder.encode(encodeStreamEvent(event)));
+  const ensureSources = (
+    controller: ReadableStreamDefaultController<Uint8Array>,
+  ) => {
+    if (sourcesSent) return;
+    sourcesSent = true;
+    emit(controller, { type: "sources", sources });
+  };
+  const release = (
+    controller: ReadableStreamDefaultController<Uint8Array>,
+    text: string,
+  ) => {
+    ensureSources(controller);
+    emit(controller, { type: "token", text });
+    tokensSent = true;
+  };
   const close = (controller: ReadableStreamDefaultController<Uint8Array>) => {
     closed = true;
     signal?.removeEventListener("abort", onClientAbort);
@@ -109,11 +136,28 @@ export function createAskResponseStream(
     stopIterator();
   };
 
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      emit(controller, { type: "sources", sources });
-    },
+  // The model refused: one `not_found` frame, then stop paying for tokens.
+  const refuse = (controller: ReadableStreamDefaultController<Uint8Array>) => {
+    emit(controller, {
+      type: "not_found",
+      ...(sources.length > 0 ? { closest: sources } : {}),
+    });
+    close(controller);
+    abort.abort();
+    stopIterator();
+  };
+  // The LLM output ended: release any held-back text, then finish.
+  const finish = (controller: ReadableStreamDefaultController<Uint8Array>) => {
+    const decision = detector.end();
+    if (decision.kind === "pass" && decision.text !== "") {
+      release(controller, decision.text);
+    }
+    ensureSources(controller);
+    emit(controller, { type: "done", citations: [], invalidCitations: [] });
+    close(controller);
+  };
 
+  return new ReadableStream<Uint8Array>({
     // Loops until it enqueues something or closes: a pull that returns without
     // enqueueing would leave a waiting reader stuck.
     async pull(controller) {
@@ -130,12 +174,7 @@ export function createAskResponseStream(
           if (closed) return;
 
           if (step.done) {
-            emit(controller, {
-              type: "done",
-              citations: [],
-              invalidCitations: [],
-            });
-            close(controller);
+            finish(controller);
             return;
           }
           const event = step.value;
@@ -143,18 +182,18 @@ export function createAskResponseStream(
             if (event.reason === "blocked") {
               fail(controller, new Error("The LLM blocked its response."));
             } else {
-              emit(controller, {
-                type: "done",
-                citations: [],
-                invalidCitations: [],
-              });
-              close(controller);
+              finish(controller);
             }
             return;
           }
           if (event.text === "") continue;
-          emit(controller, { type: "token", text: event.text });
-          tokensSent = true;
+          const decision = detector.push(event.text);
+          if (decision.kind === "pending") continue;
+          if (decision.kind === "not_found") {
+            refuse(controller);
+            return;
+          }
+          release(controller, decision.text);
           return;
         } catch (error) {
           if (closed) return;

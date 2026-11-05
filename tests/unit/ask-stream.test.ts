@@ -127,15 +127,16 @@ describe("createAskResponseStream", () => {
     expect((await read()).type).toBe("done");
   });
 
-  it("emits llm_unavailable when the LLM fails before any token", async () => {
+  it("emits only llm_unavailable when the LLM fails before any token", async () => {
     const llm = llmFrom(async function* () {
       throw new Error("secret provider detail");
     });
     const events = await readAll(
       createAskResponseStream({ sources, messages, llm }),
     );
-    expect(events.map((e) => e.type)).toEqual(["sources", "error"]);
-    const error = events[1];
+    // No text was released, so `sources` was never sent either.
+    expect(events.map((e) => e.type)).toEqual(["error"]);
+    const error = events[0];
     expect(error).toMatchObject({ type: "error", code: "llm_unavailable" });
     expect(JSON.stringify(error)).not.toContain("secret");
   });
@@ -214,5 +215,135 @@ describe("createAskResponseStream", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(seenSignal?.aborted).toBe(true);
     expect(cleanedUp).toBe(true);
+  });
+});
+
+describe("createAskResponseStream: refusal gate #2 (sentinel)", () => {
+  const closest = sources;
+
+  async function run(
+    chunks: string[],
+    options: { signal?: AbortSignal } = {},
+  ): Promise<AskStreamEvent[]> {
+    const llm = llmFrom(async function* () {
+      for (const text of chunks) yield { type: "text", text };
+      yield finish;
+    });
+    return readAll(
+      createAskResponseStream({ sources, messages, llm, ...options }),
+    );
+  }
+
+  it("converts a sentinel in one token into a single not_found frame", async () => {
+    expect(await run(["NOT_FOUND"])).toEqual([{ type: "not_found", closest }]);
+  });
+
+  it("converts a sentinel split across two tokens", async () => {
+    expect(await run(["NOT_", "FOUND"])).toEqual([
+      { type: "not_found", closest },
+    ]);
+  });
+
+  it("converts a sentinel split across many tokens, after leading whitespace", async () => {
+    expect(await run(["\n", "NO", "T_F", "OUND", "."])).toEqual([
+      { type: "not_found", closest },
+    ]);
+  });
+
+  it("never lets any text of a refused answer through", async () => {
+    const events = await run(["NOT_FOUND", " The documents do not say."]);
+    expect(events.map((e) => e.type)).toEqual(["not_found"]);
+    expect(JSON.stringify(events)).not.toContain("documents do not say");
+  });
+
+  it("omits closest when there are no sources", async () => {
+    const llm = llmFrom(async function* () {
+      yield { type: "text", text: "NOT_FOUND" };
+      yield finish;
+    });
+    const events = await readAll(
+      createAskResponseStream({ sources: [], messages, llm }),
+    );
+    expect(events).toEqual([{ type: "not_found" }]);
+  });
+
+  it("keeps a normal answer that merely contains 'not found' later", async () => {
+    const events = await run(["The form is ", "not found [1]. ", "NOT_FOUND"]);
+    expect(events).toEqual([
+      { type: "sources", sources },
+      { type: "token", text: "The form is " },
+      { type: "token", text: "not found [1]. " },
+      { type: "token", text: "NOT_FOUND" },
+      { type: "done", citations: [], invalidCitations: [] },
+    ]);
+  });
+
+  it("sends sources first and releases held-back text in one token", async () => {
+    const events = await run(["NOT_", "quite", " right"]);
+    expect(events).toEqual([
+      { type: "sources", sources },
+      { type: "token", text: "NOT_quite" },
+      { type: "token", text: " right" },
+      { type: "done", citations: [], invalidCitations: [] },
+    ]);
+  });
+
+  it("flushes a partial sentinel prefix as an answer when the stream ends", async () => {
+    expect(await run(["NOT"])).toEqual([
+      { type: "sources", sources },
+      { type: "token", text: "NOT" },
+      { type: "done", citations: [], invalidCitations: [] },
+    ]);
+  });
+
+  it("still sends sources and done for an empty answer", async () => {
+    expect((await run([])).map((e) => e.type)).toEqual(["sources", "done"]);
+  });
+
+  it("aborts the LLM call as soon as it refuses", async () => {
+    let seenSignal: AbortSignal | undefined;
+    let cleanedUp = false;
+    let pulledAfterRefusal = false;
+    const llm = llmFrom(async function* (signal) {
+      seenSignal = signal;
+      try {
+        yield { type: "text", text: "NOT_FOUND" };
+        pulledAfterRefusal = true;
+        yield { type: "text", text: "never read" };
+      } finally {
+        cleanedUp = true;
+      }
+    });
+    const events = await readAll(
+      createAskResponseStream({ sources, messages, llm }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(events.map((e) => e.type)).toEqual(["not_found"]);
+    expect(seenSignal?.aborted).toBe(true);
+    expect(cleanedUp).toBe(true);
+    expect(pulledAfterRefusal).toBe(false);
+  });
+
+  it("emits llm_unavailable, with no sources, when the LLM fails while the start is held back", async () => {
+    const llm = llmFrom(async function* () {
+      yield { type: "text", text: "NOT_" };
+      throw new Error("boom");
+    });
+    const events = await readAll(
+      createAskResponseStream({ sources, messages, llm }),
+    );
+    expect(events.map((e) => e.type)).toEqual(["error"]);
+    expect(events[0]).toMatchObject({ code: "llm_unavailable" });
+  });
+
+  it("treats a blocked finish while the start is held back as an error", async () => {
+    const llm = llmFrom(async function* () {
+      yield { type: "text", text: "NOT_" };
+      yield { type: "finish", reason: "blocked" };
+    });
+    const events = await readAll(
+      createAskResponseStream({ sources, messages, llm }),
+    );
+    expect(events.map((e) => e.type)).toEqual(["error"]);
   });
 });
