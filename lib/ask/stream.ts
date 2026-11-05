@@ -5,6 +5,7 @@ import type {
   LlmStreamEvent,
 } from "@/lib/providers/types";
 import type { AskStreamEvent, StreamSource } from "@/types/ask-stream";
+import { validateCitations } from "./citations";
 import { describeError } from "./errors";
 import { createSentinelDetector } from "./sentinel";
 
@@ -69,8 +70,11 @@ const INTERRUPTED_MESSAGE = "The answer was interrupted. Please try again.";
  * (request signal or stream cancel) aborts the LLM call and ends the stream
  * quietly, with no error event, since nobody is listening.
  *
- * `citations` and `invalidCitations` are empty until citation validation
- * exists (a later task).
+ * Citation validation (Task 2.6): the released text is collected, and the
+ * terminal `done` event lists the `[n]` markers that exist among the sources
+ * (`citations`) and those that do not (`invalidCitations`). Tokens are already
+ * with the client by then, so the client removes invalid markers when it
+ * renders (Task 2.7). An answer with no valid marker is logged, by count only.
  */
 export function createAskResponseStream(
   options: AskResponseStreamOptions,
@@ -88,6 +92,7 @@ export function createAskResponseStream(
   let sourcesSent = false;
   let tokensSent = false;
   let closed = false;
+  let answer = ""; // every released token, for citation validation at the end
 
   const stopIterator = () => {
     void Promise.resolve(iterator?.return?.()).catch(() => undefined);
@@ -110,6 +115,7 @@ export function createAskResponseStream(
     ensureSources(controller);
     emit(controller, { type: "token", text });
     tokensSent = true;
+    answer += text;
   };
   const close = (controller: ReadableStreamDefaultController<Uint8Array>) => {
     closed = true;
@@ -153,7 +159,16 @@ export function createAskResponseStream(
       release(controller, decision.text);
     }
     ensureSources(controller);
-    emit(controller, { type: "done", citations: [], invalidCitations: [] });
+    const { citations, invalidCitations, uncited } = validateCitations(
+      answer,
+      sources.length,
+    );
+    if (uncited) {
+      console.warn(
+        `[ask] Answer has no valid citation (${answer.length} characters, ${invalidCitations.length} invalid markers).`,
+      );
+    }
+    emit(controller, { type: "done", citations, invalidCitations });
     close(controller);
   };
 

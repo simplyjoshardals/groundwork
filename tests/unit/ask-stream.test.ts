@@ -41,6 +41,7 @@ const finish: LlmStreamEvent = { type: "finish", reason: "stop" };
 
 beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -98,7 +99,7 @@ describe("createAskResponseStream", () => {
       { type: "sources", sources },
       { type: "token", text: "Hel" },
       { type: "token", text: "lo [1]" },
-      { type: "done", citations: [], invalidCitations: [] },
+      { type: "done", citations: [1], invalidCitations: [] },
     ]);
   });
 
@@ -274,7 +275,7 @@ describe("createAskResponseStream: refusal gate #2 (sentinel)", () => {
       { type: "token", text: "The form is " },
       { type: "token", text: "not found [1]. " },
       { type: "token", text: "NOT_FOUND" },
-      { type: "done", citations: [], invalidCitations: [] },
+      { type: "done", citations: [1], invalidCitations: [] },
     ]);
   });
 
@@ -345,5 +346,91 @@ describe("createAskResponseStream: refusal gate #2 (sentinel)", () => {
       createAskResponseStream({ sources, messages, llm }),
     );
     expect(events.map((e) => e.type)).toEqual(["error"]);
+  });
+});
+
+describe("createAskResponseStream: citation validation", () => {
+  const twoSources = toStreamSources([
+    { doc_id: "d1", doc_title: "Doc", page_number: 1, content: "one" },
+    { doc_id: "d2", doc_title: "Doc", page_number: 2, content: "two" },
+  ]);
+
+  async function run(
+    chunks: string[],
+    options: { sources?: typeof twoSources } = {},
+  ): Promise<AskStreamEvent[]> {
+    const llm = llmFrom(async function* () {
+      for (const text of chunks) yield { type: "text", text };
+      yield finish;
+    });
+    return readAll(
+      createAskResponseStream({
+        sources: options.sources ?? twoSources,
+        messages,
+        llm,
+      }),
+    );
+  }
+
+  it("reports valid and invalid markers in done, in first-appearance order", async () => {
+    const events = await run(["Yes [2][1]. ", "Also [9] and [2]."]);
+    expect(events.at(-1)).toEqual({
+      type: "done",
+      citations: [2, 1],
+      invalidCitations: [9],
+    });
+  });
+
+  it("finds a marker split across tokens", async () => {
+    const events = await run(["Notice is 30 days [", "2", "]."]);
+    expect(events.at(-1)).toEqual({
+      type: "done",
+      citations: [2],
+      invalidCitations: [],
+    });
+  });
+
+  it("validates text that was held back and released with the sentinel check", async () => {
+    // "NOT_" is held, then released together with "[1]" as a normal answer.
+    const events = await run(["NOT_", "ice [1]"]);
+    expect(events.at(-1)).toMatchObject({ type: "done", citations: [1] });
+  });
+
+  it("treats every marker as invalid when there are no sources", async () => {
+    const events = await run(["Made up [1]."], { sources: [] });
+    expect(events.at(-1)).toEqual({
+      type: "done",
+      citations: [],
+      invalidCitations: [1],
+    });
+  });
+
+  it("logs an uncited answer by count only, never its text", async () => {
+    await run(["Secret answer text."]);
+    expect(console.warn).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toContain(
+      "Secret",
+    );
+  });
+
+  it("does not log when the answer has a valid citation", async () => {
+    await run(["Fine [1]."]);
+    expect(console.warn).not.toHaveBeenCalled();
+  });
+
+  it("sends no done event for a refusal", async () => {
+    const events = await run(["NOT_FOUND"]);
+    expect(events.map((e) => e.type)).toEqual(["not_found"]);
+  });
+
+  it("sends no done event when the LLM fails mid-stream", async () => {
+    const llm = llmFrom(async function* () {
+      yield { type: "text", text: "Partial [1]" };
+      throw new Error("boom");
+    });
+    const events = await readAll(
+      createAskResponseStream({ sources: twoSources, messages, llm }),
+    );
+    expect(events.map((e) => e.type)).toEqual(["sources", "token", "error"]);
   });
 });

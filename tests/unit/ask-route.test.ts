@@ -158,7 +158,7 @@ describe("POST /api/ask: success", () => {
         ],
       },
       { type: "token", text: "30 days [1]" },
-      { type: "done", citations: [], invalidCitations: [] },
+      { type: "done", citations: [1], invalidCitations: [] },
     ]);
   });
 
