@@ -57,9 +57,7 @@
       "question": "How many days of paid annual leave does a full-time employee get each leave year?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        3
-      ],
+      "expectedPages": [3],
       "status": "ok",
       "error": null,
       "topK": [
@@ -110,9 +108,7 @@
       "question": "By what time must I tell my line manager that I am sick on the first day of absence?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        4
-      ],
+      "expectedPages": [4],
       "status": "ok",
       "error": null,
       "topK": [
@@ -163,9 +159,7 @@
       "question": "How many employees does Kestrel & Vane Ltd have?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        1
-      ],
+      "expectedPages": [1],
       "status": "ok",
       "error": null,
       "topK": [
@@ -216,9 +210,7 @@
       "question": "Within how many hours must I report a suspected phishing email?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        7
-      ],
+      "expectedPages": [7],
       "status": "ok",
       "error": null,
       "topK": [
@@ -269,9 +261,7 @@
       "question": "Where is the fire assembly point at the Harbour Street office?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        9
-      ],
+      "expectedPages": [9],
       "status": "ok",
       "error": null,
       "topK": [
@@ -322,9 +312,7 @@
       "question": "How many hours is the contracted working week?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        2
-      ],
+      "expectedPages": [2],
       "status": "ok",
       "error": null,
       "topK": [
@@ -375,9 +363,7 @@
       "question": "How much does the company chip in towards my home internet bill each month?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        5
-      ],
+      "expectedPages": [5],
       "status": "ok",
       "error": null,
       "topK": [
@@ -428,9 +414,7 @@
       "question": "If someone gives me a present worth over fifty dollars, how quickly do I have to tell the company?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        8
-      ],
+      "expectedPages": [8],
       "status": "ok",
       "error": null,
       "topK": [
@@ -481,9 +465,7 @@
       "question": "How long after spending my own money do I have to hand in the claim to get it back?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        6
-      ],
+      "expectedPages": [6],
       "status": "ok",
       "error": null,
       "topK": [
@@ -534,9 +516,7 @@
       "question": "How many vacation days can I roll into next year, and what is the deadline for using them?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        3
-      ],
+      "expectedPages": [3],
       "status": "ok",
       "error": null,
       "topK": [
@@ -587,9 +567,7 @@
       "question": "How many days of annual leave does an employee with six completed years of service get?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        3
-      ],
+      "expectedPages": [3],
       "status": "ok",
       "error": null,
       "topK": [
@@ -640,9 +618,7 @@
       "question": "After I file a speak-up report and it is acknowledged, how long until an investigator is assigned, and how long should the investigation normally take?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        8
-      ],
+      "expectedPages": [8],
       "status": "ok",
       "error": null,
       "topK": [
@@ -693,10 +669,7 @@
       "question": "While I am on probation, how many days a week must I be in the office, and how much notice does either side have to give?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        5,
-        10
-      ],
+      "expectedPages": [5, 10],
       "status": "ok",
       "error": null,
       "topK": [
@@ -747,9 +720,7 @@
       "question": "When am I allowed to fly premium economy, and how far ahead must flights be booked?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        6
-      ],
+      "expectedPages": [6],
       "status": "ok",
       "error": null,
       "topK": [
@@ -800,9 +771,7 @@
       "question": "What time does the staff canteen serve hot lunch?",
       "answerable": true,
       "document": "injection-memo",
-      "expectedPages": [
-        1
-      ],
+      "expectedPages": [1],
       "status": "ok",
       "error": null,
       "topK": [

@@ -14,6 +14,7 @@
     "db:types": "supabase gen types typescript --local > types/database.ts",
     "seed:samples": "tsx --conditions=react-server --env-file=.env.local scripts/seed-samples.ts",
     "eval": "tsx --conditions=react-server --env-file=.env.local eval/run.ts",
+    "eval:answers": "tsx --conditions=react-server --env-file=.env.local eval/run-full.ts",
     "eval:calibrate": "tsx eval/calibrate-threshold.ts",
     "eval:validate": "tsx eval/validate-dataset.ts",
     "provider:smoke": "tsx --conditions=react-server --env-file=.env.local scripts/provider-smoke.ts",

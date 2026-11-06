@@ -58,8 +58,7 @@ export function validateCitations(
 
 /** A piece of a displayed answer: plain text, or a valid `[n]` citation. */
 export type AnswerSegment =
-  | { type: "text"; text: string }
-  | { type: "citation"; marker: number };
+  { type: "text"; text: string } | { type: "citation"; marker: number };
 
 /** A marker that is still arriving at the end of the text: `[` or `[12`. */
 const OPEN_MARKER_AT_END = / ?\[\d*$/;
