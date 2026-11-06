@@ -245,12 +245,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
   - **Done when:**
     - [x] Vitest cases: valid marker; out-of-range `[9]`; `[0]`; repeated markers; adjacent `[1][2]`; marker with no retrieved passages; text with no markers (answer with zero citations is flagged). (`tests/unit/ask-citations.test.ts`, 16 tests, plus a citation block in `tests/unit/ask-stream.test.ts`. `validateCitations` in `lib/ask/citations.ts` is pure; `createAskResponseStream` fills `done.citations` and `done.invalidCitations` from it. Invalid markers are stripped by the client at render time (Task 2.7), because tokens are already sent when the full text is known. Verified locally by the project owner: `yarn typecheck`, `yarn lint` and the full suite (705 tests in 32 files) pass; a live curl for the annual-leave question returned `done` with `citations: [1, 2]` and `invalidCitations: []`. Not exercised live: an invalid marker, which only unit tests cover.)
 
-- [ ] **2.7 Citation chips and not-found UI** · 2.5 h · deps: 2.4, 2.6, 1.10
+- [x] **2.7 Citation chips and not-found UI** · 2.5 h · deps: 2.4, 2.6, 1.10
   - **Build:** Render validated markers as chips ("Source 2: handbook.pdf, p. 7"), remove invalid markers from the displayed text, add a clear "couldn't find that" state with collapsed closest matches.
   - **Done when:**
-    - [ ] Chips show correct doc and page for 5 hand-checked questions.
-    - [ ] An invalid marker never appears in the UI.
-    - [ ] The not-found state is visually distinct from an error state.
+    - [x] Chips show correct doc and page for 5 hand-checked questions. (As reported by the project owner: five questions hand-checked, each chip's tooltip matched its source card's document and page. A chip shows `[n]`, with the full label "Source n: <document>, page N" as accessible name and tooltip; the source list below shows the detail. Chips are not clickable until Task 3.3. Per-question detail was not recorded.)
+    - [x] An invalid marker never appears in the UI. (`segmentAnswer` in `lib/ask/citations.ts` removes markers outside 1..source count before drawing, and holds back an unfinished `[` or `[1` while streaming; 17 unit tests in `tests/unit/ask-segment-answer.test.ts`. Checked by hand as reported by the project owner by temporarily injecting `[9]` into the first token: it never showed, not even briefly; edit reverted. The client validates for itself and ignores `done.citations`.)
+    - [x] The not-found state is visually distinct from an error state. (`components/not-found-notice.tsx`: a neutral grey `role="status"` block with no Retry and the closest passages in a collapsed `<details>`; errors keep the red `role="alert"` block with Retry. `AskState` now carries `closest`. Confirmed by hand as reported by the project owner, including the red alert, Retry and "Incomplete answer" label after a forced mid-stream failure. Components have no automated tests (no jsdom or React Testing Library). Details: `docs/decisions.md` (2026-11-06).)
 
 - [ ] **2.8 Eval runner v2: answers, citations, refusals** · 3 h · deps: 2.5, 2.6, 2.2
   - **Build:** Run the full ask pipeline, then score: fact-match (do `expected_facts` appear, using normalized string/number matching), citation-page correctness, refusal precision and recall. Mark anything uncertain for manual review.

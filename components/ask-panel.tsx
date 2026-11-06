@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useReducer, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type { SubmitEvent } from "react";
+import { AnswerText } from "@/components/answer-text";
+import { NotFoundNotice } from "@/components/not-found-notice";
 import { SourceList } from "@/components/source-list";
 import {
   askReducer,
@@ -48,7 +50,7 @@ export function AskPanel() {
     }
   }
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  function onSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const question = input.trim();
     if (busy || question.length === 0) return;
@@ -104,7 +106,11 @@ export function AskPanel() {
                   Incomplete answer
                 </p>
               ) : null}
-              <p className="whitespace-pre-wrap">{state.answer}</p>
+              <AnswerText
+                text={state.answer}
+                sources={state.sources}
+                streaming={state.status === "streaming"}
+              />
             </div>
           ) : null}
 
@@ -114,7 +120,12 @@ export function AskPanel() {
             </p>
           ) : null}
 
-          {state.notice ? (
+          {state.status === "not_found" && state.notice ? (
+            <NotFoundNotice
+              message={state.notice.message}
+              closest={state.closest}
+            />
+          ) : state.notice ? (
             <div
               role={state.status === "error" ? "alert" : "status"}
               className="flex flex-col items-start gap-2 text-sm"

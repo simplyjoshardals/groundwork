@@ -4,7 +4,7 @@
  * Models sometimes cite a number that was never retrieved, so every marker is
  * checked against the number of sources before the client may trust it. Pure
  * and free of `server-only`: the server fills the `done` event with it and the
- * browser can reuse `validateCitations` to strip invalid markers (Task 2.7).
+ * browser reuses it to strip invalid markers and draw chips (Task 2.7).
  */
 
 /**
@@ -54,4 +54,60 @@ export function validateCitations(
     strippedText,
     uncited: citations.length === 0,
   };
+}
+
+/** A piece of a displayed answer: plain text, or a valid `[n]` citation. */
+export type AnswerSegment =
+  | { type: "text"; text: string }
+  | { type: "citation"; marker: number };
+
+/** A marker that is still arriving at the end of the text: `[` or `[12`. */
+const OPEN_MARKER_AT_END = / ?\[\d*$/;
+
+export interface SegmentOptions {
+  /**
+   * True while tokens are still arriving. An unfinished `[` or `[1` at the very
+   * end is then held back, so it does not flash before its `]` arrives.
+   */
+  streaming?: boolean;
+}
+
+/**
+ * Turns answer text into what the UI draws: invalid markers removed (as in
+ * `validateCitations`), valid ones split out as citation segments. Text
+ * segments are never empty, and the segments joined back (with each citation
+ * as `[n]`) give `strippedText`.
+ */
+export function segmentAnswer(
+  text: string,
+  sourceCount: number,
+  options: SegmentOptions = {},
+): AnswerSegment[] {
+  const visible = options.streaming
+    ? text.replace(OPEN_MARKER_AT_END, "")
+    : text;
+  const { strippedText } = validateCitations(visible, sourceCount);
+
+  const segments: AnswerSegment[] = [];
+  let cursor = 0;
+
+  // After validation every remaining match is valid. `matchAll` copies the
+  // regex, so the shared `lastIndex` state is never touched.
+  for (const match of strippedText.matchAll(MARKER)) {
+    const leadingSpace = match[0].startsWith(" ") ? 1 : 0;
+    const markerStart = match.index + leadingSpace;
+    if (markerStart > cursor) {
+      segments.push({
+        type: "text",
+        text: strippedText.slice(cursor, markerStart),
+      });
+    }
+    segments.push({ type: "citation", marker: Number(match[1]) });
+    cursor = match.index + match[0].length;
+  }
+
+  if (cursor < strippedText.length) {
+    segments.push({ type: "text", text: strippedText.slice(cursor) });
+  }
+  return segments;
 }

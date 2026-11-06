@@ -23,6 +23,8 @@ export interface AskState {
   answer: string;
   /** Set for `error`, `not_found` and `limit`. */
   notice: AskFailure | null;
+  /** Nearest passages from a `not_found` event; empty otherwise. */
+  closest: StreamSource[];
 }
 
 export type AskAction =
@@ -36,9 +38,10 @@ export const initialAskState: AskState = {
   sources: null,
   answer: "",
   notice: null,
+  closest: [],
 };
 
-// Task 2.7 replaces this with the real not-found UI (and `closest` passages).
+/** Headline of the not-found state (Task 2.7 shows it beside `closest`). */
 const NOT_FOUND: AskFailure = {
   message: "I couldn't find that in the documents.",
   retryable: false,
@@ -61,7 +64,12 @@ function applyEvent(state: AskState, event: AskStreamEvent): AskState {
     case "done":
       return { ...state, status: "done" };
     case "not_found":
-      return { ...state, status: "not_found", notice: NOT_FOUND };
+      return {
+        ...state,
+        status: "not_found",
+        notice: NOT_FOUND,
+        closest: event.closest ?? [],
+      };
     case "limit":
       return {
         ...state,

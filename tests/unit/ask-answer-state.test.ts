@@ -30,6 +30,7 @@ describe("askReducer", () => {
     expect(initialAskState.status).toBe("idle");
     expect(initialAskState.sources).toBeNull();
     expect(initialAskState.notice).toBeNull();
+    expect(initialAskState.closest).toEqual([]);
   });
 
   it("submit moves to loading and clears the previous answer", () => {
@@ -45,7 +46,17 @@ describe("askReducer", () => {
       sources: null,
       answer: "",
       notice: null,
+      closest: [],
     });
+  });
+
+  it("submit clears closest passages left by a previous not_found", () => {
+    const previous = run([
+      submit,
+      event({ type: "not_found", closest: [SOURCE] }),
+    ]);
+    expect(previous.closest).toEqual([SOURCE]);
+    expect(askReducer(previous, submit).closest).toEqual([]);
   });
 
   it("shows sources first, then accumulates tokens, then finishes", () => {
@@ -114,6 +125,25 @@ describe("askReducer", () => {
     expect(global.status).toBe("limit");
     expect(user.notice?.message).not.toBe(global.notice?.message);
     expect(user.notice?.retryable).toBe(false);
+  });
+
+  it("keeps the closest passages from a not_found event", () => {
+    const state = run([
+      submit,
+      event({ type: "not_found", closest: [SOURCE] }),
+    ]);
+    expect(state.status).toBe("not_found");
+    expect(state.closest).toEqual([SOURCE]);
+    // No `sources` event precedes a refusal, so no source list is shown.
+    expect(state.sources).toBeNull();
+    expect(state.answer).toBe("");
+  });
+
+  it("uses an empty closest list when not_found carries none", () => {
+    expect(run([submit, event({ type: "not_found" })]).closest).toEqual([]);
+    expect(
+      run([submit, event({ type: "not_found", closest: [] })]).closest,
+    ).toEqual([]);
   });
 
   it("a thrown failure ends the answer as an error and keeps partial text", () => {

@@ -1,7 +1,17 @@
 import type { StreamSource } from "@/types/ask-stream";
 
 /** Passages the answer was drawn from: marker, document, page, snippet. */
-export function SourceList({ sources }: { sources: readonly StreamSource[] }) {
+export function SourceList({
+  sources,
+  label = "Sources",
+  showHeading = true,
+}: {
+  sources: readonly StreamSource[];
+  /** Accessible name of the list; also the heading text when it is shown. */
+  label?: string;
+  /** False when a parent already provides a heading (e.g. a `<summary>`). */
+  showHeading?: boolean;
+}) {
   if (sources.length === 0) {
     return (
       <p className="text-sm text-neutral-600">
@@ -11,8 +21,8 @@ export function SourceList({ sources }: { sources: readonly StreamSource[] }) {
   }
 
   return (
-    <section aria-label="Sources" className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium">Sources</h3>
+    <section aria-label={label} className="flex flex-col gap-2">
+      {showHeading ? <h3 className="text-sm font-medium">{label}</h3> : null}
       <ol className="flex flex-col gap-3">
         {sources.map((source) => (
           <li
