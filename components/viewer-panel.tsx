@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
+import { PassageFallback } from "@/components/passage-fallback";
 import { PdfViewer } from "@/components/pdf-viewer-loader";
 import type { HighlightPassage } from "@/components/pdf-viewer-loader";
 import {
   getViewerDocument,
   type ViewerDocumentResult,
 } from "@/lib/documents/get-viewer-document";
+import { selectFallbackPassage } from "@/lib/pdf-highlight/fallback";
 import { describeHighlightStatus } from "@/lib/pdf-highlight/messages";
 import type { HighlightStatus } from "@/lib/pdf-highlight/plan";
 import { useChunkPassage } from "@/lib/pdf-highlight/use-chunk-passage";
@@ -95,7 +97,8 @@ export function ViewerPanel({
   const chunk = chunkState.state === "ready" ? chunkState.chunk : null;
   // The chunk id comes from the URL, so a well-formed link can name a chunk
   // of another document: that never highlights.
-  const sameDocument = chunk !== null && chunk.documentId === viewerDocument?.id;
+  const sameDocument =
+    chunk !== null && chunk.documentId === viewerDocument?.id;
   const passage = useMemo<HighlightPassage | null>(
     () =>
       chunk !== null && sameDocument
@@ -128,6 +131,11 @@ export function ViewerPanel({
     highlightStatus = chunkState;
   }
   const note = isPdf ? describeHighlightStatus(highlightStatus) : null;
+  // When the passage could not be pinpointed on its page, show it as text
+  // above the page (Task 3.6). `passage` is null for another document's chunk.
+  const fallback = isPdf
+    ? selectFallbackPassage(highlightStatus, passage)
+    : null;
 
   // Move focus into the panel when it opens or switches document, so keyboard
   // and screen-reader users land on it (it is a sheet on small screens).
@@ -223,6 +231,7 @@ export function ViewerPanel({
           ) : null}
         </div>
       )}
+      {fallback === null ? null : <PassageFallback passage={fallback} />}
       {body}
     </aside>
   );

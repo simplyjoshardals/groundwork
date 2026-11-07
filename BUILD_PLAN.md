@@ -305,11 +305,11 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] You tested at least 10 real citations from your eval (mixed layouts) and recorded how many highlighted correctly. (As reported by the project owner: the handbook citation chips for the first 10 questions in `eval/dataset/qa.json` were clicked; 10 of 10 highlighted the correct chunk, 0 wrong, 0 none. Caveat: the handbook is the only real PDF in the app, so this is one layout, not mixed layouts; the two-column and table layouts are covered only by the spike 0.7 results in `docs/spikes/highlight.md`. See `docs/decisions.md`, 2026-11-07.)
     - [x] A wrong highlight is treated as worse than no highlight: when confidence is low, the code declines to highlight and triggers the fallback (3.6). (As reported by the project owner: the failure paths behaved as designed in the browser: a passage on another page, another document's chunk, a missing chunk and a blocked network each gave no highlight and an explanation, with Retry for a load failure. The decline reasons are reported as a `HighlightStatus`; the passage panel itself is Task 3.6.)
 
-- [ ] **3.6 Fallback passage panel** · 2 h · deps: 3.5
+- [x] **3.6 Fallback passage panel** · 2 h · deps: 3.5
   - **Build:** When matching fails or confidence is low, show the exact cited passage in a panel beside the correct page, labeled as such.
   - **Done when:**
-    - [ ] Forcing a mismatch (edit the passage in a test) shows the panel and no highlight.
-    - [ ] The panel text is selectable and has an accessible label.
+    - [x] Forcing a mismatch (edit the passage in a test) shows the panel and no highlight. (As reported by the project owner: with `chunk.content + " EDITED"` temporarily passed as the passage, the highlight was declined and the panel showed the full cited passage; after reverting the edit, normal highlighting worked again. The same case is covered in `tests/unit/pdf-fallback.test.ts`: an edited passage makes `planHighlight` decline with no ranges, and the panel selector then returns the edited text.)
+    - [x] The panel text is selectable and has an accessible label. (As reported by the project owner: the text can be selected and copied; the panel can be focused and scrolled with the keyboard; the accessibility inspector showed the `<section>` with role `region` and the accessible name "Cited passage, page 3", labelled by its `h3`. No screen reader was run.)
 
 - [ ] **3.7 Text and Markdown viewer** · 2 h · deps: 3.3
   - **Build:** For `.txt`/`.md`, render the text and highlight by `char_start`/`char_end` (this is easier than PDF matching, since offsets are exact).
