@@ -42,6 +42,11 @@ export function isUuid(value: string): boolean {
   return UUID_PATTERN.test(value);
 }
 
+/** `chunks.id` as it appears in the URL: digits only, no leading zero. */
+export function isChunkId(value: string): boolean {
+  return CHUNK_PATTERN.test(value);
+}
+
 /**
  * Reads the viewer state from search params. No `doc` means closed (stray
  * `page` or `chunk` values are ignored). A `doc` with any malformed value is

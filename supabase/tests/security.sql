@@ -14,7 +14,7 @@
 -- Always pass -v ON_ERROR_STOP=1. Without it psql keeps going after a failed assertion.
 -- This is plain SQL, not pgTAP: do not run it through `supabase test db`.
 --
--- Implemented: T00 (added preflight), T01-T10, T11c, T11d, T17a-T17d.
+-- Implemented: T00 (added preflight), T01-T10, T02c-T02f (Task 3.4), T11c, T11d, T17a-T17d.
 -- Skipped until their objects exist:
 --   T11a, T11b  usage_daily, usage_global_daily        (migration 0005)
 --   T12, T15, T16  consume_usage, claim_document_for_ingest, ...  (migrations 0005/0006)
@@ -129,6 +129,74 @@ begin
     'T02a: Bob''s chunk text must be invisible to Alice';
   assert (select count(*) from public.chunks where content ilike '%security deposit%') = 1,
     'T02b: Alice should see her own lease chunk';
+end $$;
+reset role;
+
+-- ===== T02c-f: Fetching one chunk by ID (Task 3.4, lib/documents/get-chunk.ts) ==
+-- Chunk IDs are generated, so look them up as the DB owner (before any role switch) and hand them
+-- to the sessions below through transaction-local settings, which survive SET LOCAL ROLE.
+-- T02c/T02d/T02f-positive are the positive controls that keep the "returns nothing" checks honest.
+do $$
+begin
+  perform set_config('test.alice_chunk', (select c.id::text from public.chunks c
+    where c.document_id = 'a1000000-0000-4000-8000-000000000001' and c.chunk_index = 0), true);
+  perform set_config('test.public_chunk', (select c.id::text from public.chunks c
+    where c.document_id = '5a000000-0000-4000-8000-000000000001' and c.chunk_index = 0), true);
+  perform set_config('test.bob_chunk', (select c.id::text from public.chunks c
+    where c.document_id = 'b1000000-0000-4000-8000-000000000001' and c.chunk_index = 0), true);
+
+  assert current_setting('test.alice_chunk', true) ~ '^[0-9]+$'
+     and current_setting('test.public_chunk', true) ~ '^[0-9]+$'
+     and current_setting('test.bob_chunk', true) ~ '^[0-9]+$',
+    'T02c-f setup: a seed chunk is missing. Run `supabase db reset` first';
+end $$;
+
+-- Alice: her own chunk and a public chunk load; Bob's chunk ID returns nothing.
+do $$ begin perform set_config('request.jwt.claims',
+  '{"sub":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","role":"authenticated","is_anonymous":false}', true); end $$;
+set local role authenticated;
+do $$
+declare
+  r record;
+begin
+  -- Same columns as getChunk(): never `embedding`.
+  select c.id, c.document_id, c.page_number, c.char_start, c.char_end, c.content into r
+  from public.chunks c
+  where c.id = current_setting('test.alice_chunk')::bigint;
+  assert found, 'T02c: Alice should load her own chunk by ID';
+  assert r.document_id = 'a1000000-0000-4000-8000-000000000001'::uuid
+     and r.page_number = 2
+     and r.char_end = r.char_start + char_length(r.content)
+     and r.content like 'Tenant shall pay a security deposit%',
+    'T02c: Alice''s chunk came back with the wrong document, page, offsets or text';
+
+  select c.id, c.document_id, c.page_number, c.char_start, c.char_end, c.content into r
+  from public.chunks c
+  where c.id = current_setting('test.public_chunk')::bigint;
+  assert found, 'T02d: Alice should load a public chunk by ID';
+  assert r.document_id = '5a000000-0000-4000-8000-000000000001'::uuid
+     and r.page_number = 1
+     and r.content like 'Northwind Traders allows%',
+    'T02d: the public chunk came back with the wrong document, page or text';
+
+  assert not exists (select 1 from public.chunks c
+                     where c.id = current_setting('test.bob_chunk')::bigint),
+    'T02e: Alice must NOT load Bob''s chunk by ID';
+end $$;
+reset role;
+
+-- The anonymous demo session: public chunks load, Alice's private chunk does not.
+do $$ begin perform set_config('request.jwt.claims',
+  '{"sub":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","role":"authenticated","is_anonymous":true}', true); end $$;
+set local role authenticated;
+do $$
+begin
+  assert exists (select 1 from public.chunks c
+                 where c.id = current_setting('test.public_chunk')::bigint),
+    'T02f: the demo session should load a public chunk by ID';
+  assert not exists (select 1 from public.chunks c
+                     where c.id = current_setting('test.alice_chunk')::bigint),
+    'T02f: the demo session must NOT load Alice''s chunk by ID';
 end $$;
 reset role;
 
@@ -301,6 +369,6 @@ begin
   assert bad is null, 'T17d: definer functions without a fixed search_path: ' || coalesce(bad, '');
 end $$;
 
-do $$ begin raise notice 'security.sql: all assertions passed (T00-T10, T11c-d, T17a-d)'; end $$;
+do $$ begin raise notice 'security.sql: all assertions passed (T00-T10 incl. T02c-f, T11c-d, T17a-d)'; end $$;
 
 rollback;   -- leaves the database exactly as seeded

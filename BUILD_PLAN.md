@@ -293,11 +293,11 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] Refreshing keeps the same view. (As reported by the project owner: a refresh and a shared link restore the viewer at the same document and page. The chat answer is not restored, because it is React state; see `docs/decisions.md`, 2026-11-07.)
     - [x] Browser back closes the viewer, not the whole app. (As reported by the project owner: Back closes the viewer and stays in the app. Opening from closed pushes one history entry; switching citation and turning pages replace it.)
 
-- [ ] **3.4 Chunk fetch helper** · 1.5 h · deps: 1.1
+- [x] **3.4 Chunk fetch helper** · 1.5 h · deps: 1.1
   - **Build:** A user-scoped query that returns one chunk's text and offsets by ID.
   - **Done when:**
-    - [ ] Your own and public chunks load.
-    - [ ] Asking for another user's chunk ID returns nothing (add this to a SQL or API test).
+    - [x] Your own and public chunks load. (As reported by the project owner: `getChunk` in `lib/documents/get-chunk.ts` takes a user-scoped client, and `security.sql` T02c (own chunk) and T02d (public chunk) passed on a freshly reset database; the `get-chunk` unit tests passed.)
+    - [x] Asking for another user's chunk ID returns nothing (add this to a SQL or API test). (As reported by the project owner: `security.sql` T02e (Alice gets nothing for Bob's chunk ID) and T02f (the anonymous demo session loads a public chunk but not Alice's) passed. T02c, T02d and the positive half of T02f are the controls that show the lookup itself works. The unit tests cover only the helper's logic, not RLS.)
 
 - [ ] **3.5 ⚠ Highlight v1** · 4 h (cap at 6 h) · deps: 3.2, 3.4 · **risky: fragile text-layer matching**
   - **Build:** Use the matching approach proven in spike 0.7: normalize (whitespace, hyphenation, ligatures), locate the chunk text in the page's text layer, wrap the matched spans in a highlight layer.
