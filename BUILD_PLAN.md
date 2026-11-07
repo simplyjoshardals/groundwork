@@ -325,11 +325,11 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 
 **Goal:** A real user signs up, uploads, waits, asks, and deletes, with clear errors. Includes the first Playwright flows.
 
-- [ ] **4.1 Email auth UI** · 3 h · deps: 1.7
+- [x] **4.1 Email auth UI** · 3 h · deps: 1.7
   - **Build:** Sign up, sign in, sign out, auth callback route, protected routes, redirect handling. Decide how to handle email confirmation.
   - **Done when:**
-    - [ ] Sign up → session; sign out; unauthenticated visit to the app redirects to sign-in.
-    - [ ] 🔎 VERIFY: the built-in email sender on the free plan is heavily rate-limited. Decide and record: turn confirmation off for now, or set up a custom SMTP provider later. Don't discover this the day a recruiter signs up.
+    - [x] Sign up → session; sign out; unauthenticated visit to the app redirects to sign-in. (As reported by the project owner: manual checks against local Supabase passed for sign-up, sign-in, sign-out, a signed-out visit to `/` redirecting to `/sign-in`, the demo session, `?next=` redirect safety, a bad or missing callback code, and the offline error message; `yarn typecheck`, `yarn lint`, the full test suite and `yarn build` also passed. Claude ran only the 30 new unit tests and a scoped `tsc`. Not tested: the React components automatically (the Vitest setup is node-only), a deployed preview, and the hosted project's Auth settings.)
+    - [x] 🔎 VERIFY: the built-in email sender on the free plan is heavily rate-limited. Decide and record: turn confirmation off for now, or set up a custom SMTP provider later. Don't discover this the day a recruiter signs up. (Decision recorded in `docs/decisions.md` (2026-11-08): confirmation stays off (`enable_confirmations = false`) until custom SMTP is set up, before Milestone M5. The built-in sender's limit of about 2 emails per hour and team-members-only delivery comes from third-party guides and was not confirmed against the dashboard. As reported by the project owner, the confirmation flow also worked end to end with confirmations switched on locally. Custom SMTP is not set up yet.)
 
 - [ ] **4.2 Ingestion functions and remaining SQL tests** · 2.5 h · deps: 1.6
   - **Build:** Migration 0006 (DATA_MODEL §2.6 and the grants in §3.2). Extend the SQL test script with T12, T13, T16, T18.
@@ -662,7 +662,7 @@ Record each one (screen capture or GIF). Keep them in a private folder; M3, M5, 
 - [ ] **M0: End of Slice 0 · Private.** Screenshot of the deployed skeleton plus the three spike findings (`docs/spikes/`). _Shows: you de-risked before building. Good for your own morale and a "decisions" section in the README._
 - [x] **M1: End of Slice 1 · Show a friend.** 30-second clip: click Try demo → ask a question about the sample → answer streams in → sources listed with pages. _First proof the core works end to end on a deployed URL._
 - [x] **M2: End of Slice 2 · Show a technical friend.** Two clips: an answerable question with citation chips, and an unanswerable one returning "I couldn't find that". Plus a terminal screenshot of the eval table. _Shows measurement, not vibes._
-- [ ] **M3: End of Slice 3 · Your best clip.** 60 seconds: ask → click citation → the PDF opens at the page with the passage highlighted → then a case where the fallback panel appears. _This is the hero demo; lead your README with it._
+- [x] **M3: End of Slice 3 · Your best clip.** 60 seconds: ask → click citation → the PDF opens at the page with the passage highlighted → then a case where the fallback panel appears. _This is the hero demo; lead your README with it._
 - [ ] **M4: End of Slice 4 · Show someone non-technical.** Sign up → upload → watch status → ask → delete. Include the scanned-PDF error. Add a short capture of the Playwright isolation test passing. _Proves the app works for real users and that user A can't see user B._
 - [ ] **M5: End of Slice 5 · Safe to publish the link.** Clips of: the limit message and remaining-questions counter, the CAPTCHA, a provider failure falling back gracefully, and the load-test summary. _Only after this may the URL go on your CV._
 - [ ] **M6: End of Slice 6 · Launch.** Final 60-90 second video, README with eval numbers, cold-test feedback addressed. _Add to your CV, GitHub profile, and applications._

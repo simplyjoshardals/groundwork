@@ -1,20 +1,19 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { TryDemoButton } from "@/components/try-demo-button";
+import { SignOutButton } from "@/components/sign-out-button";
 import { Workspace } from "@/components/workspace";
-import { createServerSupabase } from "@/lib/supabase/server";
+import { getSessionState } from "@/lib/auth/session";
 
 /**
- * Home: signed out, the intro and "Try demo"; with a session (demo or
- * regular), the ask UI and, when the URL names a document, the viewer.
- * `/api/ask` re-checks the session on every request.
+ * The app. Signed out, it redirects to the sign-in page; with a session (demo
+ * or regular), it shows the ask UI and, when the URL names a document, the
+ * viewer. This guard is a UI convenience: `/api/ask` re-checks the session on
+ * every request and RLS decides what data is visible.
  */
 export default async function Home() {
-  const supabase = await createServerSupabase();
-  const { data, error: claimsError } = await supabase.auth.getClaims();
-  if (claimsError) {
-    console.warn(`[home] session check failed: ${claimsError.name}`);
-  }
-  const signedIn = Boolean(data?.claims);
+  const session = await getSessionState();
+  if (session.status === "signed_out") redirect("/sign-in");
 
   const intro = (
     <>
@@ -26,17 +25,23 @@ export default async function Home() {
 
   return (
     <main className="mx-auto w-full max-w-6xl p-8">
-      {signedIn ? (
-        // `useSearchParams` (in Workspace) needs a Suspense boundary.
-        <Suspense fallback={<div className={introColumn}>{intro}</div>}>
-          <Workspace>{intro}</Workspace>
-        </Suspense>
-      ) : (
-        <div className={introColumn}>
-          {intro}
-          <TryDemoButton />
-        </div>
-      )}
+      <div className="mb-6 flex flex-wrap items-center justify-end gap-3 text-sm">
+        <span>
+          {session.isAnonymous
+            ? "Demo session"
+            : (session.email ?? "Signed in")}
+        </span>
+        {session.isAnonymous ? (
+          <Link href="/sign-up" className="underline">
+            Create an account
+          </Link>
+        ) : null}
+        <SignOutButton />
+      </div>
+      {/* `useSearchParams` (in Workspace) needs a Suspense boundary. */}
+      <Suspense fallback={<div className={introColumn}>{intro}</div>}>
+        <Workspace>{intro}</Workspace>
+      </Suspense>
     </main>
   );
 }

@@ -237,7 +237,9 @@ export function ViewerPanel({
       className="fixed inset-x-0 bottom-0 top-12 z-20 flex flex-col gap-3 overflow-y-auto rounded-t-xl border border-neutral-200 bg-white p-4 shadow-xl outline-none lg:sticky lg:top-6 lg:z-auto lg:max-h-[calc(100vh-3rem)] lg:rounded-xl lg:shadow-none"
     >
       <div className="flex items-start justify-between gap-3">
-        <h2 className="min-w-0 break-words text-sm font-semibold">{title}</h2>
+        <h2 className="min-w-0 wrap-break-word text-sm font-semibold">
+          {title}
+        </h2>
         <button type="button" onClick={onClose} className={BUTTON_CLASS}>
           Close
         </button>
