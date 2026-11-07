@@ -272,12 +272,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 
 **Goal:** The "money shot": click a source, see the PDF at the right page with the passage highlighted, or a clean fallback.
 
-- [ ] **3.1 Storage policies and signed URLs** · 2 h · deps: 1.1
+- [x] **3.1 Storage policies and signed URLs** · 2 h · deps: 1.1
   - **Build:** Migration 0007 (bucket + policies, DATA_MODEL §2.7 and §3.2). Server or client helper that requests a signed URL with the **user's** session. Sample files uploaded to `samples/` (the seed script may already do this).
   - **Done when:**
-    - [ ] A demo user gets a working signed URL for a sample PDF.
-    - [ ] The storage tests (T14) from DATA_MODEL §7.1 pass.
-    - [ ] Requesting a URL for a path you don't own returns an error.
+    - [x] A demo user gets a working signed URL for a sample PDF. (As reported by the project owner: `yarn verify:signed-url` signed the sample as an anonymous session and the URL served a PDF with HTTP 200.)
+    - [x] The storage tests (T14) from DATA_MODEL §7.1 pass. (As reported by the project owner: T14, with extra controls T14g-i, passed when run on its own. The full `security.sql` still stops at T00d/T00e on a database that ran `yarn seed:samples`; that is the Task 1.7 fixture issue and is unchanged.)
+    - [x] Requesting a URL for a path you don't own returns an error. (As reported by the project owner: the demo session got `not_found` for a probe file that exists in another user's folder, and for a sample with no session.)
 
 - [ ] **3.2 PDF viewer component** · 3 h · deps: 3.1, 0.7
   - **Build:** Client-only `react-pdf` viewer (dynamic import, no SSR) with page navigation and a "go to page" prop.
