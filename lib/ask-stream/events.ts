@@ -92,10 +92,14 @@ function parseSources(
     if (!isPositiveInteger(item.page)) {
       invalid(type, `"${where}.page" must be a positive integer`);
     }
+    if (!isPositiveInteger(item.chunkId)) {
+      invalid(type, `"${where}.chunkId" must be a positive integer`);
+    }
     // Rebuilt field by field, so unknown extras never leak into typed values.
     return {
       marker: item.marker,
       documentId: parseText(item.documentId, type, `${where}.documentId`),
+      chunkId: item.chunkId,
       documentTitle: parseText(
         item.documentTitle,
         type,

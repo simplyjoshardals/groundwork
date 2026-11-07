@@ -10,6 +10,7 @@ import type { AskStreamEvent, StreamSource } from "@/lib/ask-stream";
 const SOURCE: StreamSource = {
   marker: 1,
   documentId: "11111111-1111-4111-8111-111111111111",
+  chunkId: 1,
   documentTitle: "Handbook",
   page: 3,
   snippet: "Remote work is allowed.",

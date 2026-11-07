@@ -8,7 +8,13 @@ import type { LlmStreamEvent } from "@/lib/providers/types";
 import type { AskStreamEvent } from "@/types/ask-stream";
 
 const sources = toStreamSources([
-  { doc_id: "d1", doc_title: "Doc", page_number: 2, content: "text" },
+  {
+    chunk_id: 11,
+    doc_id: "d1",
+    doc_title: "Doc",
+    page_number: 2,
+    content: "text",
+  },
 ]);
 const messages = [{ role: "user" as const, content: "hi" }];
 
@@ -48,13 +54,26 @@ afterEach(() => vi.restoreAllMocks());
 describe("toStreamSources", () => {
   it("numbers markers from 1 and maps database fields", () => {
     const result = toStreamSources([
-      { doc_id: "a", doc_title: "A", page_number: 1, content: "one" },
-      { doc_id: "b", doc_title: "B", page_number: 7, content: "two" },
+      {
+        chunk_id: 21,
+        doc_id: "a",
+        doc_title: "A",
+        page_number: 1,
+        content: "one",
+      },
+      {
+        chunk_id: 22,
+        doc_id: "b",
+        doc_title: "B",
+        page_number: 7,
+        content: "two",
+      },
     ]);
     expect(result).toEqual([
       {
         marker: 1,
         documentId: "a",
+        chunkId: 21,
         documentTitle: "A",
         page: 1,
         snippet: "one",
@@ -62,6 +81,7 @@ describe("toStreamSources", () => {
       {
         marker: 2,
         documentId: "b",
+        chunkId: 22,
         documentTitle: "B",
         page: 7,
         snippet: "two",
@@ -72,6 +92,7 @@ describe("toStreamSources", () => {
   it("collapses whitespace and caps long snippets", () => {
     const [source] = toStreamSources([
       {
+        chunk_id: 23,
         doc_id: "a",
         doc_title: "A",
         page_number: 1,
@@ -351,8 +372,20 @@ describe("createAskResponseStream: refusal gate #2 (sentinel)", () => {
 
 describe("createAskResponseStream: citation validation", () => {
   const twoSources = toStreamSources([
-    { doc_id: "d1", doc_title: "Doc", page_number: 1, content: "one" },
-    { doc_id: "d2", doc_title: "Doc", page_number: 2, content: "two" },
+    {
+      chunk_id: 31,
+      doc_id: "d1",
+      doc_title: "Doc",
+      page_number: 1,
+      content: "one",
+    },
+    {
+      chunk_id: 32,
+      doc_id: "d2",
+      doc_title: "Doc",
+      page_number: 2,
+      content: "two",
+    },
   ]);
 
   async function run(

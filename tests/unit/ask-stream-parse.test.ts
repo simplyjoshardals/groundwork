@@ -19,6 +19,7 @@ const SOURCES: AskStreamEvent = {
     {
       marker: 1,
       documentId: "doc-1",
+      chunkId: 1,
       documentTitle: "Employee Handbook",
       page: 4,
       snippet: "Remote work is allowed.",

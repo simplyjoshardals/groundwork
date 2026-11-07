@@ -6,18 +6,21 @@ import type { StreamSource } from "@/types/ask-stream";
  * not match a retrieved source are removed before drawing, so an invalid one
  * never reaches the screen. The chip shows only `[n]` to keep adjacent
  * citations compact; the full label is its accessible name and tooltip, and
- * the source list below shows it in full. Chips are not interactive yet
- * (opening the viewer is Task 3.3).
+ * the source list below shows it in full. A chip is a button that asks the
+ * parent to open that source in the viewer (Task 3.3).
  */
 export function AnswerText({
   text,
   sources,
   streaming,
+  onOpenSource,
 }: {
   text: string;
   /** `null` while the `sources` event has not arrived: every marker is hidden. */
   sources: readonly StreamSource[] | null;
   streaming: boolean;
+  /** Called with the clicked source and the chip, so focus can return to it. */
+  onOpenSource: (source: StreamSource, trigger: HTMLElement) => void;
 }) {
   const list = sources ?? [];
   const segments = segmentAnswer(text, list.length, { streaming });
@@ -34,14 +37,16 @@ export function AnswerText({
         const label = `Source ${source.marker}: ${source.documentTitle}, page ${source.page}`;
 
         return (
-          <span
+          <button
             key={index}
+            type="button"
             title={label}
-            className="mx-0.5 inline-block rounded bg-neutral-100 px-1 align-baseline text-xs font-medium text-neutral-700"
+            onClick={(event) => onOpenSource(source, event.currentTarget)}
+            className="mx-0.5 inline-block rounded bg-neutral-100 px-1 align-baseline text-xs font-medium text-neutral-700 hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-black"
           >
             <span aria-hidden="true">[{source.marker}]</span>
             <span className="sr-only">{label}</span>
-          </span>
+          </button>
         );
       })}
     </p>

@@ -286,12 +286,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] Works in `next build && next start`. (As reported by the project owner: `yarn build` and `yarn start` passed and the viewer worked in the production server.)
     - [x] Prev/next work with the keyboard; no hydration warnings in the console. (As reported by the project owner: the manual checks passed 13/13, including arrow, Home and End keys and a clean console.)
 
-- [ ] **3.3 URL state and layout** · 2 h · deps: 3.2, 2.7
+- [x] **3.3 URL state and layout** · 2 h · deps: 3.2, 2.7
   - **Build:** Clicking a citation sets `?doc=<id>&page=<n>&chunk=<id>`. A side panel (or drawer on small screens) shows the viewer.
   - **Done when:**
-    - [ ] Click chip → viewer opens at the right page.
-    - [ ] Refreshing keeps the same view.
-    - [ ] Browser back closes the viewer, not the whole app.
+    - [x] Click chip → viewer opens at the right page. (As reported by the project owner: the manual checks passed; a chip opens the viewer at its source's page and sets `?doc=<id>&page=<n>&chunk=<id>`. Per-check detail was not recorded.)
+    - [x] Refreshing keeps the same view. (As reported by the project owner: a refresh and a shared link restore the viewer at the same document and page. The chat answer is not restored, because it is React state; see `docs/decisions.md`, 2026-11-07.)
+    - [x] Browser back closes the viewer, not the whole app. (As reported by the project owner: Back closes the viewer and stays in the app. Opening from closed pushes one history entry; switching citation and turning pages replace it.)
 
 - [ ] **3.4 Chunk fetch helper** · 1.5 h · deps: 1.1
   - **Build:** A user-scoped query that returns one chunk's text and offsets by ID.

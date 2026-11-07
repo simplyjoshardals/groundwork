@@ -10,6 +10,7 @@ import type { AskStreamEvent, StreamSource } from "@/types/ask-stream";
 const SOURCE: StreamSource = {
   marker: 1,
   documentId: "7d1c0a52-6f43-4b0e-9a55-2f1f5f2c9a10",
+  chunkId: 42,
   documentTitle: "Employee Handbook",
   page: 4,
   snippet: "Employees may work remotely up to three days a week.",
@@ -169,6 +170,18 @@ describe("parseStreamEvent: malformed payloads throw StreamProtocolError", () =>
         type: "sources",
         sources: [{ ...goodSource, documentId: undefined }],
       },
+    ],
+    [
+      "a source without chunkId",
+      { type: "sources", sources: [{ ...goodSource, chunkId: undefined }] },
+    ],
+    [
+      "a source with a zero chunkId",
+      { type: "sources", sources: [{ ...goodSource, chunkId: 0 }] },
+    ],
+    [
+      "a source with a string chunkId",
+      { type: "sources", sources: [{ ...goodSource, chunkId: "42" }] },
     ],
     [
       "a source with a numeric documentTitle",

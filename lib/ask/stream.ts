@@ -11,6 +11,7 @@ import { createSentinelDetector } from "./sentinel";
 
 /** The fields of a `match_chunks` row that the stream needs. */
 export interface AskSourceRow {
+  chunk_id: number;
   doc_id: string;
   doc_title: string;
   page_number: number;
@@ -35,6 +36,7 @@ export function toStreamSources(rows: readonly AskSourceRow[]): StreamSource[] {
   return rows.map((row, index) => ({
     marker: index + 1,
     documentId: row.doc_id,
+    chunkId: row.chunk_id,
     documentTitle: row.doc_title,
     page: row.page_number,
     snippet: makeSnippet(row.content),

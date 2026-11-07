@@ -12,12 +12,18 @@ import {
   requestAnswer,
 } from "@/lib/ask-client";
 import { MAX_QUESTION_LENGTH } from "@/lib/ask/limits";
+import type { StreamSource } from "@/types/ask-stream";
 
 /**
  * Question box, streamed answer and source list. The server re-validates
- * everything; the length limit here is only quick feedback.
+ * everything; the length limit here is only quick feedback. `onOpenSource`
+ * is called when a citation chip is clicked.
  */
-export function AskPanel() {
+export function AskPanel({
+  onOpenSource,
+}: {
+  onOpenSource: (source: StreamSource, trigger: HTMLElement) => void;
+}) {
   const [state, dispatch] = useReducer(askReducer, initialAskState);
   const [input, setInput] = useState("");
   const abortRef = useRef<AbortController | null>(null);
@@ -110,6 +116,7 @@ export function AskPanel() {
                 text={state.answer}
                 sources={state.sources}
                 streaming={state.status === "streaming"}
+                onOpenSource={onOpenSource}
               />
             </div>
           ) : null}

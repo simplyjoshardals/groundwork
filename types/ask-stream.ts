@@ -10,6 +10,11 @@ export interface StreamSource {
   /** The `n` in `[n]`, starting at 1. */
   marker: number;
   documentId: string;
+  /**
+   * Id of the cited chunk (`chunks.id`). The viewer URL carries it as
+   * `chunk=<id>` so later tasks can find the exact passage.
+   */
+  chunkId: number;
   documentTitle: string;
   /** 1-based page number (a virtual page for text and Markdown files). */
   page: number;

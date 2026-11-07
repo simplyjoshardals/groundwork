@@ -151,6 +151,7 @@ describe("POST /api/ask: success", () => {
           {
             marker: 1,
             documentId: UUID,
+            chunkId: 1,
             documentTitle: "Handbook",
             page: 4,
             snippet: "Notice is 30 days.",
@@ -188,6 +189,7 @@ describe("POST /api/ask: refusal gate #1", () => {
           {
             marker: 1,
             documentId: UUID,
+            chunkId: 1,
             documentTitle: "Handbook",
             page: 4,
             snippet: "Notice is 30 days.",
@@ -237,6 +239,7 @@ describe("POST /api/ask: refusal gate #2 (sentinel)", () => {
           {
             marker: 1,
             documentId: UUID,
+            chunkId: 1,
             documentTitle: "Handbook",
             page: 4,
             snippet: "Notice is 30 days.",
