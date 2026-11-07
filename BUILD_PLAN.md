@@ -279,12 +279,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] The storage tests (T14) from DATA_MODEL §7.1 pass. (As reported by the project owner: T14, with extra controls T14g-i, passed when run on its own. The full `security.sql` still stops at T00d/T00e on a database that ran `yarn seed:samples`; that is the Task 1.7 fixture issue and is unchanged.)
     - [x] Requesting a URL for a path you don't own returns an error. (As reported by the project owner: the demo session got `not_found` for a probe file that exists in another user's folder, and for a sample with no session.)
 
-- [ ] **3.2 PDF viewer component** · 3 h · deps: 3.1, 0.7
+- [x] **3.2 PDF viewer component** · 3 h · deps: 3.1, 0.7
   - **Build:** Client-only `react-pdf` viewer (dynamic import, no SSR) with page navigation and a "go to page" prop.
   - **Done when:**
-    - [ ] Opens a sample PDF at page N.
-    - [ ] Works in `next build && next start`.
-    - [ ] Prev/next work with the keyboard; no hydration warnings in the console.
+    - [x] Opens a sample PDF at page N. (As reported by the project owner: the handbook sample opened at the requested page on the temporary `/viewer-check` page, and an out-of-range page clamped to the last page.)
+    - [x] Works in `next build && next start`. (As reported by the project owner: `yarn build` and `yarn start` passed and the viewer worked in the production server.)
+    - [x] Prev/next work with the keyboard; no hydration warnings in the console. (As reported by the project owner: the manual checks passed 13/13, including arrow, Home and End keys and a clean console.)
 
 - [ ] **3.3 URL state and layout** · 2 h · deps: 3.2, 2.7
   - **Build:** Clicking a citation sets `?doc=<id>&page=<n>&chunk=<id>`. A side panel (or drawer on small screens) shows the viewer.
