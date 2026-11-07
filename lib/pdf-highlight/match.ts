@@ -1,5 +1,5 @@
 /**
- * Passage-to-text-layer matching for the Task 0.7 highlighting spike.
+ * Passage-to-text-layer matching (proven in spike 0.7, used by Task 3.5).
  *
  * Pure functions, no DOM and no React, so they can be unit-tested in Node.
  *

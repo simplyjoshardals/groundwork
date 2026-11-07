@@ -299,11 +299,11 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] Your own and public chunks load. (As reported by the project owner: `getChunk` in `lib/documents/get-chunk.ts` takes a user-scoped client, and `security.sql` T02c (own chunk) and T02d (public chunk) passed on a freshly reset database; the `get-chunk` unit tests passed.)
     - [x] Asking for another user's chunk ID returns nothing (add this to a SQL or API test). (As reported by the project owner: `security.sql` T02e (Alice gets nothing for Bob's chunk ID) and T02f (the anonymous demo session loads a public chunk but not Alice's) passed. T02c, T02d and the positive half of T02f are the controls that show the lookup itself works. The unit tests cover only the helper's logic, not RLS.)
 
-- [ ] **3.5 ⚠ Highlight v1** · 4 h (cap at 6 h) · deps: 3.2, 3.4 · **risky: fragile text-layer matching**
+- [x] **3.5 ⚠ Highlight v1** · 4 h (cap at 6 h) · deps: 3.2, 3.4 · **risky: fragile text-layer matching**
   - **Build:** Use the matching approach proven in spike 0.7: normalize (whitespace, hyphenation, ligatures), locate the chunk text in the page's text layer, wrap the matched spans in a highlight layer.
   - **Done when:**
-    - [ ] You tested at least 10 real citations from your eval (mixed layouts) and recorded how many highlighted correctly.
-    - [ ] A wrong highlight is treated as worse than no highlight: when confidence is low, the code declines to highlight and triggers the fallback (3.6).
+    - [x] You tested at least 10 real citations from your eval (mixed layouts) and recorded how many highlighted correctly. (As reported by the project owner: the handbook citation chips for the first 10 questions in `eval/dataset/qa.json` were clicked; 10 of 10 highlighted the correct chunk, 0 wrong, 0 none. Caveat: the handbook is the only real PDF in the app, so this is one layout, not mixed layouts; the two-column and table layouts are covered only by the spike 0.7 results in `docs/spikes/highlight.md`. See `docs/decisions.md`, 2026-11-07.)
+    - [x] A wrong highlight is treated as worse than no highlight: when confidence is low, the code declines to highlight and triggers the fallback (3.6). (As reported by the project owner: the failure paths behaved as designed in the browser: a passage on another page, another document's chunk, a missing chunk and a blocked network each gave no highlight and an explanation, with Retry for a load failure. The decline reasons are reported as a `HighlightStatus`; the passage panel itself is Task 3.6.)
 
 - [ ] **3.6 Fallback passage panel** · 2 h · deps: 3.5
   - **Build:** When matching fails or confidence is low, show the exact cited passage in a panel beside the correct page, labeled as such.
@@ -317,7 +317,7 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [ ] Clicking a citation from the Markdown sample scrolls to and highlights the exact range.
     - [ ] Markdown is rendered as inert text or sanitized, never as raw HTML.
 
-**Slice 3 done:** [ ] Global DoD · [ ] **Milestone M3 recorded** (this is your best 60-second clip) · [ ] Highlight success rate written into `docs/decisions.md`
+**Slice 3 done:** [ ] Global DoD · [ ] **Milestone M3 recorded** (this is your best 60-second clip) · [x] Highlight success rate written into `docs/decisions.md`
 
 ---
 

@@ -15,8 +15,8 @@ export interface ViewerTarget {
   /** 1-based. The viewer clamps it to the document's page count. */
   page: number;
   /**
-   * `chunks.id` of the cited passage, as digits. Carried in the URL for the
-   * highlight (Task 3.5); the viewer does not read it yet.
+   * `chunks.id` of the cited passage, as digits. The viewer loads it to
+   * highlight the passage (Task 3.5).
    */
   chunkId: string | null;
 }

@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { PdfViewer } from "@/components/pdf-viewer-loader";
+import type { HighlightPassage } from "@/components/pdf-viewer-loader";
 import {
   getViewerDocument,
   type ViewerDocumentResult,
 } from "@/lib/documents/get-viewer-document";
+import { describeHighlightStatus } from "@/lib/pdf-highlight/messages";
+import type { HighlightStatus } from "@/lib/pdf-highlight/plan";
+import { useChunkPassage } from "@/lib/pdf-highlight/use-chunk-passage";
 import { describeSignedUrlFailure } from "@/lib/pdf-viewer/messages";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import type { ViewerLocation } from "@/lib/viewer-url/location";
@@ -82,6 +86,49 @@ export function ViewerPanel({
   const { result, retry } = useViewerDocument(documentId);
   const panelRef = useRef<HTMLElement | null>(null);
 
+  const viewerDocument = result?.ok === true ? result.document : null;
+  const isPdf = viewerDocument?.mimeType === PDF_MIME_TYPE;
+  const chunkId = location.status === "open" ? location.chunkId : null;
+  const { state: chunkState, retry: retryChunk } = useChunkPassage(
+    isPdf ? chunkId : null,
+  );
+  const chunk = chunkState.state === "ready" ? chunkState.chunk : null;
+  // The chunk id comes from the URL, so a well-formed link can name a chunk
+  // of another document: that never highlights.
+  const sameDocument = chunk !== null && chunk.documentId === viewerDocument?.id;
+  const passage = useMemo<HighlightPassage | null>(
+    () =>
+      chunk !== null && sameDocument
+        ? { id: chunk.id, pageNumber: chunk.pageNumber, text: chunk.content }
+        : null,
+    [chunk, sameDocument],
+  );
+
+  // What the viewer last reported, with the chunk it was about.
+  const [reported, setReported] = useState<{
+    chunkId: string;
+    status: HighlightStatus;
+  } | null>(null);
+  const passageId = passage?.id ?? null;
+  const onHighlightStatus = useCallback(
+    (status: HighlightStatus) => {
+      if (passageId !== null) setReported({ chunkId: passageId, status });
+    },
+    [passageId],
+  );
+
+  let highlightStatus: HighlightStatus;
+  if (chunkState.state === "ready") {
+    highlightStatus = !sameDocument
+      ? { state: "declined", reason: "other_document", pageNumber: null }
+      : reported?.chunkId === passageId
+        ? reported.status
+        : { state: "loading" };
+  } else {
+    highlightStatus = chunkState;
+  }
+  const note = isPdf ? describeHighlightStatus(highlightStatus) : null;
+
   // Move focus into the panel when it opens or switches document, so keyboard
   // and screen-reader users land on it (it is a sheet on small screens).
   useEffect(() => {
@@ -137,6 +184,8 @@ export function ViewerPanel({
         storagePath={result.document.storagePath}
         page={location.status === "open" ? location.page : 1}
         onPageChange={onPageChange}
+        passage={passage}
+        onHighlightStatus={onHighlightStatus}
       />
     );
   }
@@ -155,6 +204,25 @@ export function ViewerPanel({
           Close
         </button>
       </div>
+      {note === null ? null : (
+        <div
+          role={note.tone === "error" ? "alert" : "status"}
+          className="flex flex-wrap items-center gap-2 text-sm"
+        >
+          <p
+            className={
+              note.tone === "error" ? "text-red-600" : "text-neutral-600"
+            }
+          >
+            {note.text}
+          </p>
+          {note.retryable ? (
+            <button type="button" onClick={retryChunk} className={BUTTON_CLASS}>
+              Retry
+            </button>
+          ) : null}
+        </div>
+      )}
       {body}
     </aside>
   );

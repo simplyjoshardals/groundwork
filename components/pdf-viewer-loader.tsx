@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
  * Client Component, which is why this wrapper exists; the viewer touches
  * browser APIs (workers, ResizeObserver) and must never run on the server.
  */
-export type { PdfViewerProps } from "@/components/pdf-viewer";
+export type { HighlightPassage, PdfViewerProps } from "@/components/pdf-viewer";
 
 export const PdfViewer = dynamic(
   () => import("@/components/pdf-viewer").then((module) => module.PdfViewer),

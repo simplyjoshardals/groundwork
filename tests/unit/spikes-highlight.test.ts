@@ -10,7 +10,7 @@ import {
   normalizeToKey,
   type PageTextItem,
   renderItemHtml,
-} from "@/spikes/highlight/match";
+} from "@/lib/pdf-highlight/match";
 import { classifyOutcome } from "@/spikes/highlight/outcome";
 import { FIXTURES } from "@/spikes/highlight/passages";
 

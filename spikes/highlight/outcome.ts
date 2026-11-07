@@ -8,7 +8,7 @@
  * A wrong highlight is reported separately from no highlight, because showing
  * the wrong place is worse than showing nothing (BUILD_PLAN 3.5).
  */
-import { normalizeToKey } from "./match";
+import { normalizeToKey } from "@/lib/pdf-highlight/match";
 
 export type Outcome = "CORRECT" | "WRONG" | "NONE";
 
