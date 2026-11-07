@@ -5,6 +5,7 @@ import type { KeyboardEvent, ReactNode } from "react";
 import { PassageFallback } from "@/components/passage-fallback";
 import { PdfViewer } from "@/components/pdf-viewer-loader";
 import type { HighlightPassage } from "@/components/pdf-viewer-loader";
+import { TextViewer, type TextPassage } from "@/components/text-viewer";
 import {
   getViewerDocument,
   type ViewerDocumentResult,
@@ -15,6 +16,7 @@ import type { HighlightStatus } from "@/lib/pdf-highlight/plan";
 import { useChunkPassage } from "@/lib/pdf-highlight/use-chunk-passage";
 import { describeSignedUrlFailure } from "@/lib/pdf-viewer/messages";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
+import { isTextMimeType } from "@/lib/text-viewer/pages";
 import type { ViewerLocation } from "@/lib/viewer-url/location";
 
 const PDF_MIME_TYPE = "application/pdf";
@@ -90,9 +92,13 @@ export function ViewerPanel({
 
   const viewerDocument = result?.ok === true ? result.document : null;
   const isPdf = viewerDocument?.mimeType === PDF_MIME_TYPE;
+  const isText =
+    viewerDocument !== null && isTextMimeType(viewerDocument.mimeType);
+  // Documents with a viewer (PDF, text, Markdown) load the cited chunk.
+  const hasViewer = isPdf || isText;
   const chunkId = location.status === "open" ? location.chunkId : null;
   const { state: chunkState, retry: retryChunk } = useChunkPassage(
-    isPdf ? chunkId : null,
+    hasViewer ? chunkId : null,
   );
   const chunk = chunkState.state === "ready" ? chunkState.chunk : null;
   // The chunk id comes from the URL, so a well-formed link can name a chunk
@@ -103,6 +109,20 @@ export function ViewerPanel({
     () =>
       chunk !== null && sameDocument
         ? { id: chunk.id, pageNumber: chunk.pageNumber, text: chunk.content }
+        : null,
+    [chunk, sameDocument],
+  );
+  // The text viewer also needs the offsets (Task 3.7).
+  const textPassage = useMemo<TextPassage | null>(
+    () =>
+      chunk !== null && sameDocument
+        ? {
+            id: chunk.id,
+            pageNumber: chunk.pageNumber,
+            text: chunk.content,
+            charStart: chunk.charStart,
+            charEnd: chunk.charEnd,
+          }
         : null,
     [chunk, sameDocument],
   );
@@ -130,10 +150,10 @@ export function ViewerPanel({
   } else {
     highlightStatus = chunkState;
   }
-  const note = isPdf ? describeHighlightStatus(highlightStatus) : null;
+  const note = hasViewer ? describeHighlightStatus(highlightStatus) : null;
   // When the passage could not be pinpointed on its page, show it as text
   // above the page (Task 3.6). `passage` is null for another document's chunk.
-  const fallback = isPdf
+  const fallback = hasViewer
     ? selectFallbackPassage(highlightStatus, passage)
     : null;
 
@@ -177,12 +197,22 @@ export function ViewerPanel({
         </button>
       </div>
     );
-  } else if (result.document.mimeType !== PDF_MIME_TYPE) {
-    // Text and Markdown files get their own viewer in Task 3.7.
+  } else if (isText) {
+    body = (
+      <TextViewer
+        key={result.document.id}
+        storagePath={result.document.storagePath}
+        page={location.status === "open" ? location.page : 1}
+        onPageChange={onPageChange}
+        passage={textPassage}
+        onHighlightStatus={onHighlightStatus}
+      />
+    );
+  } else if (!isPdf) {
     body = (
       <p role="status" className="text-sm text-neutral-600">
-        Preview for text and Markdown files is not available yet. The
-        document&apos;s title is shown above.
+        Preview is not available for this file type. The document&apos;s title
+        is shown above.
       </p>
     );
   } else {

@@ -311,11 +311,11 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] Forcing a mismatch (edit the passage in a test) shows the panel and no highlight. (As reported by the project owner: with `chunk.content + " EDITED"` temporarily passed as the passage, the highlight was declined and the panel showed the full cited passage; after reverting the edit, normal highlighting worked again. The same case is covered in `tests/unit/pdf-fallback.test.ts`: an edited passage makes `planHighlight` decline with no ranges, and the panel selector then returns the edited text.)
     - [x] The panel text is selectable and has an accessible label. (As reported by the project owner: the text can be selected and copied; the panel can be focused and scrolled with the keyboard; the accessibility inspector showed the `<section>` with role `region` and the accessible name "Cited passage, page 3", labelled by its `h3`. No screen reader was run.)
 
-- [ ] **3.7 Text and Markdown viewer** · 2 h · deps: 3.3
+- [x] **3.7 Text and Markdown viewer** · 2 h · deps: 3.3
   - **Build:** For `.txt`/`.md`, render the text and highlight by `char_start`/`char_end` (this is easier than PDF matching, since offsets are exact).
   - **Done when:**
-    - [ ] Clicking a citation from the Markdown sample scrolls to and highlights the exact range.
-    - [ ] Markdown is rendered as inert text or sanitized, never as raw HTML.
+    - [x] Clicking a citation from the Markdown sample scrolls to and highlights the exact range. (As reported by the project owner: the manual checks passed, covering viewer loading, navigation, highlighting, mismatch handling with the fallback panel, invalid links, and network failure and recovery. The offsets index a virtual page that is not stored, so the viewer rebuilds the page from the file with the ingestion pipeline and highlights only when the text at `char_start`..`char_end` equals the stored chunk content; otherwise it declines and the 3.6 panel shows. Unit test: every chunk of `kestrel-vane-faq.md` round-trips. The highlight is the whole cited chunk, so on the FAQ it looks large; see `docs/decisions.md` (2026-11-07).)
+    - [x] Markdown is rendered as inert text or sanitized, never as raw HTML. (Inert text: the file is shown as React text nodes, Markdown is not parsed, and there is no `dangerouslySetInnerHTML`; a unit test keeps `<script>` and `**` literal in the highlight plan. Checked by construction and by unit test; the owner's report did not single out this check in the browser.)
 
 **Slice 3 done:** [ ] Global DoD · [ ] **Milestone M3 recorded** (this is your best 60-second clip) · [x] Highlight success rate written into `docs/decisions.md`
 
