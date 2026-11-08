@@ -13,8 +13,9 @@ import {
  * insert the `queued` row, then upload the file to the exact path of that row.
  * The storage insert policy only accepts a path that has a queued row you own,
  * and the row insert already passed the cap triggers, so every stored byte is
- * tied to a counted document. Ingestion is NOT called here: `/api/ingest`
- * arrives in Task 4.4, which adds that call.
+ * tied to a counted document. Ingestion is NOT called here: the upload panel
+ * calls `/api/ingest` after a successful upload (`request-ingest.ts`, Task 4.4),
+ * so a failed ingest never turns a stored upload into a failure.
  *
  * All I/O goes through `UploadPorts` (real implementation:
  * `create-upload-ports.ts`), so the order of operations is unit-testable.

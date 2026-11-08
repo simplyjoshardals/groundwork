@@ -11,6 +11,11 @@ export {
   ingestDocument,
 } from "./ingest-document";
 export type { IngestDeps, IngestOptions } from "./ingest-document";
+export { ingestOwnedDocument } from "./ingest-owned-document";
+export type {
+  IngestOwnedDocumentDeps,
+  IngestOwnedDocumentInput,
+} from "./ingest-owned-document";
 export {
   DOCUMENTS_BUCKET,
   createSupabaseIngestStore,

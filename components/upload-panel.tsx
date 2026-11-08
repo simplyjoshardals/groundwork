@@ -10,25 +10,32 @@ import {
   ACCEPT_ATTRIBUTE,
   MAX_DOCS_PER_USER_HINT,
 } from "@/lib/upload/file-checks";
+import { requestIngest } from "@/lib/upload/request-ingest";
 import { uploadDocument } from "@/lib/upload/upload-document";
 
 type PanelState =
   | { status: "idle" }
   | { status: "uploading"; fileName: string }
-  | { status: "success"; fileName: string }
+  | { status: "processing"; fileName: string }
+  | { status: "ready"; fileName: string }
+  | { status: "no_op"; fileName: string }
+  | { status: "ingest_failed"; fileName: string }
+  | { status: "unconfirmed"; fileName: string }
   | { status: "error"; message: string };
 
 /**
- * Upload control (Task 4.3). One file at a time, straight to Storage with the
- * user's own session. There is no document list yet (Task 4.6), so a success
- * only confirms that the file is queued. Demo sessions get an explanation
- * instead of a control that RLS would refuse.
+ * Upload control (Tasks 4.3 and 4.4). One file at a time, straight to Storage
+ * with the user's own session, then a call to `/api/ingest`, which answers when
+ * processing has finished (it can take a minute or more). There is no document
+ * list yet (Task 4.6), so the outcome is reported here. A failed or unreachable
+ * ingest never undoes the upload: the file stays stored and queued. Demo
+ * sessions get an explanation instead of a control that RLS would refuse.
  */
 export function UploadPanel({ canUpload }: { canUpload: boolean }) {
   const inputId = useId();
   const hintId = useId();
   const [state, setState] = useState<PanelState>({ status: "idle" });
-  const uploading = state.status === "uploading";
+  const busy = state.status === "uploading" || state.status === "processing";
 
   if (!canUpload) {
     return (
@@ -60,10 +67,17 @@ export function UploadPanel({ canUpload }: { canUpload: boolean }) {
         file,
         createUploadPorts(createBrowserSupabase()),
       );
+      if (!result.ok) {
+        setState({ status: "error", message: result.message });
+        return;
+      }
+
+      setState({ status: "processing", fileName: file.name });
+      const ingest = await requestIngest(result.documentId);
       setState(
-        result.ok
-          ? { status: "success", fileName: file.name }
-          : { status: "error", message: result.message },
+        ingest.status === "failed"
+          ? { status: "ingest_failed", fileName: file.name }
+          : { status: ingest.status, fileName: file.name },
       );
     } catch (err) {
       console.error("[upload] unexpected failure:", err);
@@ -77,7 +91,7 @@ export function UploadPanel({ canUpload }: { canUpload: boolean }) {
   const maxMb = MAX_FILE_BYTES / (1024 * 1024);
 
   return (
-    <section aria-busy={uploading} className="flex flex-col gap-2 text-sm">
+    <section aria-busy={busy} className="flex flex-col gap-2 text-sm">
       <label htmlFor={inputId} className="font-medium">
         Upload a document
       </label>
@@ -85,7 +99,7 @@ export function UploadPanel({ canUpload }: { canUpload: boolean }) {
         id={inputId}
         type="file"
         accept={ACCEPT_ATTRIBUTE}
-        disabled={uploading}
+        disabled={busy}
         onChange={onChange}
         aria-describedby={hintId}
         className="block w-full text-sm file:mr-3 file:rounded-md file:border file:border-gray-300 file:bg-transparent file:px-3 file:py-1 disabled:opacity-60"
@@ -97,9 +111,28 @@ export function UploadPanel({ canUpload }: { canUpload: boolean }) {
       {state.status === "uploading" ? (
         <p role="status">Uploading {state.fileName}…</p>
       ) : null}
-      {state.status === "success" ? (
+      {state.status === "processing" ? (
         <p role="status">
-          Uploaded {state.fileName}. It is queued for processing.
+          Processing {state.fileName}… this can take a minute or more.
+        </p>
+      ) : null}
+      {state.status === "ready" ? (
+        <p role="status">{state.fileName} is ready to search.</p>
+      ) : null}
+      {state.status === "no_op" ? (
+        <p role="status">
+          {state.fileName} is already processed or is being processed.
+        </p>
+      ) : null}
+      {state.status === "ingest_failed" ? (
+        <p role="alert" className="text-red-600">
+          Uploaded {state.fileName}, but it could not be processed.
+        </p>
+      ) : null}
+      {state.status === "unconfirmed" ? (
+        <p role="alert" className="text-red-600">
+          Uploaded {state.fileName}, but we could not confirm that processing
+          finished. It may still complete. Reload the page later.
         </p>
       ) : null}
       {state.status === "error" ? (
