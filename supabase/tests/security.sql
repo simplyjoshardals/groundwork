@@ -14,12 +14,16 @@
 -- Always pass -v ON_ERROR_STOP=1. Without it psql keeps going after a failed assertion.
 -- This is plain SQL, not pgTAP: do not run it through `supabase test db`.
 --
--- Implemented: T00 (added preflight), T01-T10, T02c-T02f (Task 3.4), T11c, T11d, T17a-T17d.
+-- Implemented: T00 (added preflight), T01-T10, T02c-T02f (Task 3.4), T11c, T11d, T12c-T12h, T13,
+-- T16a-T16n, T17a-T17d, T18a, T18b, T18d-T18f (Task 4.2 added T12, T13, T16, T18).
 -- Skipped until their objects exist:
 --   T11a, T11b  usage_daily, usage_global_daily        (migration 0005)
---   T12, T15, T16  consume_usage, claim_document_for_ingest, ...  (migrations 0005/0006)
---   T14            storage.objects policies                       (migration 0007)
---   T13, T18       outside the Task 1.2 subset (T18 also needs usage_daily)
+--   T12a, T12b  consume_usage, refund_usage            (migration 0005)
+--   T12f        purge_stale_anonymous_users            (migration 0008)
+--   T15, T18c   usage limits; usage rows in the cascade (migration 0005, Slice 5)
+--   T14         storage.objects policies               (migration 0007)
+-- The file expects a database that was just reset (`supabase db reset`) and NOT yet seeded with
+-- `yarn seed:samples`: T00d and T00e assert exactly the 2 + 14 rows from supabase/seed.sql.
 --
 -- Keep this file ASCII-only so it survives PowerShell piping on any code page.
 
@@ -335,6 +339,198 @@ call pg_temp.expect_denied('T11d',
   $q$select 1 from public.storage_deletions limit 1$q$, 'permission denied for (table|relation) storage_deletions');
 reset role;
 
+-- ===== T12 (subset): Server-only ingestion functions are not callable by users ==
+-- T12a, T12b (consume_usage, refund_usage) and T12f (purge_stale_anonymous_users) are skipped until
+-- migrations 0005 and 0008 create them. A call to a missing function fails with a different error
+-- (undefined_function), so it can never pass as "denied".
+do $$ begin perform set_config('request.jwt.claims',
+  '{"sub":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","role":"authenticated","is_anonymous":false}', true); end $$;
+set local role authenticated;
+call pg_temp.expect_denied('T12c',
+  $q$select public.claim_document_for_ingest('a1000000-0000-4000-8000-000000000003')$q$,
+  'permission denied for function claim_document_for_ingest');
+call pg_temp.expect_denied('T12d',
+  $q$select public.finalize_ingestion('a1000000-0000-4000-8000-000000000002', 1, 'x', 1::smallint)$q$,
+  'permission denied for function finalize_ingestion');
+call pg_temp.expect_denied('T12e',
+  $q$select public.fail_ingestion('a1000000-0000-4000-8000-000000000002', 'internal_error')$q$,
+  'permission denied for function fail_ingestion');
+reset role;
+
+-- Privilege matrix (owner view, nothing is executed): the service role is the ONLY caller allowed.
+-- T12g is the positive control: without it a wrong revoke would make T12c-e pass for the wrong reason.
+do $$
+declare
+  f regprocedure;
+begin
+  foreach f in array array[
+    'public.claim_document_for_ingest(uuid)'::regprocedure,
+    'public.finalize_ingestion(uuid, integer, text, smallint)'::regprocedure,
+    'public.fail_ingestion(uuid, text)'::regprocedure
+  ] loop
+    assert has_function_privilege('service_role', f, 'execute'),
+      'T12g: service_role must be able to execute ' || f::text;
+    assert not has_function_privilege('anon', f, 'execute'),
+      'T12h: anon must not be able to execute ' || f::text;
+    assert not has_function_privilege('authenticated', f, 'execute'),
+      'T12h: authenticated must not be able to execute ' || f::text;
+  end loop;
+end $$;
+
+-- ===== T13: Document cap is enforced (10 per user) ============================
+-- Alice has 3. Add 7 more as postgres to reach 10, then try an 11th as Alice.
+-- Bob (1 document) must still be able to insert: the cap is per user, not global.
+insert into public.documents (id, owner_id, title, original_filename, mime_type, size_bytes, storage_path)
+select g.id, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'filler', 'f.pdf', 'application/pdf', 1000,
+       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/' || g.id::text || '/f.pdf'
+from (select gen_random_uuid() as id from generate_series(1, 7)) g;
+
+do $$
+begin
+  assert (select count(*) from public.documents where owner_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') = 10,
+    'T13 setup: Alice should own exactly 10 documents before the 11th insert';
+end $$;
+
+do $$ begin perform set_config('request.jwt.claims',
+  '{"sub":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","role":"authenticated","is_anonymous":false}', true); end $$;
+set local role authenticated;
+do $$
+begin
+  insert into public.documents (id, owner_id, title, original_filename, mime_type, size_bytes, storage_path)
+  values ('a2000000-0000-4000-8000-000000000009', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          'Eleventh', 'f.pdf', 'application/pdf', 1000,
+          'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/a2000000-0000-4000-8000-000000000009/f.pdf');
+  raise exception 'T13a FAILED: 11th document was accepted';
+exception when others then
+  if sqlerrm <> 'document_limit_reached' then raise; end if;
+end $$;
+reset role;
+
+do $$ begin perform set_config('request.jwt.claims',
+  '{"sub":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","role":"authenticated","is_anonymous":false}', true); end $$;
+set local role authenticated;
+insert into public.documents (id, owner_id, title, original_filename, mime_type, size_bytes, storage_path)
+values ('b2000000-0000-4000-8000-000000000001', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        'Bob second', 'f.pdf', 'application/pdf', 1000,
+        'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/b2000000-0000-4000-8000-000000000001/f.pdf');
+reset role;
+do $$
+begin
+  assert exists (select 1 from public.documents where id = 'b2000000-0000-4000-8000-000000000001'),
+    'T13b: Bob (under the cap) should still be able to insert a document';
+end $$;
+
+-- ===== T16: Immutability and state-machine guards (as postgres) ===============
+-- T16a-g follow DATA_MODEL 7.1. T16h-n extra: what claim, finalize and fail each guard against.
+do $$
+begin
+  begin
+    update public.documents set owner_id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+     where id = 'a1000000-0000-4000-8000-000000000001';
+    raise exception 'T16a FAILED: owner_id changed';
+  exception when others then
+    if sqlerrm <> 'immutable_column' then raise; end if;
+  end;
+
+  begin
+    update public.documents set is_public = true where id = 'a1000000-0000-4000-8000-000000000001';
+    raise exception 'T16b FAILED: document made public';
+  exception when others then
+    if sqlerrm <> 'immutable_column' then raise; end if;
+  end;
+
+  -- A ready document cannot be re-claimed for ingest
+  assert not public.claim_document_for_ingest('a1000000-0000-4000-8000-000000000001'),
+    'T16c: ready documents must not be claimable';
+
+  -- A failed document can be claimed exactly once
+  assert public.claim_document_for_ingest('a1000000-0000-4000-8000-000000000003'), 'T16d: failed doc should be claimable';
+  assert not public.claim_document_for_ingest('a1000000-0000-4000-8000-000000000003'), 'T16e: second claim must fail';
+
+  -- Chunk owner/public flags are overwritten by the trigger even if the caller lies
+  insert into public.chunks (document_id, owner_id, is_public, chunk_index, page_number, char_start, char_end, content, embedding, embedding_model)
+  values ('b1000000-0000-4000-8000-000000000001', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true, 50, 1, 0, 4, 'lies',
+          array_fill(0.2::real, array[768])::extensions.vector, 'dev-fake-768');
+  assert (select owner_id from public.chunks where document_id = 'b1000000-0000-4000-8000-000000000001' and chunk_index = 50)
+         = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'T16f: chunk owner must be copied from the document';
+  assert (select is_public from public.chunks where document_id = 'b1000000-0000-4000-8000-000000000001' and chunk_index = 50) = false,
+    'T16g: chunk visibility must be copied from the document';
+end $$;
+
+-- claim: a fresh 'processing' document (seed doc ...0002, started "now") is not taken by a second
+-- worker; once it is older than stale_processing_minutes it is taken, and the claim wipes the
+-- half-written chunks of the dead attempt.
+do $$
+begin
+  assert not public.claim_document_for_ingest('a1000000-0000-4000-8000-000000000002'),
+    'T16h: a fresh processing document must not be claimable';
+
+  insert into public.chunks (document_id, chunk_index, page_number, char_start, char_end, content, embedding, embedding_model)
+  values ('a1000000-0000-4000-8000-000000000002', 0, 1, 0, 7, 'partial', array_fill(0.1::real, array[768])::extensions.vector, 'dev-fake-768');
+  update public.documents set processing_started_at = now() - interval '11 minutes'
+   where id = 'a1000000-0000-4000-8000-000000000002';
+
+  assert public.claim_document_for_ingest('a1000000-0000-4000-8000-000000000002'),
+    'T16i: a stale processing document should be claimable';
+  assert (select count(*) from public.chunks where document_id = 'a1000000-0000-4000-8000-000000000002') = 0,
+    'T16i: claiming must wipe the chunks of the previous attempt';
+  assert (select status from public.documents where id = 'a1000000-0000-4000-8000-000000000002') = 'processing',
+    'T16i: the re-claimed document must be processing';
+end $$;
+
+-- finalize: refuses to mark a document ready unless chunks exist, share the expected model, and the
+-- document is still 'processing' (doc ...0003 was claimed in T16d, so it is processing with no chunks).
+do $$
+begin
+  begin
+    perform public.finalize_ingestion('a1000000-0000-4000-8000-000000000003', 1, 'dev-fake-768', 1::smallint);
+    raise exception 'T16j FAILED: finalize accepted a document with no chunks';
+  exception when others then
+    if sqlerrm <> 'no_chunks_written' then raise; end if;
+  end;
+
+  insert into public.chunks (document_id, chunk_index, page_number, char_start, char_end, content, embedding, embedding_model)
+  values ('a1000000-0000-4000-8000-000000000003', 0, 1, 0, 5, 'hello', array_fill(0.1::real, array[768])::extensions.vector, 'dev-fake-768');
+
+  begin
+    perform public.finalize_ingestion('a1000000-0000-4000-8000-000000000003', 1, 'some-other-model', 1::smallint);
+    raise exception 'T16k FAILED: finalize accepted a chunk set with the wrong embedding model';
+  exception when others then
+    if sqlerrm <> 'embedding_model_mismatch' then raise; end if;
+  end;
+
+  -- ready doc ...0001 has chunks with the right model, so only the status guard can stop this call
+  begin
+    perform public.finalize_ingestion('a1000000-0000-4000-8000-000000000001', 12, 'dev-fake-768', 1::smallint);
+    raise exception 'T16l FAILED: finalize accepted a document that is not processing';
+  exception when others then
+    if sqlerrm <> 'document_not_processing' then raise; end if;
+  end;
+
+  -- positive control for T16j-l: the happy path works
+  perform public.finalize_ingestion('a1000000-0000-4000-8000-000000000003', 4, 'dev-fake-768', 1::smallint);
+  assert exists (select 1 from public.documents
+                  where id = 'a1000000-0000-4000-8000-000000000003' and status = 'ready' and page_count = 4
+                    and chunk_count = 1 and embedding_model = 'dev-fake-768' and processing_started_at is null),
+    'T16m: finalize should mark the document ready with its page count, chunk count and model';
+end $$;
+
+-- fail: records the reason, deletes partial chunks and leaves the document 'failed'
+-- (doc ...0002 was re-claimed in T16i, so it is processing).
+do $$
+begin
+  insert into public.chunks (document_id, chunk_index, page_number, char_start, char_end, content, embedding, embedding_model)
+  values ('a1000000-0000-4000-8000-000000000002', 0, 1, 0, 7, 'partial', array_fill(0.1::real, array[768])::extensions.vector, 'dev-fake-768');
+
+  perform public.fail_ingestion('a1000000-0000-4000-8000-000000000002', 'internal_error');
+  assert exists (select 1 from public.documents
+                  where id = 'a1000000-0000-4000-8000-000000000002' and status = 'failed'
+                    and error_reason = 'internal_error' and chunk_count = 0 and processing_started_at is null),
+    'T16n: fail_ingestion should mark the document failed with the reason';
+  assert (select count(*) from public.chunks where document_id = 'a1000000-0000-4000-8000-000000000002') = 0,
+    'T16n: fail_ingestion must delete partial chunks';
+end $$;
+
 -- ===== T17: Structural checks (run as the DB owner) ===========================
 do $$
 declare bad text;
@@ -369,6 +565,34 @@ begin
   assert bad is null, 'T17d: definer functions without a fixed search_path: ' || coalesce(bad, '');
 end $$;
 
-do $$ begin raise notice 'security.sql: all assertions passed (T00-T10 incl. T02c-f, T11c-d, T17a-d)'; end $$;
+-- ===== T18: Account deletion cascades and queues file cleanup (as postgres) ====
+-- T18c (usage rows are removed too) is skipped until migration 0005 creates usage_daily.
+do $$
+begin
+  assert (select count(*) from public.documents where owner_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') > 0
+     and (select count(*) from public.chunks where owner_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') > 0,
+    'T18 setup: Alice must own documents and chunks before the delete, or T18a-b pass vacuously';
+  assert not exists (select 1 from public.storage_deletions
+                     where path = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/a1000000-0000-4000-8000-000000000001/apartment-lease-2026.pdf'),
+    'T18 setup: the outbox must not already hold Alice''s file';
+end $$;
+
+delete from auth.users where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+
+do $$
+begin
+  assert (select count(*) from public.documents where owner_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') = 0,
+    'T18a: Alice''s documents should be gone';
+  assert (select count(*) from public.chunks where owner_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') = 0,
+    'T18b: Alice''s chunks should be gone';
+  assert exists (select 1 from public.storage_deletions
+                 where path = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/a1000000-0000-4000-8000-000000000001/apartment-lease-2026.pdf'),
+    'T18d: Alice''s file must be queued for deletion';
+  assert (select count(*) from public.documents where is_public) = 2, 'T18e: public samples must survive';
+  assert exists (select 1 from public.documents where id = 'b1000000-0000-4000-8000-000000000001'),
+    'T18f: Bob''s data must be untouched';
+end $$;
+
+do $$ begin raise notice 'security.sql: all assertions passed (T00-T10 incl. T02c-f, T11c-d, T12c-h, T13, T16a-n, T17a-d, T18a-b,d-f)'; end $$;
 
 rollback;   -- leaves the database exactly as seeded

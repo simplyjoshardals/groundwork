@@ -51,4 +51,4 @@ spikes/provider/results/
 # PDF spike raw results (synthetic input, but keep them out of git)
 spikes/pdf/results/
 
-repomix-output.xml
+repomix-*
