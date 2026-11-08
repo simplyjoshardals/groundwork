@@ -1,4 +1,4 @@
-import type { IngestFailureReason } from "@/features/ingestion/types";
+import { isIngestFailureReason } from "@/lib/ingest/failure-messages";
 import type { IngestResponseBody } from "@/types/ingest";
 
 /**
@@ -15,22 +15,6 @@ export type RequestIngestResult =
 
 const UNCONFIRMED: RequestIngestResult = { status: "unconfirmed" };
 
-const FAILURE_REASONS: readonly IngestFailureReason[] = [
-  "scanned_pdf",
-  "too_many_pages",
-  "file_too_large",
-  "unsupported_type",
-  "corrupt_file",
-  "encrypted_file",
-  "empty_document",
-  "internal_error",
-  "provider_unavailable",
-];
-
-function toFailureReason(value: string): IngestFailureReason {
-  return FAILURE_REASONS.find((reason) => reason === value) ?? "internal_error";
-}
-
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
@@ -42,7 +26,12 @@ function parseBody(body: unknown): IngestResponseBody | null {
   if (record.status === "no_op") return { status: "no_op" };
   if (record.status === "failed" && typeof record.reason === "string") {
     // An unknown code still means "failed"; it is shown as an internal error.
-    return { status: "failed", reason: toFailureReason(record.reason) };
+    return {
+      status: "failed",
+      reason: isIngestFailureReason(record.reason)
+        ? record.reason
+        : "internal_error",
+    };
   }
   if (
     record.status === "ready" &&

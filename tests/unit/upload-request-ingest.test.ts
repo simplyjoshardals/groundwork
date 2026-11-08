@@ -39,6 +39,26 @@ describe("requestIngest", () => {
     ).toEqual({ status: "failed", reason: "internal_error" });
   });
 
+  it("never passes server text or extra fields from a failed body to the caller", async () => {
+    const result = await requestIngest(
+      ID,
+      reply(200, {
+        status: "failed",
+        reason: "corrupt_file",
+        message: "secret provider text",
+        stack: "at /srv/app/route.ts:1",
+      }),
+    );
+    expect(result).toEqual({ status: "failed", reason: "corrupt_file" });
+    expect(JSON.stringify(result)).not.toMatch(/secret|route\.ts/);
+  });
+
+  it("treats a prototype key as an unknown reason", async () => {
+    expect(
+      await requestIngest(ID, reply(200, { status: "failed", reason: "toString" })),
+    ).toEqual({ status: "failed", reason: "internal_error" });
+  });
+
   it("returns no_op", async () => {
     expect(await requestIngest(ID, reply(200, { status: "no_op" }))).toEqual({
       status: "no_op",

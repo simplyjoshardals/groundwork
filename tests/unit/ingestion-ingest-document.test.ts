@@ -1,8 +1,12 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import {
   ClaimLostError,
   DEFAULT_BATCH_DELAY_MS,
   DEFAULT_RETRY_WAITS_MS,
+  IngestStoreError,
+  classifyFailure,
   ingestDocument,
   type IngestChunkRow,
   type IngestFailureReason,
@@ -16,6 +20,7 @@ import {
   RateLimitError,
   type EmbeddingProvider,
 } from "@/lib/providers";
+import { buildPdf, denseText } from "./helpers/pdf-builder";
 
 vi.mock("server-only", () => ({}));
 
@@ -400,4 +405,97 @@ describe("ingestDocument: argument validation", () => {
     ).rejects.toThrow(RangeError);
     expect(fake.calls).toEqual([]);
   });
+});
+
+function pdfFixture(name: string): Uint8Array {
+  const url = new URL(`./../fixtures/pdf/${name}.pdf`, import.meta.url);
+  return new Uint8Array(readFileSync(fileURLToPath(url)));
+}
+
+describe("ingestDocument: a bad file is recorded with its own error_reason (Task 4.5)", () => {
+  const PDF = "application/pdf";
+  const cases: [string, string, () => Uint8Array, IngestFailureReason][] = [
+    ["a scanned PDF", PDF, () => pdfFixture("scanned"), "scanned_pdf"],
+    [
+      "a 31-page PDF",
+      PDF,
+      () =>
+        buildPdf(
+          Array.from({ length: 31 }, (_, i) => denseText(`p${i + 1}`)),
+        ),
+      "too_many_pages",
+    ],
+    ["a truncated PDF", PDF, () => pdfFixture("corrupt-truncated"), "corrupt_file"],
+    ["a garbage PDF", PDF, () => pdfFixture("corrupt-garbage"), "corrupt_file"],
+    [
+      "a password-protected PDF",
+      PDF,
+      () => pdfFixture("encrypted-user-password"),
+      "encrypted_file",
+    ],
+    ["an executable renamed .pdf", PDF, () => pdfFixture("fake-exe"), "unsupported_type"],
+    [
+      "a binary file renamed .txt",
+      "text/plain",
+      () => Uint8Array.from([0x68, 0x69, 0x00, 0x21]),
+      "unsupported_type",
+    ],
+    [
+      "a whitespace-only text file",
+      "text/plain",
+      () => encoder.encode(" \n\t \n"),
+      "empty_document",
+    ],
+  ];
+
+  it.each(cases)("%s (%s)", async (_name, mimeType, bytes, reason) => {
+    const fake = createFakeStore({
+      document: { mimeType, storagePath: "user/doc/file" },
+      bytes: bytes(),
+    });
+    const { embedder, batches } = createFakeEmbedder();
+    const outcome = await run(fake, embedder).result;
+
+    expect(outcome).toMatchObject({ status: "failed", reason });
+    expect(fake.failures).toEqual([reason]);
+    expect(batches).toHaveLength(0);
+    expect(fake.calls).not.toContain("insertChunks");
+    expect(fake.calls).not.toContain("finalize");
+  });
+});
+
+describe("classifyFailure", () => {
+  it.each([
+    ["RateLimitError", () => rateLimit(), "provider_unavailable"],
+    [
+      "ProviderUnavailableError",
+      () =>
+        new ProviderUnavailableError("Gemini request failed (HTTP 503)", {
+          provider: "gemini",
+          status: 503,
+        }),
+      "provider_unavailable",
+    ],
+    [
+      "BadRequestError (including a bad API key)",
+      () =>
+        new BadRequestError("Gemini request failed (HTTP 403)", {
+          provider: "gemini",
+          status: 403,
+        }),
+      "internal_error",
+    ],
+    [
+      "IngestStoreError",
+      () => new IngestStoreError("insert chunks", "connection refused"),
+      "internal_error",
+    ],
+    ["a plain Error", () => new Error("boom"), "internal_error"],
+    ["a thrown string", () => "boom", "internal_error"],
+  ] as [string, () => unknown, IngestFailureReason][])(
+    "maps %s to %s",
+    (_name, make, reason) => {
+      expect(classifyFailure(make())).toBe(reason);
+    },
+  );
 });

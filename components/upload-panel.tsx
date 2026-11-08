@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useId, useState } from "react";
 import type { ChangeEvent } from "react";
+import { ingestFailureMessage } from "@/lib/ingest/failure-messages";
 import { MAX_FILE_BYTES } from "@/lib/pdf/limits";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { createUploadPorts } from "@/lib/upload/create-upload-ports";
@@ -19,7 +20,7 @@ type PanelState =
   | { status: "processing"; fileName: string }
   | { status: "ready"; fileName: string }
   | { status: "no_op"; fileName: string }
-  | { status: "ingest_failed"; fileName: string }
+  | { status: "ingest_failed"; fileName: string; message: string }
   | { status: "unconfirmed"; fileName: string }
   | { status: "error"; message: string };
 
@@ -76,7 +77,11 @@ export function UploadPanel({ canUpload }: { canUpload: boolean }) {
       const ingest = await requestIngest(result.documentId);
       setState(
         ingest.status === "failed"
-          ? { status: "ingest_failed", fileName: file.name }
+          ? {
+              status: "ingest_failed",
+              fileName: file.name,
+              message: ingestFailureMessage(ingest.reason),
+            }
           : { status: ingest.status, fileName: file.name },
       );
     } catch (err) {
@@ -126,7 +131,8 @@ export function UploadPanel({ canUpload }: { canUpload: boolean }) {
       ) : null}
       {state.status === "ingest_failed" ? (
         <p role="alert" className="text-red-600">
-          Uploaded {state.fileName}, but it could not be processed.
+          Uploaded {state.fileName}, but it could not be processed.{" "}
+          {state.message}
         </p>
       ) : null}
       {state.status === "unconfirmed" ? (
