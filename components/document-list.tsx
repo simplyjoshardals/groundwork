@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { DeleteDocumentButton } from "@/components/delete-document-button";
 import {
   canRetry,
   isInFlight,
@@ -236,16 +237,24 @@ export function DocumentList({ refreshKey }: { refreshKey: number }) {
                   </p>
                 ) : null}
 
-                {showRetry ? (
-                  <button
-                    type="button"
-                    disabled={isRetrying}
-                    onClick={() => void onRetry(doc.id)}
-                    className="mt-2 rounded-md border border-gray-300 px-3 py-1 disabled:opacity-60"
-                  >
-                    {isRetrying ? "Retrying…" : "Retry"}
-                  </button>
-                ) : null}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {showRetry ? (
+                    <button
+                      type="button"
+                      disabled={isRetrying}
+                      onClick={() => void onRetry(doc.id)}
+                      className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-60"
+                    >
+                      {isRetrying ? "Retrying…" : "Retry"}
+                    </button>
+                  ) : null}
+                  {/* Any status, including processing: ingestion then fails cleanly (Task 4.7). */}
+                  <DeleteDocumentButton
+                    documentId={doc.id}
+                    documentTitle={doc.title}
+                    onDeleted={() => setRetryToken((n) => n + 1)}
+                  />
+                </div>
               </li>
             );
           })}

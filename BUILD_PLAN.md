@@ -364,12 +364,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] A failed doc shows its reason and Retry works. (As reported by the project owner: checked by hand, worked as expected.)
     - [x] A document stuck in `processing` for more than 10 minutes can be retried (simulate by backdating `processing_started_at`). (As reported by the project owner: checked by hand, worked as expected.)
 
-- [ ] **4.7 Delete document and storage cleanup worker** · 3 h · deps: 4.4
+- [x] **4.7 Delete document and storage cleanup worker** · 3 h · deps: 4.4
   - **Build:** Delete endpoint: delete the row as the user (RLS), then process the outbox for that path with the service role and the Storage API. A reusable script for leftovers.
   - **Done when:**
-    - [ ] The row, chunks, and file are all gone, and the outbox row is marked processed.
-    - [ ] Deleting while `processing` doesn't crash ingestion (it fails cleanly).
-    - [ ] Deleting another user's document does nothing.
+    - [x] The row, chunks, and file are all gone, and the outbox row is marked processed. (As reported by the project owner: checked by hand, worked as expected.)
+    - [x] Deleting while `processing` doesn't crash ingestion (it fails cleanly). (As reported by the project owner: checked by hand, worked as expected.)
+    - [x] Deleting another user's document does nothing. (As reported by the project owner: checked by hand, worked as expected.)
 
 - [ ] **4.8 Cap and budget UX** · 1.5 h · deps: 4.3
   - **Build:** Translate `document_limit_reached` and `storage_budget_exhausted` into clear messages; disable the upload control when at the cap.

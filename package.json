@@ -13,6 +13,7 @@
     "format:check": "prettier --check .",
     "db:types": "supabase gen types typescript --local > types/database.ts",
     "seed:samples": "tsx --conditions=react-server --env-file=.env.local scripts/seed-samples.ts",
+    "cleanup:storage": "tsx --conditions=react-server --env-file=.env.local scripts/process-storage-deletions.ts",
     "verify:signed-url": "tsx --env-file=.env.local scripts/verify-signed-url.ts",
     "eval": "tsx --conditions=react-server --env-file=.env.local eval/run.ts",
     "eval:answers": "tsx --conditions=react-server --env-file=.env.local eval/run-full.ts",
