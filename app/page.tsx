@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { SignOutButton } from "@/components/sign-out-button";
-import { UploadPanel } from "@/components/upload-panel";
+import { DocumentsPanel } from "@/components/documents-panel";
 import { Workspace } from "@/components/workspace";
 import { getSessionState } from "@/lib/auth/session";
 
@@ -43,7 +43,7 @@ export default async function Home() {
       <Suspense fallback={<div className={introColumn}>{intro}</div>}>
         <Workspace>
           {intro}
-          <UploadPanel canUpload={!session.isAnonymous} />
+          <DocumentsPanel canUpload={!session.isAnonymous} />
         </Workspace>
       </Suspense>
     </main>

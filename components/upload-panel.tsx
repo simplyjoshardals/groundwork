@@ -27,12 +27,23 @@ type PanelState =
 /**
  * Upload control (Tasks 4.3 and 4.4). One file at a time, straight to Storage
  * with the user's own session, then a call to `/api/ingest`, which answers when
- * processing has finished (it can take a minute or more). There is no document
- * list yet (Task 4.6), so the outcome is reported here. A failed or unreachable
- * ingest never undoes the upload: the file stays stored and queued. Demo
- * sessions get an explanation instead of a control that RLS would refuse.
+ * processing has finished (it can take a minute or more). The outcome is
+ * reported here and the document list (Task 4.6) shows the live status; the
+ * optional callbacks tell the list to refresh. A failed or unreachable ingest
+ * never undoes the upload: the file stays stored and queued. Demo sessions get
+ * an explanation instead of a control that RLS would refuse.
  */
-export function UploadPanel({ canUpload }: { canUpload: boolean }) {
+export function UploadPanel({
+  canUpload,
+  onUploaded,
+  onIngestSettled,
+}: {
+  canUpload: boolean;
+  /** Called once the document row exists (status `queued`), before ingest starts. */
+  onUploaded?: () => void;
+  /** Called when the ingest call returns, whatever its outcome. */
+  onIngestSettled?: () => void;
+}) {
   const inputId = useId();
   const hintId = useId();
   const [state, setState] = useState<PanelState>({ status: "idle" });
@@ -73,8 +84,10 @@ export function UploadPanel({ canUpload }: { canUpload: boolean }) {
         return;
       }
 
+      onUploaded?.();
       setState({ status: "processing", fileName: file.name });
       const ingest = await requestIngest(result.documentId);
+      onIngestSettled?.();
       setState(
         ingest.status === "failed"
           ? {
@@ -138,7 +151,7 @@ export function UploadPanel({ canUpload }: { canUpload: boolean }) {
       {state.status === "unconfirmed" ? (
         <p role="alert" className="text-red-600">
           Uploaded {state.fileName}, but we could not confirm that processing
-          finished. It may still complete. Reload the page later.
+          finished. It may still complete. Check its status in the list below.
         </p>
       ) : null}
       {state.status === "error" ? (
