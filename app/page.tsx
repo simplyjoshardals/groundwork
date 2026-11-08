@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { SignOutButton } from "@/components/sign-out-button";
+import { UploadPanel } from "@/components/upload-panel";
 import { Workspace } from "@/components/workspace";
 import { getSessionState } from "@/lib/auth/session";
 
@@ -40,7 +41,10 @@ export default async function Home() {
       </div>
       {/* `useSearchParams` (in Workspace) needs a Suspense boundary. */}
       <Suspense fallback={<div className={introColumn}>{intro}</div>}>
-        <Workspace>{intro}</Workspace>
+        <Workspace>
+          {intro}
+          <UploadPanel canUpload={!session.isAnonymous} />
+        </Workspace>
       </Suspense>
     </main>
   );
