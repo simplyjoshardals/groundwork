@@ -110,10 +110,10 @@ from (values
 ) as v(document_id, chunk_index, page_number, char_start, seed, content);
 
 -- ---------------------------------------------------------------------------
--- Usage: DATA_MODEL.md section 6.2 also seeds public.usage_daily (Alice at 19/20 questions).
--- That table does not exist until migration 0005 (Task 1.3). When 0005 lands, restore:
---
---   insert into public.usage_daily (user_id, day, kind, used, last_used_at)
---   values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', (now() at time zone 'utc')::date,
---           'question', 19, now() - interval '1 hour');
+-- Usage: DATA_MODEL.md section 6.2. Alice is at 19/20 questions today, so the very next question is
+-- the last allowed one (T15a) and the one after it is denied (T15b).
+insert into public.usage_daily (user_id, day, kind, used, last_used_at)
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', (now() at time zone 'utc')::date,
+        'question', 19, now() - interval '1 hour')
+on conflict (user_id, day, kind) do nothing;
 -- ---------------------------------------------------------------------------

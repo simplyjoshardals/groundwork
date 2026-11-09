@@ -14,14 +14,10 @@
 -- Always pass -v ON_ERROR_STOP=1. Without it psql keeps going after a failed assertion.
 -- This is plain SQL, not pgTAP: do not run it through `supabase test db`.
 --
--- Implemented: T00 (added preflight), T01-T10, T02c-T02f (Task 3.4), T11c, T11d, T12c-T12h, T13,
--- T16a-T16n, T17a-T17d, T18a, T18b, T18d-T18f (Task 4.2 added T12, T13, T16, T18).
--- Skipped until their objects exist:
---   T11a, T11b  usage_daily, usage_global_daily        (migration 0005)
---   T12a, T12b  consume_usage, refund_usage            (migration 0005)
---   T12f        purge_stale_anonymous_users            (migration 0008)
---   T15, T18c   usage limits; usage rows in the cascade (migration 0005, Slice 5)
---   T14         storage.objects policies               (migration 0007)
+-- Implemented: T00 (added preflight), T01-T10, T02c-T02f (Task 3.4), T11a-d, T12a-h, T13, T15a-i,
+-- T16a-T16n, T17a-d, T18a-f, T19a-f (Task 4.2 added T12, T13, T16, T18; Task 5.1 added the usage
+-- tests T11a-b, T12a-b, T12f, T15, T18c and the maintenance behaviour tests T19).
+--
 -- The file expects a database that was just reset (`supabase db reset`) and NOT yet seeded with
 -- `yarn seed:samples`: T00d and T00e assert exactly the 2 + 14 rows from supabase/seed.sql.
 --
@@ -329,10 +325,13 @@ call pg_temp.expect_denied('T10b',
 reset role;
 
 -- ===== T11 (subset): Server-only tables are unreadable to users ===============
--- T11a (usage_daily) and T11b (usage_global_daily) are skipped until migration 0005 creates them.
 do $$ begin perform set_config('request.jwt.claims',
   '{"sub":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","role":"authenticated","is_anonymous":false}', true); end $$;
 set local role authenticated;
+call pg_temp.expect_denied('T11a',
+  $q$select 1 from public.usage_daily limit 1$q$, 'permission denied for (table|relation) usage_daily');
+call pg_temp.expect_denied('T11b',
+  $q$select 1 from public.usage_global_daily limit 1$q$, 'permission denied for (table|relation) usage_global_daily');
 call pg_temp.expect_denied('T11c',
   $q$select 1 from public.app_config limit 1$q$, 'permission denied for (table|relation) app_config');
 call pg_temp.expect_denied('T11d',
@@ -340,12 +339,17 @@ call pg_temp.expect_denied('T11d',
 reset role;
 
 -- ===== T12 (subset): Server-only ingestion functions are not callable by users ==
--- T12a, T12b (consume_usage, refund_usage) and T12f (purge_stale_anonymous_users) are skipped until
--- migrations 0005 and 0008 create them. A call to a missing function fails with a different error
--- (undefined_function), so it can never pass as "denied".
+-- A call to a missing function fails with a different error (undefined_function), so it can never
+-- pass as "denied": these tests only work once migrations 0005 and 0008 exist.
 do $$ begin perform set_config('request.jwt.claims',
   '{"sub":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","role":"authenticated","is_anonymous":false}', true); end $$;
 set local role authenticated;
+call pg_temp.expect_denied('T12a',
+  $q$select * from public.consume_usage('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'question')$q$,
+  'permission denied for function consume_usage');
+call pg_temp.expect_denied('T12b',
+  $q$select public.refund_usage('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'question')$q$,
+  'permission denied for function refund_usage');
 call pg_temp.expect_denied('T12c',
   $q$select public.claim_document_for_ingest('a1000000-0000-4000-8000-000000000003')$q$,
   'permission denied for function claim_document_for_ingest');
@@ -355,6 +359,9 @@ call pg_temp.expect_denied('T12d',
 call pg_temp.expect_denied('T12e',
   $q$select public.fail_ingestion('a1000000-0000-4000-8000-000000000002', 'internal_error')$q$,
   'permission denied for function fail_ingestion');
+call pg_temp.expect_denied('T12f',
+  $q$select public.purge_stale_anonymous_users()$q$,
+  'permission denied for function purge_stale_anonymous_users');
 reset role;
 
 -- Privilege matrix (owner view, nothing is executed): the service role is the ONLY caller allowed.
@@ -366,7 +373,12 @@ begin
   foreach f in array array[
     'public.claim_document_for_ingest(uuid)'::regprocedure,
     'public.finalize_ingestion(uuid, integer, text, smallint)'::regprocedure,
-    'public.fail_ingestion(uuid, text)'::regprocedure
+    'public.fail_ingestion(uuid, text)'::regprocedure,
+    'public.consume_usage(uuid, text)'::regprocedure,
+    'public.refund_usage(uuid, text)'::regprocedure,
+    'public.reap_documents(interval, interval)'::regprocedure,
+    'public.purge_stale_anonymous_users(interval)'::regprocedure,
+    'public.purge_old_records(interval)'::regprocedure
   ] loop
     assert has_function_privilege('service_role', f, 'execute'),
       'T12g: service_role must be able to execute ' || f::text;
@@ -418,6 +430,95 @@ do $$
 begin
   assert exists (select 1 from public.documents where id = 'b2000000-0000-4000-8000-000000000001'),
     'T13b: Bob (under the cap) should still be able to insert a document';
+end $$;
+
+-- ===== T15: Usage limits (as postgres; consume_usage/refund_usage are service-role functions) ==
+-- Everything runs inside this one transaction, so now() is constant. That makes the cooldown
+-- deterministic: a second call right after a successful one always falls inside the 2 s window.
+-- Seed: Alice 19/20 questions with last_used_at an hour ago. Demo (cccc...) is anonymous.
+do $$
+declare
+  r record;
+begin
+  -- T15a: Alice's 20th question is the last allowed one.
+  select * into r from public.consume_usage('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'question');
+  assert r.allowed and r.reason = 'ok' and r.used_today = 20 and r.daily_limit = 20,
+    format('T15a: 20th question should be allowed (got %s, %s, %s/%s)', r.allowed, r.reason, r.used_today, r.daily_limit);
+  assert r.resets_at = (((now() at time zone 'utc')::date + 1)::timestamp at time zone 'utc'),
+    'T15a: resets_at must be the next UTC midnight';
+
+  -- T15b: the 21st is denied as user_limit and the counter does not move.
+  select * into r from public.consume_usage('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'question');
+  assert not r.allowed and r.reason = 'user_limit' and r.used_today = 20,
+    format('T15b: 21st question must be denied as user_limit (got %s, %s, %s)', r.allowed, r.reason, r.used_today);
+  assert (select used from public.usage_daily
+          where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and kind = 'question'
+            and day = (now() at time zone 'utc')::date) = 20,
+    'T15b: a denied call must not increment the counter';
+
+  -- T15c: cooldown. Bob has no row yet, so his first question is allowed and the second, in the
+  -- same instant, is denied as cooldown without spending a unit.
+  select * into r from public.consume_usage('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'question');
+  assert r.allowed and r.used_today = 1, 'T15c setup: Bob''s first question should be allowed';
+  select * into r from public.consume_usage('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'question');
+  assert not r.allowed and r.reason = 'cooldown' and r.used_today = 1,
+    format('T15c: back-to-back question must be denied as cooldown (got %s, %s, %s)', r.allowed, r.reason, r.used_today);
+
+  -- T15d: global cap. Two units are spent globally so far (Alice, Bob). Lower the cap to 2 and the
+  -- demo user's question must be denied as global_limit, with the demo user's own unit given back.
+  update public.app_config set value = 2 where key = 'limit_global_question';
+  select * into r from public.consume_usage('cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'question');
+  assert not r.allowed and r.reason = 'global_limit' and r.used_today = 0,
+    format('T15d: global cap must deny with global_limit and refund (got %s, %s, %s)', r.allowed, r.reason, r.used_today);
+  assert (select used from public.usage_daily
+          where user_id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' and kind = 'question'
+            and day = (now() at time zone 'utc')::date) = 0,
+    'T15d: the user counter must be rolled back when the global cap denies';
+  assert (select used from public.usage_global_daily
+          where kind = 'question' and day = (now() at time zone 'utc')::date) = 2,
+    'T15d: the global counter must not exceed its cap';
+  update public.app_config set value = 200 where key = 'limit_global_question';
+
+  -- T15e: anonymous users cannot ingest (limit_anon_ingest = 0), and nothing is recorded.
+  select * into r from public.consume_usage('cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'ingest');
+  assert not r.allowed and r.reason = 'not_allowed',
+    format('T15e: anonymous ingest must be not_allowed (got %s, %s)', r.allowed, r.reason);
+  assert not exists (select 1 from public.usage_daily
+                     where user_id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' and kind = 'ingest'),
+    'T15e: a not_allowed call must not create a usage row';
+
+  -- T15f: a user id that does not exist.
+  select * into r from public.consume_usage('dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'question');
+  assert not r.allowed and r.reason = 'unknown_user',
+    format('T15f: unknown user must be denied as unknown_user (got %s, %s)', r.allowed, r.reason);
+  assert not exists (select 1 from public.usage_daily where user_id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
+    'T15f: an unknown user must not create a usage row';
+
+  -- T15g: an invalid kind is a caller bug and must raise, not return a quiet denial.
+  begin
+    perform * from public.consume_usage('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bogus');
+    raise exception 'T15g FAILED: invalid usage kind was accepted';
+  exception when others then
+    if sqlerrm !~ 'unknown usage kind' then raise; end if;
+  end;
+
+  -- T15h: refund gives one unit back to the user and to the global counter.
+  perform public.refund_usage('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'question');
+  assert (select used from public.usage_daily
+          where user_id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' and kind = 'question'
+            and day = (now() at time zone 'utc')::date) = 0,
+    'T15h: refund should return Bob''s unit';
+  assert (select used from public.usage_global_daily
+          where kind = 'question' and day = (now() at time zone 'utc')::date) = 1,
+    'T15h: refund should return the global unit';
+
+  -- T15i: refund never goes below zero, and a user with no row is not an error.
+  perform public.refund_usage('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'question');
+  assert (select used from public.usage_daily
+          where user_id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' and kind = 'question'
+            and day = (now() at time zone 'utc')::date) = 0,
+    'T15i: refund must floor at zero';
+  perform public.refund_usage('dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'question');
 end $$;
 
 -- ===== T16: Immutability and state-machine guards (as postgres) ===============
@@ -566,11 +667,11 @@ begin
 end $$;
 
 -- ===== T18: Account deletion cascades and queues file cleanup (as postgres) ====
--- T18c (usage rows are removed too) is skipped until migration 0005 creates usage_daily.
 do $$
 begin
   assert (select count(*) from public.documents where owner_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') > 0
-     and (select count(*) from public.chunks where owner_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') > 0,
+     and (select count(*) from public.chunks where owner_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') > 0
+     and (select count(*) from public.usage_daily where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') > 0,
     'T18 setup: Alice must own documents and chunks before the delete, or T18a-b pass vacuously';
   assert not exists (select 1 from public.storage_deletions
                      where path = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/a1000000-0000-4000-8000-000000000001/apartment-lease-2026.pdf'),
@@ -585,6 +686,8 @@ begin
     'T18a: Alice''s documents should be gone';
   assert (select count(*) from public.chunks where owner_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') = 0,
     'T18b: Alice''s chunks should be gone';
+  assert (select count(*) from public.usage_daily where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') = 0,
+    'T18c: Alice''s usage rows should be gone';
   assert exists (select 1 from public.storage_deletions
                  where path = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/a1000000-0000-4000-8000-000000000001/apartment-lease-2026.pdf'),
     'T18d: Alice''s file must be queued for deletion';
@@ -593,6 +696,48 @@ begin
     'T18f: Bob''s data must be untouched';
 end $$;
 
-do $$ begin raise notice 'security.sql: all assertions passed (T00-T10 incl. T02c-f, T11c-d, T12c-h, T13, T16a-n, T17a-d, T18a-b,d-f)'; end $$;
+-- ===== T19: Maintenance functions really delete (as postgres; Task 5.1) ====
+-- Run after T18 on purpose: reap_documents is not scoped to the rows created here, so on a database
+-- that was seeded a while ago it could also reap seed documents that T16 depends on.
+do $$
+declare
+  v_old   uuid := gen_random_uuid();
+  v_fresh uuid := gen_random_uuid();
+  v_anon  uuid := gen_random_uuid();
+  v_n     integer;
+begin
+  insert into public.documents (id, owner_id, title, original_filename, mime_type, size_bytes, storage_path, status, created_at)
+  values
+    (v_old,   'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'old queued',   'f.pdf', 'application/pdf', 1000,
+     'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/' || v_old::text   || '/f.pdf', 'queued', now() - interval '3 hours'),
+    (v_fresh, 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'fresh queued', 'f.pdf', 'application/pdf', 1000,
+     'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/' || v_fresh::text || '/f.pdf', 'queued', now());
+
+  -- T19a-c: an old queued document is reaped, a fresh one is not, and the file is queued for cleanup.
+  v_n := public.reap_documents();
+  assert v_n >= 1, 'T19a: reap_documents should report at least the old queued document';
+  assert not exists (select 1 from public.documents where id = v_old), 'T19b: the old queued document must be deleted';
+  assert exists (select 1 from public.documents where id = v_fresh), 'T19b: a fresh queued document must survive';
+  assert exists (select 1 from public.storage_deletions
+                 where path = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/' || v_old::text || '/f.pdf'),
+    'T19c: the reaped document''s file must be queued for deletion';
+
+  -- T19d-f: a stale anonymous user is purged (this proves a SECURITY DEFINER function may delete
+  -- from auth.users); a fresh anonymous user and a stale signed-in user are not.
+  insert into auth.users (instance_id, id, aud, role, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, is_anonymous)
+  values ('00000000-0000-0000-0000-000000000000', v_anon, 'authenticated', 'authenticated',
+          '{"provider":"anonymous"}', '{}', now() - interval '30 days', now() - interval '30 days', true);
+  update auth.users set created_at = now() - interval '30 days' where id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
+  v_n := public.purge_stale_anonymous_users();
+  assert v_n >= 1 and not exists (select 1 from auth.users where id = v_anon),
+    'T19d: the stale anonymous user must be purged';
+  assert exists (select 1 from auth.users where id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'),
+    'T19e: the fresh anonymous demo user must survive';
+  assert exists (select 1 from auth.users where id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),
+    'T19f: a stale non-anonymous user must never be purged';
+end $$;
+
+do $$ begin raise notice 'security.sql: all assertions passed (T00-T10 incl. T02c-f, T11a-d, T12a-h, T13, T15a-i, T16a-n, T17a-d, T18a-f, T19a-f)'; end $$;
 
 rollback;   -- leaves the database exactly as seeded

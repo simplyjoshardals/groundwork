@@ -397,10 +397,10 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 
 **Goal:** Survive strangers. Nothing here adds a feature; it makes the existing ones safe to expose.
 
-- [ ] **5.1 Usage migrations and tests** · 2 h · deps: 4.2
+- [x] **5.1 Usage migrations and tests** · 2 h · deps: 4.2
   - **Build:** Migrations 0005 and 0008 (usage tables and functions, maintenance functions) plus their grants. Add T15 to the SQL test script.
   - **Done when:**
-    - [ ] The whole SQL test script passes, including limit, cooldown, global-cap, and refund cases.
+    - [x] The whole SQL test script passes, including limit, cooldown, global-cap, and refund cases. (As reported by the project owner: `supabase db reset`, database types regenerated, then `security.sql` on the fresh database passed with no failed assertion: `all assertions passed (T00-T10, T11a-d, T12a-h, T13, T15a-i, T16a-n, T17a-d, T18a-f, T19a-f)`. Migrations `20261109120000_usage.sql` (label 0005) and `20261109120100_maintenance.sql` (label 0008); details in `docs/decisions.md`, 2026-11-09.)
 
 - [ ] **5.2 Wire limits into ask and ingest** · 3 h · deps: 5.1
   - **Build:** Call `consume_usage` before any provider call; return a `limit` event with reason and reset time; call `refund_usage` when the failure was ours (before the first token).
