@@ -8,7 +8,11 @@ import {
 import type { Database } from "@/types/database";
 import { ingestDocument, type IngestOptions } from "./ingest-document";
 import { createSupabaseIngestStore } from "./supabase-store";
-import { IngestStoreError, type IngestOutcome, type IngestStore } from "./types";
+import {
+  IngestStoreError,
+  type IngestOutcome,
+  type IngestStore,
+} from "./types";
 
 export interface IngestOwnedDocumentInput {
   /** The caller's own client (session cookies, RLS applies). Never the admin client. */

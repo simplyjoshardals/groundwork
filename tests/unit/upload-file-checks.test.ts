@@ -32,10 +32,12 @@ describe("mimeTypeForFileName", () => {
 
 describe("validateUploadFile", () => {
   it("accepts a file at exactly the size limit", () => {
-    expect(validateUploadFile({ name: "a.pdf", size: MAX_FILE_BYTES })).toEqual({
-      ok: true,
-      mimeType: "application/pdf",
-    });
+    expect(validateUploadFile({ name: "a.pdf", size: MAX_FILE_BYTES })).toEqual(
+      {
+        ok: true,
+        mimeType: "application/pdf",
+      },
+    );
   });
 
   it("rejects a file one byte over the limit", () => {
@@ -143,8 +145,8 @@ describe("titleFromFileName", () => {
   });
 
   it("limits the title to 200 characters", () => {
-    expect(Array.from(titleFromFileName("t".repeat(500) + ".pdf"))).toHaveLength(
-      200,
-    );
+    expect(
+      Array.from(titleFromFileName("t".repeat(500) + ".pdf")),
+    ).toHaveLength(200);
   });
 });

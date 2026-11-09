@@ -10,8 +10,7 @@ import type { IngestResponseBody } from "@/types/ingest";
  * status or a malformed body). Ingestion may still finish on the server.
  */
 export type RequestIngestResult =
-  | IngestResponseBody
-  | { status: "unconfirmed" };
+  IngestResponseBody | { status: "unconfirmed" };
 
 const UNCONFIRMED: RequestIngestResult = { status: "unconfirmed" };
 

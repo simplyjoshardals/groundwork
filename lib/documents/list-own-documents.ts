@@ -1,9 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
-import {
-  isDocumentStatus,
-  type DocumentStateFields,
-} from "./document-status";
+import { isDocumentStatus, type DocumentStateFields } from "./document-status";
 
 /**
  * The signed-in user's own documents (Task 4.6), read with the browser client
@@ -89,7 +86,9 @@ export async function listOwnDocuments(
     for (const row of data as unknown[]) {
       const parsed = parseRow(row);
       if (parsed === null) {
-        console.warn("[documents] list returned a row with an unexpected shape");
+        console.warn(
+          "[documents] list returned a row with an unexpected shape",
+        );
         return { ok: false, reason: "invalid_data" };
       }
       documents.push(parsed);

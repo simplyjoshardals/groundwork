@@ -32,12 +32,9 @@ describe("isDocumentStatus", () => {
   it.each(["queued", "processing", "ready", "failed"])("accepts %s", (s) => {
     expect(isDocumentStatus(s)).toBe(true);
   });
-  it.each(["", "READY", "toString", null, undefined, 3])(
-    "rejects %j",
-    (s) => {
-      expect(isDocumentStatus(s)).toBe(false);
-    },
-  );
+  it.each(["", "READY", "toString", null, undefined, 3])("rejects %j", (s) => {
+    expect(isDocumentStatus(s)).toBe(false);
+  });
 });
 
 describe("isStuck / isInFlight: processing", () => {

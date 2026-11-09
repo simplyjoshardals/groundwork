@@ -52,3 +52,9 @@ spikes/provider/results/
 spikes/pdf/results/
 
 repomix-*
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

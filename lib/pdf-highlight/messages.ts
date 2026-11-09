@@ -20,9 +20,17 @@ export function describeHighlightStatus(
     case "none":
       return null;
     case "loading":
-      return { text: "Finding the cited passage…", tone: "info", retryable: false };
+      return {
+        text: "Finding the cited passage…",
+        tone: "info",
+        retryable: false,
+      };
     case "highlighted":
-      return { text: "The cited passage is highlighted.", tone: "info", retryable: false };
+      return {
+        text: "The cited passage is highlighted.",
+        tone: "info",
+        retryable: false,
+      };
     case "unavailable":
       return {
         text: "The cited passage could not be found, or your session cannot open it.",

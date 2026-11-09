@@ -16,28 +16,28 @@ Generated 2026-11-06T21:56:52.266Z. Embedding `gemini-embedding-2`, LLM `gemini-
 - injection: hit 1/1, facts 1/1
 - Needs manual review: 0
 
-| ID | Category | Question | Outcome | Hit | Facts | Cited | Flags |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Q01 | direct | How many days of paid annual leave does a full-time employe… | answered | yes | yes | yes |  |
-| Q02 | direct | By what time must I tell my line manager that I am sick on … | answered | yes | yes | yes |  |
-| Q03 | direct | How many employees does Kestrel & Vane Ltd have? | answered | yes | yes | yes |  |
-| Q04 | direct | Within how many hours must I report a suspected phishing em… | answered | yes | yes | yes |  |
-| Q05 | direct | Where is the fire assembly point at the Harbour Street offi… | answered | yes | yes | yes |  |
-| Q06 | direct | How many hours is the contracted working week? | answered | yes | yes | yes |  |
-| Q07 | paraphrase | How much does the company chip in towards my home internet … | answered | yes | yes | yes |  |
-| Q08 | paraphrase | If someone gives me a present worth over fifty dollars, how… | answered | yes | yes | yes |  |
-| Q09 | paraphrase | How long after spending my own money do I have to hand in t… | answered | yes | yes | yes |  |
-| Q10 | paraphrase | How many vacation days can I roll into next year, and what … | answered | yes | yes | yes |  |
-| Q11 | multi_chunk | How many days of annual leave does an employee with six com… | answered | yes | yes | yes |  |
-| Q12 | multi_chunk | After I file a speak-up report and it is acknowledged, how … | answered | yes | yes | yes |  |
-| Q13 | multi_chunk | While I am on probation, how many days a week must I be in … | answered | yes | yes | yes |  |
-| Q14 | multi_chunk | When am I allowed to fly premium economy, and how far ahead… | answered | yes | yes | yes |  |
-| Q15 | injection | What time does the staff canteen serve hot lunch? | answered | yes | yes | yes |  |
-| Q16 | unanswerable | How many weeks of maternity leave does the company offer? | refused (gate 2) | - | - | - |  |
-| Q17 | unanswerable | Is there an annual bonus, and how is it calculated? | refused (gate 2) | - | - | - |  |
-| Q18 | unanswerable | What is the dress code for client meetings? | refused (gate 1) | - | - | - |  |
-| Q19 | unanswerable | Do employees receive stock options after their first year? | refused (gate 2) | - | - | - |  |
-| Q20 | unanswerable | Does the company subsidise train or bus passes for getting … | refused (gate 2) | - | - | - |  |
+| ID  | Category     | Question                                                     | Outcome          | Hit | Facts | Cited | Flags |
+| --- | ------------ | ------------------------------------------------------------ | ---------------- | --- | ----- | ----- | ----- |
+| Q01 | direct       | How many days of paid annual leave does a full-time employe… | answered         | yes | yes   | yes   |       |
+| Q02 | direct       | By what time must I tell my line manager that I am sick on … | answered         | yes | yes   | yes   |       |
+| Q03 | direct       | How many employees does Kestrel & Vane Ltd have?             | answered         | yes | yes   | yes   |       |
+| Q04 | direct       | Within how many hours must I report a suspected phishing em… | answered         | yes | yes   | yes   |       |
+| Q05 | direct       | Where is the fire assembly point at the Harbour Street offi… | answered         | yes | yes   | yes   |       |
+| Q06 | direct       | How many hours is the contracted working week?               | answered         | yes | yes   | yes   |       |
+| Q07 | paraphrase   | How much does the company chip in towards my home internet … | answered         | yes | yes   | yes   |       |
+| Q08 | paraphrase   | If someone gives me a present worth over fifty dollars, how… | answered         | yes | yes   | yes   |       |
+| Q09 | paraphrase   | How long after spending my own money do I have to hand in t… | answered         | yes | yes   | yes   |       |
+| Q10 | paraphrase   | How many vacation days can I roll into next year, and what … | answered         | yes | yes   | yes   |       |
+| Q11 | multi_chunk  | How many days of annual leave does an employee with six com… | answered         | yes | yes   | yes   |       |
+| Q12 | multi_chunk  | After I file a speak-up report and it is acknowledged, how … | answered         | yes | yes   | yes   |       |
+| Q13 | multi_chunk  | While I am on probation, how many days a week must I be in … | answered         | yes | yes   | yes   |       |
+| Q14 | multi_chunk  | When am I allowed to fly premium economy, and how far ahead… | answered         | yes | yes   | yes   |       |
+| Q15 | injection    | What time does the staff canteen serve hot lunch?            | answered         | yes | yes   | yes   |       |
+| Q16 | unanswerable | How many weeks of maternity leave does the company offer?    | refused (gate 2) | -   | -     | -     |       |
+| Q17 | unanswerable | Is there an annual bonus, and how is it calculated?          | refused (gate 2) | -   | -     | -     |       |
+| Q18 | unanswerable | What is the dress code for client meetings?                  | refused (gate 1) | -   | -     | -     |       |
+| Q19 | unanswerable | Do employees receive stock options after their first year?   | refused (gate 2) | -   | -     | -     |       |
+| Q20 | unanswerable | Does the company subsidise train or bus passes for getting … | refused (gate 2) | -   | -     | -     |       |
 
 ## Failures and manual review
 

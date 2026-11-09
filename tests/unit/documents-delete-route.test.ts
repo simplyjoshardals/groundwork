@@ -18,14 +18,20 @@ import * as route from "@/app/api/documents/[id]/route";
 const UUID = "123e4567-e89b-42d3-a456-426614174000";
 
 const del = (id: string) =>
-  route.DELETE(new Request(`http://localhost/api/documents/${id}`, { method: "DELETE" }), {
-    params: Promise.resolve({ id }),
-  });
+  route.DELETE(
+    new Request(`http://localhost/api/documents/${id}`, { method: "DELETE" }),
+    {
+      params: Promise.resolve({ id }),
+    },
+  );
 
 beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   getClaims.mockResolvedValue({ data: { claims: { sub: "u1" } }, error: null });
-  deleteOwnedDocument.mockResolvedValue({ status: "deleted", fileRemoved: true });
+  deleteOwnedDocument.mockResolvedValue({
+    status: "deleted",
+    fileRemoved: true,
+  });
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -36,7 +42,9 @@ describe("route config", () => {
   it("exports only DELETE and the segment config", () => {
     expect(route.runtime).toBe("nodejs");
     expect(route.dynamic).toBe("force-dynamic");
-    expect(Object.keys(route).filter((k) => /^(GET|POST|PUT|PATCH)$/.test(k))).toEqual([]);
+    expect(
+      Object.keys(route).filter((k) => /^(GET|POST|PUT|PATCH)$/.test(k)),
+    ).toEqual([]);
   });
 
   it("does not import the admin Supabase client", () => {
@@ -70,7 +78,10 @@ describe("DELETE /api/documents/[id]", () => {
     const response = await del(UUID.toUpperCase());
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toEqual({ status: "deleted", fileRemoved: true });
+    expect(await response.json()).toEqual({
+      status: "deleted",
+      fileRemoved: true,
+    });
     expect(deleteOwnedDocument).toHaveBeenCalledWith(
       expect.objectContaining({ userId: "u1", documentId: UUID }),
     );

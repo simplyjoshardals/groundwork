@@ -69,7 +69,8 @@ export async function deleteOwnedDocument(
   const path = data[0].storage_path;
   const cleanup =
     deps.cleanup ??
-    ((p: string) => processStorageDeletions(createAdminSupabase(), { path: p }));
+    ((p: string) =>
+      processStorageDeletions(createAdminSupabase(), { path: p }));
 
   try {
     const { processed, failed } = await cleanup(path);

@@ -139,7 +139,9 @@ export function titleFromFileName(originalName: string): string {
     dot !== -1 && mimeForExtension(cleaned.slice(dot + 1).toLowerCase())
       ? cleaned.slice(0, dot)
       : cleaned;
-  return truncateCodePoints(stem.trim(), MAX_TITLE_LENGTH).trim() || FALLBACK_TITLE;
+  return (
+    truncateCodePoints(stem.trim(), MAX_TITLE_LENGTH).trim() || FALLBACK_TITLE
+  );
 }
 
 /**

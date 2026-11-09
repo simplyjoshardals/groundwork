@@ -158,8 +158,7 @@ export function PdfViewer({
     return () => observer.disconnect();
   }, []);
 
-  const currentUrl =
-    urlResult?.key === requestKey ? urlResult.result : null;
+  const currentUrl = urlResult?.key === requestKey ? urlResult.result : null;
   const numPages = loaded?.key === requestKey ? loaded.numPages : null;
   const currentFailure = failure?.key === requestKey ? failure.message : null;
 
@@ -228,7 +227,8 @@ export function PdfViewer({
     }
   }, []);
 
-  const failed = currentFailure !== null || (currentUrl !== null && !currentUrl.ok);
+  const failed =
+    currentFailure !== null || (currentUrl !== null && !currentUrl.ok);
   const status = useMemo<HighlightStatus>(() => {
     if (passage === null || failed) return { state: "none" };
     if (passage.pageNumber !== shownPage) {
@@ -280,8 +280,11 @@ export function PdfViewer({
     currentUrl && !currentUrl.ok
       ? describeSignedUrlFailure(currentUrl.reason)
       : currentFailure;
-  const retryable =
-    !(currentUrl && !currentUrl.ok && currentUrl.reason === "invalid_path");
+  const retryable = !(
+    currentUrl &&
+    !currentUrl.ok &&
+    currentUrl.reason === "invalid_path"
+  );
   const ready = numPages !== null && errorMessage === null;
   const pageWidth = Math.min(width ?? MAX_PAGE_WIDTH, MAX_PAGE_WIDTH);
 
@@ -297,7 +300,9 @@ export function PdfViewer({
           type="button"
           aria-label="Previous page"
           disabled={!ready || shownPage <= 1}
-          onClick={() => goTo(pageForAction("previous", shownPage, numPages ?? 1))}
+          onClick={() =>
+            goTo(pageForAction("previous", shownPage, numPages ?? 1))
+          }
           className={BUTTON_CLASS}
         >
           Previous

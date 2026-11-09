@@ -420,12 +420,15 @@ describe("ingestDocument: a bad file is recorded with its own error_reason (Task
       "a 31-page PDF",
       PDF,
       () =>
-        buildPdf(
-          Array.from({ length: 31 }, (_, i) => denseText(`p${i + 1}`)),
-        ),
+        buildPdf(Array.from({ length: 31 }, (_, i) => denseText(`p${i + 1}`))),
       "too_many_pages",
     ],
-    ["a truncated PDF", PDF, () => pdfFixture("corrupt-truncated"), "corrupt_file"],
+    [
+      "a truncated PDF",
+      PDF,
+      () => pdfFixture("corrupt-truncated"),
+      "corrupt_file",
+    ],
     ["a garbage PDF", PDF, () => pdfFixture("corrupt-garbage"), "corrupt_file"],
     [
       "a password-protected PDF",
@@ -433,7 +436,12 @@ describe("ingestDocument: a bad file is recorded with its own error_reason (Task
       () => pdfFixture("encrypted-user-password"),
       "encrypted_file",
     ],
-    ["an executable renamed .pdf", PDF, () => pdfFixture("fake-exe"), "unsupported_type"],
+    [
+      "an executable renamed .pdf",
+      PDF,
+      () => pdfFixture("fake-exe"),
+      "unsupported_type",
+    ],
     [
       "a binary file renamed .txt",
       "text/plain",

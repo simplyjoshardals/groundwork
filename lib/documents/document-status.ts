@@ -117,7 +117,9 @@ export const POLL_MAX_DELAY_MS = 10_000;
 
 /** Delay before poll number `attempt` (0-based) since the schedule last reset. */
 export function pollDelayMs(attempt: number): number {
-  let remaining = Number.isFinite(attempt) ? Math.max(0, Math.floor(attempt)) : 0;
+  let remaining = Number.isFinite(attempt)
+    ? Math.max(0, Math.floor(attempt))
+    : 0;
   for (const step of POLL_SCHEDULE) {
     if (remaining < step.polls) return step.delayMs;
     remaining -= step.polls;

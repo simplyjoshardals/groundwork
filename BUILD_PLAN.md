@@ -377,11 +377,11 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] Reaching 10 docs shows the message and blocks upload. (As reported by the project owner: checked by hand, worked as expected; the control is disabled from the document list's count, and a server `document_limit_reached` shows the same message. Details: `docs/decisions.md`, 2026-11-09.)
     - [x] Forcing a tiny `storage_budget_bytes` in `app_config` shows the "uploads paused" message. (As reported by the project owner: checked by hand, worked as expected. The message appears only after the server refuses the insert, because clients cannot read `app_config`. Automated: as reported by the project owner, the new and extended unit tests, `yarn typecheck`, `yarn lint`, `yarn format:check` and the full suite passed; Claude ran only the two test files (20 tests), one mutation check and a scoped strict `tsc` against stubs. Not tested: the React components automatically (the Vitest setup is node-only), and a deployed preview.)
 
-- [ ] **4.9 Playwright setup and flow: sign up → upload → ask** · 3 h · deps: 4.6
+- [x] **4.9 Playwright setup and flow: sign up → upload → ask** · 3 h · deps: 4.6
   - **Build:** Playwright config, test user helper, fixtures, run against local stack.
   - **Done when:**
-    - [ ] One test signs up, uploads a fixture PDF, waits for `ready`, asks a question, and asserts a cited source appears.
-    - [ ] A second test asserts a scanned PDF shows the scanned-PDF message.
+    - [x] One test signs up, uploads a fixture PDF, waits for `ready`, asks a question, and asserts a cited source appears. (As reported by the project owner: `yarn test:e2e --headed` passed against the local stack with the real Gemini providers. The test asserts a Sources entry and a citation chip for the uploaded file, never the answer wording. Details: `docs/decisions.md`, 2026-11-09.)
+    - [x] A second test asserts a scanned PDF shows the scanned-PDF message. (As reported by the project owner: passed in the same run. It checks the upload panel alert, the "Failed" badge with the same message on the list row, and that there is no Retry. Claude's sandbox ran only scoped checks (`tsc`, Prettier, ESLint, `playwright test --list`, the config guards), not the browser flow. Not tested: the E2E tests in CI, which has no E2E job.)
 
 - [ ] **4.10 Playwright cross-user isolation** · 2.5 h · deps: 4.9
   - **Build:** Two users. User A uploads. User B tries: list documents, open A's document URL, request a signed URL, ask a question whose answer exists only in A's file.

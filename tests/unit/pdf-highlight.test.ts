@@ -38,12 +38,15 @@ describe("planHighlight", () => {
     expect(plan.status).toBe("highlight");
     if (plan.status !== "highlight") return;
     expect([...plan.ranges.keys()]).toEqual([1, 2]);
-    expect(renderPlannedItem(plan.ranges, { str: "26 days of paid annual leave.", itemIndex: 2 })).toContain(
-      '<mark data-hl="1"',
-    );
-    expect(renderPlannedItem(plan.ranges, { str: " Other sentence.", itemIndex: 3 })).toBe(
-      " Other sentence.",
-    );
+    expect(
+      renderPlannedItem(plan.ranges, {
+        str: "26 days of paid annual leave.",
+        itemIndex: 2,
+      }),
+    ).toContain('<mark data-hl="1"');
+    expect(
+      renderPlannedItem(plan.ranges, { str: " Other sentence.", itemIndex: 3 }),
+    ).toBe(" Other sentence.");
   });
 
   it("matches across a hyphenated line break", () => {
@@ -82,12 +85,17 @@ describe("renderPlannedItem", () => {
 describe("marksMatchPassage", () => {
   it("accepts marks whose text is the passage, however it was split", () => {
     expect(
-      marksMatchPassage(PASSAGE, ["A full-time employee receives ", "26 days of paid annual leave."]),
+      marksMatchPassage(PASSAGE, [
+        "A full-time employee receives ",
+        "26 days of paid annual leave.",
+      ]),
     ).toBe(true);
   });
   it("rejects no marks and the wrong text", () => {
     expect(marksMatchPassage(PASSAGE, [])).toBe(false);
-    expect(marksMatchPassage(PASSAGE, ["Some other highlighted sentence here."])).toBe(false);
+    expect(
+      marksMatchPassage(PASSAGE, ["Some other highlighted sentence here."]),
+    ).toBe(false);
   });
 });
 
@@ -102,7 +110,14 @@ describe("describeHighlightStatus", () => {
     { state: "unavailable" },
     { state: "error" },
     ...(
-      ["other_document", "other_page", "too_short", "ambiguous", "not_found", "render_mismatch"] as const
+      [
+        "other_document",
+        "other_page",
+        "too_short",
+        "ambiguous",
+        "not_found",
+        "render_mismatch",
+      ] as const
     ).map((reason) => ({ state: "declined" as const, reason, pageNumber: 4 })),
   ];
   it.each(statuses)("explains %j", (status) => {
@@ -111,12 +126,18 @@ describe("describeHighlightStatus", () => {
 
   it("offers Retry only for a load failure", () => {
     expect(describeHighlightStatus({ state: "error" })?.retryable).toBe(true);
-    expect(describeHighlightStatus({ state: "unavailable" })?.retryable).toBe(false);
+    expect(describeHighlightStatus({ state: "unavailable" })?.retryable).toBe(
+      false,
+    );
   });
 
   it("names the page for a passage on another page", () => {
     expect(
-      describeHighlightStatus({ state: "declined", reason: "other_page", pageNumber: 7 })?.text,
+      describeHighlightStatus({
+        state: "declined",
+        reason: "other_page",
+        pageNumber: 7,
+      })?.text,
     ).toContain("page 7");
   });
 });

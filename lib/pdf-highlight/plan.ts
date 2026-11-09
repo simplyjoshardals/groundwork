@@ -49,9 +49,7 @@ export type HighlightPlan =
  * including marked-content entries that have no `str`, so it is taken before
  * filtering.
  */
-export function toPageTextItems(
-  items: ReadonlyArray<object>,
-): PageTextItem[] {
+export function toPageTextItems(items: ReadonlyArray<object>): PageTextItem[] {
   const result: PageTextItem[] = [];
   items.forEach((item, itemIndex) => {
     if ("str" in item && typeof item.str === "string") {

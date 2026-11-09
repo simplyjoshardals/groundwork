@@ -55,7 +55,9 @@ export function DeleteDocumentButton({
         setError(body?.message ?? "Could not delete the document. Try again.");
       }
     } catch {
-      setError("Could not reach the server. Check your connection and try again.");
+      setError(
+        "Could not reach the server. Check your connection and try again.",
+      );
     }
     setPhase("idle");
   }
@@ -84,7 +86,11 @@ export function DeleteDocumentButton({
   }
 
   return (
-    <div className="flex items-center gap-2 text-sm" role="group" aria-label="Confirm delete">
+    <div
+      className="flex items-center gap-2 text-sm"
+      role="group"
+      aria-label="Confirm delete"
+    >
       <span>Delete this document?</span>
       <button
         type="button"

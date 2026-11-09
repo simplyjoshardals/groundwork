@@ -7,8 +7,7 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type ParsedIngestRequest =
-  | { ok: true; data: { documentId: string } }
-  | { ok: false; message: string };
+  { ok: true; data: { documentId: string } } | { ok: false; message: string };
 
 export function parseIngestRequest(body: unknown): ParsedIngestRequest {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {

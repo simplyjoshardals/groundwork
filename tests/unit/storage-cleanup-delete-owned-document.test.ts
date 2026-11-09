@@ -12,7 +12,10 @@ import type { Database } from "@/types/database";
 
 const ID = "123e4567-e89b-42d3-a456-426614174000";
 
-function fakeClient(result: { data: unknown; error: { message: string } | null }) {
+function fakeClient(result: {
+  data: unknown;
+  error: { message: string } | null;
+}) {
   const eq = vi.fn();
   const chain = {
     delete: vi.fn(),
@@ -22,7 +25,12 @@ function fakeClient(result: { data: unknown; error: { message: string } | null }
   chain.delete.mockReturnValue(chain);
   eq.mockReturnValue(chain);
   const from = vi.fn(() => chain);
-  return { client: { from } as unknown as SupabaseClient<Database>, from, eq, select: chain.select };
+  return {
+    client: { from } as unknown as SupabaseClient<Database>,
+    from,
+    eq,
+    select: chain.select,
+  };
 }
 
 const input = (client: SupabaseClient<Database>) => ({
@@ -59,7 +67,10 @@ describe("deleteOwnedDocument", () => {
   });
 
   it("cleans up only the deleted row's path", async () => {
-    const { client } = fakeClient({ data: [{ storage_path: "u1/d/a.pdf" }], error: null });
+    const { client } = fakeClient({
+      data: [{ storage_path: "u1/d/a.pdf" }],
+      error: null,
+    });
     const cleanup = vi.fn(async () => ({ processed: 1, failed: 0 }));
     const outcome = await deleteOwnedDocument(input(client), { cleanup });
     expect(cleanup).toHaveBeenCalledWith("u1/d/a.pdf");
@@ -67,7 +78,10 @@ describe("deleteOwnedDocument", () => {
   });
 
   it("reports fileRemoved false when the cleanup left a row pending", async () => {
-    const { client } = fakeClient({ data: [{ storage_path: "p" }], error: null });
+    const { client } = fakeClient({
+      data: [{ storage_path: "p" }],
+      error: null,
+    });
     expect(
       await deleteOwnedDocument(input(client), {
         cleanup: async () => ({ processed: 0, failed: 1 }),
@@ -76,22 +90,29 @@ describe("deleteOwnedDocument", () => {
   });
 
   it("does not throw when the cleanup throws; it returns the error", async () => {
-    const { client } = fakeClient({ data: [{ storage_path: "p" }], error: null });
+    const { client } = fakeClient({
+      data: [{ storage_path: "p" }],
+      error: null,
+    });
     const boom = new Error("boom");
     const outcome = await deleteOwnedDocument(input(client), {
       cleanup: async () => {
         throw boom;
       },
     });
-    expect(outcome).toEqual({ status: "deleted", fileRemoved: false, cleanupError: boom });
+    expect(outcome).toEqual({
+      status: "deleted",
+      fileRemoved: false,
+      cleanupError: boom,
+    });
   });
 
   it("throws DeleteDocumentError when the row delete fails, without cleanup", async () => {
     const { client } = fakeClient({ data: null, error: { message: "rls" } });
     const cleanup = vi.fn();
-    await expect(deleteOwnedDocument(input(client), { cleanup })).rejects.toBeInstanceOf(
-      DeleteDocumentError,
-    );
+    await expect(
+      deleteOwnedDocument(input(client), { cleanup }),
+    ).rejects.toBeInstanceOf(DeleteDocumentError);
     expect(cleanup).not.toHaveBeenCalled();
   });
 });

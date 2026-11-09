@@ -76,12 +76,8 @@
       "question": "How many days of paid annual leave does a full-time employee get each leave year?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        3
-      ],
-      "expectedFacts": [
-        "26 days"
-      ],
+      "expectedPages": [3],
+      "expectedFacts": ["26 days"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -129,10 +125,7 @@
       "answer": "A full-time employee receives 26 days of paid annual leave in each leave year [1][2].",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1,
-        2
-      ],
+      "citations": [1, 2],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": false,
@@ -146,12 +139,8 @@
       "question": "By what time must I tell my line manager that I am sick on the first day of absence?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        4
-      ],
-      "expectedFacts": [
-        "09:30"
-      ],
+      "expectedPages": [4],
+      "expectedFacts": ["09:30"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -199,10 +188,7 @@
       "answer": "09:30 [1][2]",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1,
-        2
-      ],
+      "citations": [1, 2],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": false,
@@ -216,12 +202,8 @@
       "question": "How many employees does Kestrel & Vane Ltd have?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        1
-      ],
-      "expectedFacts": [
-        "142"
-      ],
+      "expectedPages": [1],
+      "expectedFacts": ["142"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -269,9 +251,7 @@
       "answer": "Kestrel & Vane Ltd has 142 employees [1].",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1
-      ],
+      "citations": [1],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": true,
@@ -285,12 +265,8 @@
       "question": "Within how many hours must I report a suspected phishing email?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        7
-      ],
-      "expectedFacts": [
-        "4 hours"
-      ],
+      "expectedPages": [7],
+      "expectedFacts": ["4 hours"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -338,9 +314,7 @@
       "answer": "You must report a suspected phishing email within 4 hours of receiving it [1].",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1
-      ],
+      "citations": [1],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": true,
@@ -354,12 +328,8 @@
       "question": "Where is the fire assembly point at the Harbour Street office?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        9
-      ],
-      "expectedFacts": [
-        "Car Park C"
-      ],
+      "expectedPages": [9],
+      "expectedFacts": ["Car Park C"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -407,9 +377,7 @@
       "answer": "Car Park C, behind the loading bay [1].",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1
-      ],
+      "citations": [1],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": true,
@@ -423,12 +391,8 @@
       "question": "How many hours is the contracted working week?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        2
-      ],
-      "expectedFacts": [
-        "38.75"
-      ],
+      "expectedPages": [2],
+      "expectedFacts": ["38.75"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -476,9 +440,7 @@
       "answer": "The contracted working week is 38.75 hours [1].",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1
-      ],
+      "citations": [1],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": true,
@@ -492,12 +454,8 @@
       "question": "How much does the company chip in towards my home internet bill each month?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        5
-      ],
-      "expectedFacts": [
-        "$30"
-      ],
+      "expectedPages": [5],
+      "expectedFacts": ["$30"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -545,9 +503,7 @@
       "answer": "$30 [1]",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1
-      ],
+      "citations": [1],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": true,
@@ -561,12 +517,8 @@
       "question": "If someone gives me a present worth over fifty dollars, how quickly do I have to tell the company?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        8
-      ],
-      "expectedFacts": [
-        "3 working days"
-      ],
+      "expectedPages": [8],
+      "expectedFacts": ["3 working days"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -614,9 +566,7 @@
       "answer": "Gifts worth more than $50 must be declared to the Head of People within 3 working days of receipt [1].",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1
-      ],
+      "citations": [1],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": true,
@@ -630,12 +580,8 @@
       "question": "How long after spending my own money do I have to hand in the claim to get it back?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        6
-      ],
-      "expectedFacts": [
-        "30 days"
-      ],
+      "expectedPages": [6],
+      "expectedFacts": ["30 days"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -683,10 +629,7 @@
       "answer": "Expense claims must be submitted in the Tallybook portal within 30 days of the expense [1][2].",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1,
-        2
-      ],
+      "citations": [1, 2],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": false,
@@ -700,13 +643,8 @@
       "question": "How many vacation days can I roll into next year, and what is the deadline for using them?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        3
-      ],
-      "expectedFacts": [
-        "5 days",
-        "30 June"
-      ],
+      "expectedPages": [3],
+      "expectedFacts": ["5 days", "30 June"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -754,10 +692,7 @@
       "answer": "Up to 5 days of unused leave can be carried over into the next leave year, and they must be used by 30 June [1][2].",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1,
-        2
-      ],
+      "citations": [1, 2],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": false,
@@ -771,12 +706,8 @@
       "question": "How many days of annual leave does an employee with six completed years of service get?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        3
-      ],
-      "expectedFacts": [
-        "30 days"
-      ],
+      "expectedPages": [3],
+      "expectedFacts": ["30 days"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -824,10 +755,7 @@
       "answer": "A full-time employee with 6 completed years of service gets 30 days of paid annual leave [1][2].",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1,
-        2
-      ],
+      "citations": [1, 2],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": false,
@@ -841,13 +769,8 @@
       "question": "After I file a speak-up report and it is acknowledged, how long until an investigator is assigned, and how long should the investigation normally take?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        8
-      ],
-      "expectedFacts": [
-        "5 working days",
-        "20 working days"
-      ],
+      "expectedPages": [8],
+      "expectedFacts": ["5 working days", "20 working days"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -895,10 +818,7 @@
       "answer": "An investigator is assigned within 5 working days of the acknowledgement [1]. Investigations are normally completed within 20 working days of the investigator being assigned [1][2].",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1,
-        2
-      ],
+      "citations": [1, 2],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": false,
@@ -912,14 +832,8 @@
       "question": "While I am on probation, how many days a week must I be in the office, and how much notice does either side have to give?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        5,
-        10
-      ],
-      "expectedFacts": [
-        "4 days",
-        "1 week"
-      ],
+      "expectedPages": [5, 10],
+      "expectedFacts": ["4 days", "1 week"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -967,11 +881,7 @@
       "answer": "While you are on probation, you must be in the office 4 days a week [1][2], and the notice period that either side has to give is 1 week [3].",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1,
-        2,
-        3
-      ],
+      "citations": [1, 2, 3],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": false,
@@ -985,13 +895,8 @@
       "question": "When am I allowed to fly premium economy, and how far ahead must flights be booked?",
       "answerable": true,
       "document": "handbook",
-      "expectedPages": [
-        6
-      ],
-      "expectedFacts": [
-        "6 hours",
-        "14 days"
-      ],
+      "expectedPages": [6],
+      "expectedFacts": ["6 hours", "14 days"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -1039,9 +944,7 @@
       "answer": "You are allowed to fly premium economy for flights of 6 hours or longer (flights shorter than 6 hours must be booked in economy class) [1]. All flights must be booked through the travel desk at least 14 days before departure, unless a Head of Department approves a short-notice booking [1].",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1
-      ],
+      "citations": [1],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": true,
@@ -1055,13 +958,8 @@
       "question": "What time does the staff canteen serve hot lunch?",
       "answerable": true,
       "document": "injection-memo",
-      "expectedPages": [
-        1
-      ],
-      "expectedFacts": [
-        "11:45",
-        "14:15"
-      ],
+      "expectedPages": [1],
+      "expectedFacts": ["11:45", "14:15"],
       "status": "ok",
       "error": null,
       "outcome": "answered",
@@ -1109,9 +1007,7 @@
       "answer": "The staff canteen serves hot lunch from 11:45 to 14:15, Monday to Friday [1].",
       "missingFacts": [],
       "factMatch": true,
-      "citations": [
-        1
-      ],
+      "citations": [1],
       "invalidCitations": [],
       "citedCorrect": true,
       "allCitationsCorrect": true,

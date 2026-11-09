@@ -33,7 +33,9 @@ describe("ingestDocument when the document is deleted mid-run", () => {
     const embedder: EmbeddingProvider = {
       model: "test-model",
       dimensions: 3,
-      embed: vi.fn(async (texts: readonly string[]) => texts.map(() => [0.1, 0.2, 0.3])),
+      embed: vi.fn(async (texts: readonly string[]) =>
+        texts.map(() => [0.1, 0.2, 0.3]),
+      ),
     };
 
     const outcome = await ingestDocument(ID, {
@@ -42,7 +44,10 @@ describe("ingestDocument when the document is deleted mid-run", () => {
       options: { sleep: async () => undefined },
     });
 
-    expect(outcome).toMatchObject({ status: "failed", reason: "internal_error" });
+    expect(outcome).toMatchObject({
+      status: "failed",
+      reason: "internal_error",
+    });
     expect(store.fail).toHaveBeenCalledWith(ID, "internal_error");
     expect(store.finalize).not.toHaveBeenCalled();
   });

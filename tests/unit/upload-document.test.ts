@@ -246,7 +246,11 @@ describe("uploadDocument", () => {
 
   it("stops before the insert if the path would be malformed", async () => {
     const { ports, calls } = makePorts({
-      session: { status: "signed_in", userId: "not-a-uuid", isAnonymous: false },
+      session: {
+        status: "signed_in",
+        userId: "not-a-uuid",
+        isAnonymous: false,
+      },
     });
     const result = await uploadDocument(pdf(), ports);
 

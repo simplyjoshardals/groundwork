@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getChunk, type ChunkPassage, type ChunkResult } from "@/lib/documents/get-chunk";
+import {
+  getChunk,
+  type ChunkPassage,
+  type ChunkResult,
+} from "@/lib/documents/get-chunk";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 
 export type ChunkPassageState =

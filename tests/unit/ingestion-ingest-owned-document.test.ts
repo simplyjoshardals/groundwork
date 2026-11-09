@@ -15,7 +15,10 @@ import type { EmbeddingProvider } from "@/lib/providers";
 
 const ID = "123e4567-e89b-42d3-a456-426614174000";
 
-function fakeClient(result: { data: unknown; error: { message: string } | null }) {
+function fakeClient(result: {
+  data: unknown;
+  error: { message: string } | null;
+}) {
   const eq = vi.fn();
   const chain = { select: vi.fn(), eq, maybeSingle: vi.fn(async () => result) };
   chain.select.mockReturnValue(chain);
@@ -29,7 +32,11 @@ function fakeClient(result: { data: unknown; error: { message: string } | null }
 }
 
 const store = {} as IngestStore;
-const embedder = { model: "m", dimensions: 3, embed: vi.fn() } as EmbeddingProvider;
+const embedder = {
+  model: "m",
+  dimensions: 3,
+  embed: vi.fn(),
+} as EmbeddingProvider;
 
 afterEach(() => vi.clearAllMocks());
 

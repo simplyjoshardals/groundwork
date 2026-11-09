@@ -81,15 +81,22 @@ describe("getChunk", () => {
     });
   });
 
-  it.each(["", "0", "007", "-1", "1.5", "1e3", "abc", "42 OR 1=1", "1".repeat(16)])(
-    "does not query for a malformed id (%j)",
-    async (id) => {
-      const { client, from } = fakeClient({ data: null, error: null });
-      await expect(getChunk(client, id)).resolves.toEqual({
-        ok: false,
-        reason: "not_found",
-      });
-      expect(from).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    "",
+    "0",
+    "007",
+    "-1",
+    "1.5",
+    "1e3",
+    "abc",
+    "42 OR 1=1",
+    "1".repeat(16),
+  ])("does not query for a malformed id (%j)", async (id) => {
+    const { client, from } = fakeClient({ data: null, error: null });
+    await expect(getChunk(client, id)).resolves.toEqual({
+      ok: false,
+      reason: "not_found",
+    });
+    expect(from).not.toHaveBeenCalled();
+  });
 });

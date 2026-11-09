@@ -97,7 +97,11 @@ describe("listOwnDocuments", () => {
   it("keeps a failed row's reason and a processing row's start time", async () => {
     const { client } = fakeClient({
       data: [
-        row({ status: "failed", error_reason: "scanned_pdf", page_count: null }),
+        row({
+          status: "failed",
+          error_reason: "scanned_pdf",
+          page_count: null,
+        }),
         row({
           id: "223e4567-e89b-42d3-a456-426614174000",
           status: "processing",
@@ -160,14 +164,17 @@ describe("listOwnDocuments", () => {
     ["a non-string error reason", { error_reason: 4 }],
     ["a missing created_at", { created_at: null }],
     ["a numeric processing_started_at", { processing_started_at: 1 }],
-  ])("returns invalid_data for a row with %s, not a silent partial list", async (_n, bad) => {
-    const { client } = fakeClient({
-      data: [row(), row(bad)],
-      error: null,
-    });
-    expect(await listOwnDocuments(client)).toEqual({
-      ok: false,
-      reason: "invalid_data",
-    });
-  });
+  ])(
+    "returns invalid_data for a row with %s, not a silent partial list",
+    async (_n, bad) => {
+      const { client } = fakeClient({
+        data: [row(), row(bad)],
+        error: null,
+      });
+      expect(await listOwnDocuments(client)).toEqual({
+        ok: false,
+        reason: "invalid_data",
+      });
+    },
+  );
 });

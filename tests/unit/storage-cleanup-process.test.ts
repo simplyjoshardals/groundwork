@@ -21,7 +21,10 @@ interface Row {
 function fakeClient(options: {
   rows: Row[];
   selectError?: string;
-  remove?: (bucket: string, path: string) => Promise<{ error: { message: string } | null }>;
+  remove?: (
+    bucket: string,
+    path: string,
+  ) => Promise<{ error: { message: string } | null }>;
   updateError?: boolean;
 }) {
   const filters: [string, unknown][] = [];
@@ -29,7 +32,9 @@ function fakeClient(options: {
   const removed: [string, string][] = [];
 
   const select = {
-    is: vi.fn((col: string, v: unknown) => (filters.push([`is:${col}`, v]), select)),
+    is: vi.fn(
+      (col: string, v: unknown) => (filters.push([`is:${col}`, v]), select),
+    ),
     order: vi.fn(() => select),
     limit: vi.fn(() => select),
     eq: vi.fn((col: string, v: unknown) => (filters.push([col, v]), select)),
@@ -53,7 +58,10 @@ function fakeClient(options: {
     from: vi.fn((bucket: string) => ({
       remove: vi.fn(async (paths: string[]) => {
         removed.push([bucket, paths[0]]);
-        return (options.remove ?? (async () => ({ error: null })))(bucket, paths[0]);
+        return (options.remove ?? (async () => ({ error: null })))(
+          bucket,
+          paths[0],
+        );
       }),
     })),
   };
@@ -89,7 +97,10 @@ describe("processStorageDeletions", () => {
 
   it("applies the path and bucket filters when given", async () => {
     const f = fakeClient({ rows: [] });
-    await processStorageDeletions(f.client, { path: "u/d/a.pdf", bucket: "documents" });
+    await processStorageDeletions(f.client, {
+      path: "u/d/a.pdf",
+      bucket: "documents",
+    });
     expect(f.filters).toContainEqual(["path", "u/d/a.pdf"]);
     expect(f.filters).toContainEqual(["bucket", "documents"]);
   });
@@ -107,8 +118,12 @@ describe("processStorageDeletions", () => {
     const failed = f.updates.find((u) => u.id === 1)!;
     expect(failed.values.attempts).toBe(3);
     expect(failed.values).not.toHaveProperty("processed_at");
-    expect((failed.values.last_error as string).length).toBe(MAX_LAST_ERROR_LENGTH + 1);
-    expect(f.updates.find((u) => u.id === 2)!.values.processed_at).toEqual(expect.any(String));
+    expect((failed.values.last_error as string).length).toBe(
+      MAX_LAST_ERROR_LENGTH + 1,
+    );
+    expect(f.updates.find((u) => u.id === 2)!.values.processed_at).toEqual(
+      expect.any(String),
+    );
   });
 
   it("treats a thrown storage call as a failed row, not a crash", async () => {
@@ -118,7 +133,10 @@ describe("processStorageDeletions", () => {
         throw new Error("network down");
       },
     });
-    expect(await processStorageDeletions(f.client)).toEqual({ processed: 0, failed: 1 });
+    expect(await processStorageDeletions(f.client)).toEqual({
+      processed: 0,
+      failed: 1,
+    });
     expect(f.updates[0].values.last_error).toBe("network down");
   });
 
@@ -127,12 +145,18 @@ describe("processStorageDeletions", () => {
       rows: [row(1)],
       remove: async () => ({ error: { message: "Object not found" } }),
     });
-    expect(await processStorageDeletions(f.client)).toEqual({ processed: 1, failed: 0 });
+    expect(await processStorageDeletions(f.client)).toEqual({
+      processed: 1,
+      failed: 0,
+    });
   });
 
   it("counts a row as failed when its result cannot be recorded", async () => {
     const f = fakeClient({ rows: [row(1)], updateError: true });
-    expect(await processStorageDeletions(f.client)).toEqual({ processed: 0, failed: 1 });
+    expect(await processStorageDeletions(f.client)).toEqual({
+      processed: 0,
+      failed: 1,
+    });
   });
 
   it("throws StorageCleanupError when the pending list cannot be read", async () => {

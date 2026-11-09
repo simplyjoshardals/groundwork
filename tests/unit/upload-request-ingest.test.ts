@@ -32,10 +32,16 @@ describe("requestIngest", () => {
 
   it("returns a failed reason, and maps an unknown code to internal_error", async () => {
     expect(
-      await requestIngest(ID, reply(200, { status: "failed", reason: "scanned_pdf" })),
+      await requestIngest(
+        ID,
+        reply(200, { status: "failed", reason: "scanned_pdf" }),
+      ),
     ).toEqual({ status: "failed", reason: "scanned_pdf" });
     expect(
-      await requestIngest(ID, reply(200, { status: "failed", reason: "weird" })),
+      await requestIngest(
+        ID,
+        reply(200, { status: "failed", reason: "weird" }),
+      ),
     ).toEqual({ status: "failed", reason: "internal_error" });
   });
 
@@ -55,7 +61,10 @@ describe("requestIngest", () => {
 
   it("treats a prototype key as an unknown reason", async () => {
     expect(
-      await requestIngest(ID, reply(200, { status: "failed", reason: "toString" })),
+      await requestIngest(
+        ID,
+        reply(200, { status: "failed", reason: "toString" }),
+      ),
     ).toEqual({ status: "failed", reason: "internal_error" });
   });
 
@@ -65,16 +74,22 @@ describe("requestIngest", () => {
     });
   });
 
-  it.each([401, 404, 500, 504])("returns unconfirmed for HTTP %i", async (code) => {
-    const result = await requestIngest(ID, reply(code, { error: "x" }));
-    expect(result).toEqual({ status: "unconfirmed" });
-    expect(console.warn).toHaveBeenCalled();
-  });
+  it.each([401, 404, 500, 504])(
+    "returns unconfirmed for HTTP %i",
+    async (code) => {
+      const result = await requestIngest(ID, reply(code, { error: "x" }));
+      expect(result).toEqual({ status: "unconfirmed" });
+      expect(console.warn).toHaveBeenCalled();
+    },
+  );
 
   it.each([
     ["an unknown status", { status: "weird" }],
     ["ready without counts", { status: "ready" }],
-    ["ready with a negative count", { status: "ready", pageCount: -1, chunkCount: 1 }],
+    [
+      "ready with a negative count",
+      { status: "ready", pageCount: -1, chunkCount: 1 },
+    ],
     ["failed without a reason", { status: "failed" }],
     ["null", null],
   ])("returns unconfirmed for a 200 with %s", async (_name, body) => {
@@ -84,14 +99,20 @@ describe("requestIngest", () => {
   });
 
   it("returns unconfirmed when the body is not JSON", async () => {
-    const fetchImpl = vi.fn(async () => new Response("<html>", { status: 200 }));
-    expect(await requestIngest(ID, fetchImpl)).toEqual({ status: "unconfirmed" });
+    const fetchImpl = vi.fn(
+      async () => new Response("<html>", { status: 200 }),
+    );
+    expect(await requestIngest(ID, fetchImpl)).toEqual({
+      status: "unconfirmed",
+    });
   });
 
   it("returns unconfirmed when the network fails, without throwing", async () => {
     const fetchImpl = vi.fn(async () => {
       throw new TypeError("Failed to fetch");
     });
-    expect(await requestIngest(ID, fetchImpl)).toEqual({ status: "unconfirmed" });
+    expect(await requestIngest(ID, fetchImpl)).toEqual({
+      status: "unconfirmed",
+    });
   });
 });
