@@ -371,11 +371,11 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] Deleting while `processing` doesn't crash ingestion (it fails cleanly). (As reported by the project owner: checked by hand, worked as expected.)
     - [x] Deleting another user's document does nothing. (As reported by the project owner: checked by hand, worked as expected.)
 
-- [ ] **4.8 Cap and budget UX** · 1.5 h · deps: 4.3
+- [x] **4.8 Cap and budget UX** · 1.5 h · deps: 4.3
   - **Build:** Translate `document_limit_reached` and `storage_budget_exhausted` into clear messages; disable the upload control when at the cap.
   - **Done when:**
-    - [ ] Reaching 10 docs shows the message and blocks upload.
-    - [ ] Forcing a tiny `storage_budget_bytes` in `app_config` shows the "uploads paused" message.
+    - [x] Reaching 10 docs shows the message and blocks upload. (As reported by the project owner: checked by hand, worked as expected; the control is disabled from the document list's count, and a server `document_limit_reached` shows the same message. Details: `docs/decisions.md`, 2026-11-09.)
+    - [x] Forcing a tiny `storage_budget_bytes` in `app_config` shows the "uploads paused" message. (As reported by the project owner: checked by hand, worked as expected. The message appears only after the server refuses the insert, because clients cannot read `app_config`. Automated: as reported by the project owner, the new and extended unit tests, `yarn typecheck`, `yarn lint`, `yarn format:check` and the full suite passed; Claude ran only the two test files (20 tests), one mutation check and a scoped strict `tsc` against stubs. Not tested: the React components automatically (the Vitest setup is node-only), and a deployed preview.)
 
 - [ ] **4.9 Playwright setup and flow: sign up → upload → ask** · 3 h · deps: 4.6
   - **Build:** Playwright config, test user helper, fixtures, run against local stack.

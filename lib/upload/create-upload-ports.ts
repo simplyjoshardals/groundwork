@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DOCUMENTS_BUCKET } from "@/lib/storage/documents";
 import type { Database } from "@/types/database";
+import { classifyInsertError } from "./limits";
 import type { UploadPorts } from "./upload-document";
 
 /**
@@ -61,7 +62,7 @@ export function createUploadPorts(
         const { error } = await client.from("documents").insert(row);
         if (error) {
           console.warn(`[upload] insert failed: ${error.code}`);
-          return { ok: false };
+          return { ok: false, reason: classifyInsertError(error) };
         }
         return { ok: true };
       } catch {

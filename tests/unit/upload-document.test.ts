@@ -2,6 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAX_FILE_BYTES } from "@/lib/pdf/limits";
 import { MAX_DOCS_PER_USER_HINT } from "@/lib/upload/file-checks";
 import {
+  DOCUMENT_LIMIT_MESSAGE,
+  UPLOADS_PAUSED_MESSAGE,
+  type InsertFailureReason,
+} from "@/lib/upload/limits";
+import {
   uploadDocument,
   type NewDocumentRow,
   type UploadPorts,
@@ -15,6 +20,7 @@ type Overrides = Partial<{
   session: UploadSession;
   count: { ok: true; count: number } | { ok: false };
   insertOk: boolean;
+  insertReason: InsertFailureReason;
   uploadOk: boolean;
   deleteOk: boolean;
 }>;
@@ -42,7 +48,10 @@ function makePorts(overrides: Overrides = {}) {
     async insertDocument(row) {
       calls.push("insert");
       inserted.push(row);
-      return { ok: overrides.insertOk ?? true };
+      return {
+        ok: overrides.insertOk ?? true,
+        ...(overrides.insertReason ? { reason: overrides.insertReason } : {}),
+      };
     },
     async uploadFile(path, body, contentType) {
       calls.push("upload");
@@ -177,6 +186,44 @@ describe("uploadDocument", () => {
 
     expect(result).toMatchObject({ ok: false, reason: "insert_failed" });
     expect(calls).toEqual(["session", "count", "insert"]);
+  });
+
+  it("turns the trigger's document cap error into the limit message", async () => {
+    const { ports, calls } = makePorts({
+      insertOk: false,
+      insertReason: "document_limit_reached",
+    });
+    const result = await uploadDocument(pdf(), ports);
+
+    expect(result).toEqual({
+      ok: false,
+      reason: "limit_reached",
+      message: DOCUMENT_LIMIT_MESSAGE,
+    });
+    expect(calls).toEqual(["session", "count", "insert"]);
+  });
+
+  it("turns the trigger's storage budget error into the uploads-paused message", async () => {
+    const { ports, calls } = makePorts({
+      insertOk: false,
+      insertReason: "storage_budget_exhausted",
+    });
+    const result = await uploadDocument(pdf(), ports);
+
+    expect(result).toEqual({
+      ok: false,
+      reason: "budget_exhausted",
+      message: UPLOADS_PAUSED_MESSAGE,
+    });
+    expect(calls).toEqual(["session", "count", "insert"]);
+  });
+
+  it("keeps the generic message for an insert refused for another reason", async () => {
+    const { ports } = makePorts({ insertOk: false, insertReason: "other" });
+    expect(await uploadDocument(pdf(), ports)).toMatchObject({
+      ok: false,
+      reason: "insert_failed",
+    });
   });
 
   it("removes the queued row when the upload fails", async () => {

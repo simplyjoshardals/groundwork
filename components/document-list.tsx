@@ -56,7 +56,14 @@ async function load(): Promise<ListOwnDocumentsResult> {
  * `refreshKey` is bumped by the parent (after an upload and after its ingest
  * call returns): a new value restarts the schedule and reloads at once.
  */
-export function DocumentList({ refreshKey }: { refreshKey: number }) {
+export function DocumentList({
+  refreshKey,
+  onCountChange,
+}: {
+  refreshKey: number;
+  /** Called with the number of documents after each successful load (Task 4.8). */
+  onCountChange?: (count: number) => void;
+}) {
   const [documents, setDocuments] = useState<OwnDocument[] | null>(null);
   /** Time of the last successful read: the clock the stuck rules use. */
   const [now, setNow] = useState(0);
@@ -110,6 +117,10 @@ export function DocumentList({ refreshKey }: { refreshKey: number }) {
       if (timer !== undefined) clearTimeout(timer);
     };
   }, [refreshKey, retryToken]);
+
+  useEffect(() => {
+    if (documents !== null) onCountChange?.(documents.length);
+  }, [documents, onCountChange]);
 
   function setRetryingIds(next: ReadonlySet<string>) {
     retryingRef.current = next;

@@ -1,12 +1,17 @@
 import { isDocumentStoragePath } from "@/lib/storage/documents";
 import {
-  MAX_DOCS_PER_USER_HINT,
   cleanOriginalFilename,
   safeStorageFileName,
   titleFromFileName,
   validateUploadFile,
   type FileRejectionReason,
 } from "./file-checks";
+import {
+  DOCUMENT_LIMIT_MESSAGE,
+  UPLOADS_PAUSED_MESSAGE,
+  isAtDocumentCap,
+  type InsertFailureReason,
+} from "./limits";
 
 /**
  * Direct-to-Storage upload (Task 4.3), in the order DATA_MODEL 6 fixes:
@@ -41,7 +46,13 @@ export interface UploadPorts {
   getSession(): Promise<UploadSession>;
   /** Number of private documents the current user owns (RLS decides which rows count). */
   countOwnDocuments(): Promise<{ ok: true; count: number } | { ok: false }>;
-  insertDocument(row: NewDocumentRow): Promise<{ ok: boolean }>;
+  /**
+   * `reason` says why a refused insert was refused (Task 4.8): the per-user
+   * cap and the global storage budget are enforced by the insert trigger.
+   */
+  insertDocument(
+    row: NewDocumentRow,
+  ): Promise<{ ok: boolean; reason?: InsertFailureReason }>;
   uploadFile(
     path: string,
     body: Blob,
@@ -60,6 +71,7 @@ export type UploadFailureReason =
   | "signed_out"
   | "demo_session"
   | "limit_reached"
+  | "budget_exhausted"
   | "unavailable"
   | "insert_failed"
   | "upload_failed"
@@ -105,11 +117,8 @@ export async function uploadDocument(
   // 3. Document-count hint. A failed count is not fatal: the insert trigger is
   // the real cap, and a dead connection will fail the insert with its own message.
   const count = await ports.countOwnDocuments();
-  if (count.ok && count.count >= MAX_DOCS_PER_USER_HINT) {
-    return fail(
-      "limit_reached",
-      `You already have ${MAX_DOCS_PER_USER_HINT} documents. Delete one before uploading another.`,
-    );
+  if (count.ok && isAtDocumentCap(count.count)) {
+    return fail("limit_reached", DOCUMENT_LIMIT_MESSAGE);
   }
 
   // 4. The client generates the id, so the path can be built before the insert.
@@ -134,7 +143,18 @@ export async function uploadDocument(
     storage_path: storagePath,
   });
   if (!inserted.ok) {
-    return fail("insert_failed", "Could not start the upload. Please try again.");
+    // The trigger's two limit errors get their own messages (Task 4.8). The
+    // row was never created, so there is nothing to upload or clean up.
+    if (inserted.reason === "document_limit_reached") {
+      return fail("limit_reached", DOCUMENT_LIMIT_MESSAGE);
+    }
+    if (inserted.reason === "storage_budget_exhausted") {
+      return fail("budget_exhausted", UPLOADS_PAUSED_MESSAGE);
+    }
+    return fail(
+      "insert_failed",
+      "Could not start the upload. Please try again.",
+    );
   }
 
   // 5. Upload. The body is re-wrapped in a Blob with the intended type: for a

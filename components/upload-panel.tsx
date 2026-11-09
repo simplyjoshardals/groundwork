@@ -11,8 +11,12 @@ import {
   ACCEPT_ATTRIBUTE,
   MAX_DOCS_PER_USER_HINT,
 } from "@/lib/upload/file-checks";
+import { DOCUMENT_LIMIT_MESSAGE } from "@/lib/upload/limits";
 import { requestIngest } from "@/lib/upload/request-ingest";
-import { uploadDocument } from "@/lib/upload/upload-document";
+import {
+  uploadDocument,
+  type UploadFailureReason,
+} from "@/lib/upload/upload-document";
 
 type PanelState =
   | { status: "idle" }
@@ -22,7 +26,8 @@ type PanelState =
   | { status: "no_op"; fileName: string }
   | { status: "ingest_failed"; fileName: string; message: string }
   | { status: "unconfirmed"; fileName: string }
-  | { status: "error"; message: string };
+  | { status: "paused"; message: string }
+  | { status: "error"; reason: UploadFailureReason | null; message: string };
 
 /**
  * Upload control (Tasks 4.3 and 4.4). One file at a time, straight to Storage
@@ -32,13 +37,22 @@ type PanelState =
  * optional callbacks tell the list to refresh. A failed or unreachable ingest
  * never undoes the upload: the file stays stored and queued. Demo sessions get
  * an explanation instead of a control that RLS would refuse.
+ *
+ * Cap and budget (Task 4.8): `atCap` (from the document list's count) disables
+ * the control and says why. The global storage budget cannot be known up front
+ * (clients cannot read `app_config`), so it shows as a neutral "uploads paused"
+ * status after the server refuses an insert; the control stays enabled so the
+ * user can try again later.
  */
 export function UploadPanel({
   canUpload,
+  atCap = false,
   onUploaded,
   onIngestSettled,
 }: {
   canUpload: boolean;
+  /** The user already owns the maximum number of documents. */
+  atCap?: boolean;
   /** Called once the document row exists (status `queued`), before ingest starts. */
   onUploaded?: () => void;
   /** Called when the ingest call returns, whatever its outcome. */
@@ -46,6 +60,7 @@ export function UploadPanel({
 }) {
   const inputId = useId();
   const hintId = useId();
+  const capId = useId();
   const [state, setState] = useState<PanelState>({ status: "idle" });
   const busy = state.status === "uploading" || state.status === "processing";
 
@@ -80,7 +95,15 @@ export function UploadPanel({
         createUploadPorts(createBrowserSupabase()),
       );
       if (!result.ok) {
-        setState({ status: "error", message: result.message });
+        setState(
+          result.reason === "budget_exhausted"
+            ? { status: "paused", message: result.message }
+            : {
+                status: "error",
+                reason: result.reason,
+                message: result.message,
+              },
+        );
         return;
       }
 
@@ -101,6 +124,7 @@ export function UploadPanel({
       console.error("[upload] unexpected failure:", err);
       setState({
         status: "error",
+        reason: null,
         message: "Something went wrong. Please try again.",
       });
     }
@@ -117,15 +141,20 @@ export function UploadPanel({
         id={inputId}
         type="file"
         accept={ACCEPT_ATTRIBUTE}
-        disabled={busy}
+        disabled={busy || atCap}
         onChange={onChange}
-        aria-describedby={hintId}
+        aria-describedby={atCap ? `${capId} ${hintId}` : hintId}
         className="block w-full text-sm file:mr-3 file:rounded-md file:border file:border-gray-300 file:bg-transparent file:px-3 file:py-1 disabled:opacity-60"
       />
       <p id={hintId} className="text-gray-600">
         PDF, TXT or Markdown, up to {maxMb} MB. You can keep up to{" "}
         {MAX_DOCS_PER_USER_HINT} documents.
       </p>
+      {atCap ? (
+        <p id={capId} role="status" className="text-amber-700">
+          {DOCUMENT_LIMIT_MESSAGE}
+        </p>
+      ) : null}
       {state.status === "uploading" ? (
         <p role="status">Uploading {state.fileName}…</p>
       ) : null}
@@ -154,7 +183,14 @@ export function UploadPanel({
           finished. It may still complete. Check its status in the list below.
         </p>
       ) : null}
-      {state.status === "error" ? (
+      {state.status === "paused" ? (
+        <p role="status" className="text-amber-700">
+          {state.message}
+        </p>
+      ) : null}
+      {/* At the cap the notice above already says it: no second copy. */}
+      {state.status === "error" &&
+      !(atCap && state.reason === "limit_reached") ? (
         <p role="alert" className="text-red-600">
           {state.message}
         </p>
