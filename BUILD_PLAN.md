@@ -317,7 +317,7 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] Clicking a citation from the Markdown sample scrolls to and highlights the exact range. (As reported by the project owner: the manual checks passed, covering viewer loading, navigation, highlighting, mismatch handling with the fallback panel, invalid links, and network failure and recovery. The offsets index a virtual page that is not stored, so the viewer rebuilds the page from the file with the ingestion pipeline and highlights only when the text at `char_start`..`char_end` equals the stored chunk content; otherwise it declines and the 3.6 panel shows. Unit test: every chunk of `kestrel-vane-faq.md` round-trips. The highlight is the whole cited chunk, so on the FAQ it looks large; see `docs/decisions.md` (2026-11-07).)
     - [x] Markdown is rendered as inert text or sanitized, never as raw HTML. (Inert text: the file is shown as React text nodes, Markdown is not parsed, and there is no `dangerouslySetInnerHTML`; a unit test keeps `<script>` and `**` literal in the highlight plan. Checked by construction and by unit test; the owner's report did not single out this check in the browser.)
 
-**Slice 3 done:** [ ] Global DoD · [ ] **Milestone M3 recorded** (this is your best 60-second clip) · [x] Highlight success rate written into `docs/decisions.md`
+**Slice 3 done:** [ ] Global DoD · [x] **Milestone M3 recorded** (this is your best 60-second clip) · [x] Highlight success rate written into `docs/decisions.md`
 
 ---
 
@@ -383,13 +383,13 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] One test signs up, uploads a fixture PDF, waits for `ready`, asks a question, and asserts a cited source appears. (As reported by the project owner: `yarn test:e2e --headed` passed against the local stack with the real Gemini providers. The test asserts a Sources entry and a citation chip for the uploaded file, never the answer wording. Details: `docs/decisions.md`, 2026-11-09.)
     - [x] A second test asserts a scanned PDF shows the scanned-PDF message. (As reported by the project owner: passed in the same run. It checks the upload panel alert, the "Failed" badge with the same message on the list row, and that there is no Retry. Claude's sandbox ran only scoped checks (`tsc`, Prettier, ESLint, `playwright test --list`, the config guards), not the browser flow. Not tested: the E2E tests in CI, which has no E2E job.)
 
-- [ ] **4.10 Playwright cross-user isolation** · 2.5 h · deps: 4.9
+- [x] **4.10 Playwright cross-user isolation** · 2.5 h · deps: 4.9
   - **Build:** Two users. User A uploads. User B tries: list documents, open A's document URL, request a signed URL, ask a question whose answer exists only in A's file.
   - **Done when:**
-    - [ ] B sees none of A's data in every attempt.
-    - [ ] B's question about A's content returns "couldn't find that".
+    - [x] B sees none of A's data in every attempt. (As reported by the project owner: `yarn test:e2e` passed against the local stack. B's list, `documents` select by A's id, `getViewerDocument`, the viewer URL with A's document and chunk ids, `getChunk` and `createDocumentSignedUrl` on A's path all come back empty or `not_found`. A's own signed URL is the positive control. As reported by the project owner, the test was also shown to catch a leak: with `documents_objects_select` temporarily widened to any authenticated reader, B's signed-URL assertion failed, and the policy was then restored. Details: `docs/decisions.md`, 2026-11-09.)
+    - [x] B's question about A's content returns "couldn't find that". (As reported by the project owner: passed in the same run. The test checks the not-found notice, no citation chip, and no `single-column` text on the page. Claude's sandbox ran no checks for this task. Not tested: the E2E tests in CI, which has no E2E job.)
 
-**Slice 4 done:** [ ] Global DoD · [ ] **Milestone M4 recorded**
+**Slice 4 done:** [ ] Global DoD · [x] **Milestone M4 recorded**
 
 ---
 
