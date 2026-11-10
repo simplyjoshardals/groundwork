@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useReducer, useState, type FormEvent } from "react";
 import {
   describeAuthError,
   parseCredentials,
@@ -10,7 +10,15 @@ import {
   type AuthMode,
   type FieldErrors,
 } from "@/lib/auth/credentials";
+import { CaptchaField } from "@/components/captcha-field";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
+import {
+  CAPTCHA_REJECTED_MESSAGE,
+  CAPTCHA_WAIT_MESSAGE,
+  captchaReducer,
+  INITIAL_CAPTCHA_STATE,
+  isCaptchaRejection,
+} from "@/lib/turnstile/state";
 
 type Status = "idle" | "pending" | "check_email";
 
@@ -33,7 +41,9 @@ const COPY: Record<
 /**
  * Email and password form for sign-in and sign-up, talking to Supabase Auth
  * directly from the browser (publishable key; the session lands in cookies).
- * `next` is already validated by the server page.
+ * `next` is already validated by the server page. Supabase CAPTCHA protection
+ * covers sign-up and sign-in too, so the form carries a Turnstile token (single
+ * use: every failed attempt asks the widget for a new one).
  */
 export function AuthForm({
   mode,
@@ -49,6 +59,10 @@ export function AuthForm({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [captcha, dispatchCaptcha] = useReducer(
+    captchaReducer,
+    INITIAL_CAPTCHA_STATE,
+  );
   const pending = status === "pending";
 
   function enter() {
@@ -71,17 +85,32 @@ export function AuthForm({
       return;
     }
 
+    if (captcha.status !== "verified") {
+      setFieldErrors({});
+      setFormError(CAPTCHA_WAIT_MESSAGE);
+      return;
+    }
+    const captchaToken = captcha.token;
+
     setFieldErrors({});
     setFormError(null);
     setStatus("pending");
     try {
       const auth = createBrowserSupabase().auth;
       if (mode === "sign-in") {
-        const { error } = await auth.signInWithPassword(parsed.value);
+        const { error } = await auth.signInWithPassword({
+          ...parsed.value,
+          options: { captchaToken },
+        });
         if (error) {
           console.warn(`[auth] sign-in failed: ${error.code ?? error.name}`);
-          setFormError(describeAuthError(error));
+          setFormError(
+            isCaptchaRejection(error)
+              ? CAPTCHA_REJECTED_MESSAGE
+              : describeAuthError(error),
+          );
           setStatus("idle");
+          dispatchCaptcha({ type: "reset" });
           return;
         }
         enter();
@@ -91,13 +120,19 @@ export function AuthForm({
       const { data: result, error } = await auth.signUp({
         ...parsed.value,
         options: {
+          captchaToken,
           emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
         },
       });
       if (error) {
         console.warn(`[auth] sign-up failed: ${error.code ?? error.name}`);
-        setFormError(describeAuthError(error));
+        setFormError(
+          isCaptchaRejection(error)
+            ? CAPTCHA_REJECTED_MESSAGE
+            : describeAuthError(error),
+        );
         setStatus("idle");
+        dispatchCaptcha({ type: "reset" });
         return;
       }
       if (result.session) {
@@ -113,6 +148,7 @@ export function AuthForm({
       console.error("[auth] request failed:", err);
       setFormError(describeAuthError(null));
       setStatus("idle");
+      dispatchCaptcha({ type: "reset" });
     }
   }
 
@@ -194,8 +230,10 @@ export function AuthForm({
             </p>
           ) : null}
         </div>
+        <CaptchaField state={captcha} dispatch={dispatchCaptcha} />
         <button
           type="submit"
+          disabled={captcha.status !== "verified"}
           className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
         >
           {pending ? copy.pending : copy.submit}

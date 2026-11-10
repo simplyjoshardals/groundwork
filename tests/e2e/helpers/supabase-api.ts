@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/supabase/env";
+import { TURNSTILE_DUMMY_TOKEN } from "@/lib/turnstile/test-keys";
 import type { Database } from "@/types/database";
 import type { TestUser } from "./test-user";
 
@@ -8,6 +9,10 @@ import type { TestUser } from "./test-user";
  * subject to RLS and storage policies exactly like the browser's. The secret
  * key is never used here: `playwright.config.ts` only guards the URL, and
  * nothing in the E2E suite needs a bypass. Nothing is persisted.
+ *
+ * Local Supabase has CAPTCHA protection on with Cloudflare's always-pass test
+ * secret, which accepts any non-empty token but not a missing one, so password
+ * sign-in from Node must send one. The documented dummy token is used.
  */
 export async function signInAsApi(
   user: TestUser,
@@ -26,6 +31,7 @@ export async function signInAsApi(
   const { error } = await client.auth.signInWithPassword({
     email: user.email,
     password: user.password,
+    options: { captchaToken: TURNSTILE_DUMMY_TOKEN },
   });
   if (error) {
     throw new Error(

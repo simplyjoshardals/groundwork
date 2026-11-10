@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
+import { isAlwaysPassTestSiteKey } from "./lib/turnstile/test-keys";
 
 // The dev server loads `.env.local` itself; load it here too so the guard
 // below sees the same values. Variables already set in the shell win.
@@ -30,6 +31,13 @@ function assertLocalStack(): void {
   if (!LOCAL_HOSTS.has(host)) {
     throw new Error(
       `E2E refuses to run against a non-local Supabase project (host: ${host}).`,
+    );
+  }
+  // A real site key would show a real challenge and block the tests, and the
+  // local Supabase stack only accepts the dummy token (supabase/config.toml).
+  if (!isAlwaysPassTestSiteKey(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)) {
+    throw new Error(
+      "E2E: NEXT_PUBLIC_TURNSTILE_SITE_KEY must be Cloudflare's always-pass test key (1x00000000000000000000AA). See .env.example.",
     );
   }
   if (!process.env.GEMINI_API_KEY) {
