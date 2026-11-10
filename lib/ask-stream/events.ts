@@ -1,5 +1,6 @@
 import type {
   AskStreamEvent,
+  LimitReason,
   StreamErrorCode,
   StreamSource,
 } from "@/types/ask-stream";
@@ -43,6 +44,20 @@ const ERROR_CODES: Record<StreamErrorCode, true> = {
   internal_error: true,
 };
 
+// `Record` makes the compiler flag this table if a reason is added to the type.
+const LIMIT_REASONS: Record<LimitReason, true> = {
+  user_limit: true,
+  cooldown: true,
+  global_limit: true,
+};
+
+function isLimitReason(value: unknown): value is LimitReason {
+  return (
+    typeof value === "string" &&
+    Object.prototype.hasOwnProperty.call(LIMIT_REASONS, value)
+  );
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -60,6 +75,16 @@ function isPositiveInteger(value: unknown): value is number {
 
 function invalid(type: string, reason: string): never {
   throw new StreamProtocolError(`Invalid "${type}" event: ${reason}.`);
+}
+
+/** `undefined` (absent) is allowed; anything else must be a known reason. */
+function parseOptionalLimitReason(
+  value: unknown,
+  type: string,
+): LimitReason | undefined {
+  if (value === undefined) return undefined;
+  if (!isLimitReason(value)) invalid(type, '"reason" is not a known reason');
+  return value;
 }
 
 function parseText(value: unknown, type: string, field: string): string {
@@ -149,11 +174,23 @@ export function parseStreamEvent(json: unknown): AskStreamEvent | null {
       return json.closest === undefined
         ? { type }
         : { type, closest: parseSources(json.closest, type, "closest") };
-    case "limit":
+    case "limit": {
       if (json.scope !== "user" && json.scope !== "global") {
         invalid(type, '"scope" must be "user" or "global"');
       }
-      return { type, scope: json.scope };
+      // `reason` and `resetsAt` are optional; absent fields stay absent.
+      const reason = parseOptionalLimitReason(json.reason, type);
+      const resetsAt =
+        json.resetsAt === undefined
+          ? undefined
+          : parseText(json.resetsAt, type, "resetsAt");
+      return {
+        type,
+        scope: json.scope,
+        ...(reason === undefined ? {} : { reason }),
+        ...(resetsAt === undefined ? {} : { resetsAt }),
+      };
+    }
     case "error":
       if (!isErrorCode(json.code)) invalid(type, '"code" is not a known code');
       return {

@@ -9,6 +9,7 @@
  */
 
 import type { IngestFailureReason } from "@/features/ingestion/types";
+import type { LimitReason } from "@/types/ask-stream";
 
 export type IngestResponseBody =
   | { status: "ready"; pageCount: number; chunkCount: number }
@@ -21,4 +22,10 @@ export type IngestErrorBody =
   | { error: "invalid_request"; message: string }
   | { error: "unauthorized" }
   | { error: "not_found" }
+  /**
+   * Over a usage limit (Task 5.2), HTTP 429. `resetsAt` is ISO 8601. The
+   * browser helper does not read this body yet (Task 5.3): any non-OK answer
+   * is still treated as "unconfirmed" there.
+   */
+  | { error: "limit_reached"; reason: LimitReason; resetsAt: string }
   | { error: "internal_error"; message: string };

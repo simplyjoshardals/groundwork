@@ -15,6 +15,7 @@ export { ingestOwnedDocument } from "./ingest-owned-document";
 export type {
   IngestOwnedDocumentDeps,
   IngestOwnedDocumentInput,
+  IngestOwnedOutcome,
 } from "./ingest-owned-document";
 export {
   DOCUMENTS_BUCKET,

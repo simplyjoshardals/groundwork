@@ -402,12 +402,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
   - **Done when:**
     - [x] The whole SQL test script passes, including limit, cooldown, global-cap, and refund cases. (As reported by the project owner: `supabase db reset`, database types regenerated, then `security.sql` on the fresh database passed with no failed assertion: `all assertions passed (T00-T10, T11a-d, T12a-h, T13, T15a-i, T16a-n, T17a-d, T18a-f, T19a-f)`. Migrations `20261109120000_usage.sql` (label 0005) and `20261109120100_maintenance.sql` (label 0008); details in `docs/decisions.md`, 2026-11-09.)
 
-- [ ] **5.2 Wire limits into ask and ingest** · 3 h · deps: 5.1
+- [x] **5.2 Wire limits into ask and ingest** · 3 h · deps: 5.1
   - **Build:** Call `consume_usage` before any provider call; return a `limit` event with reason and reset time; call `refund_usage` when the failure was ours (before the first token).
   - **Done when:**
-    - [ ] The 21st question in a day is blocked; a cooldown violation returns quickly.
-    - [ ] A mocked provider confirms **zero** provider calls happen on a blocked request.
-    - [ ] A simulated provider outage before the first token refunds the unit.
+    - [x] The 21st question in a day is blocked; a cooldown violation returns quickly. (As reported by the project owner, local stack with `limit_user_question` set to 2: two questions were answered and the third showed "You've used today's questions. Resets at 00:00 UTC."; two simultaneous requests from the browser console returned the second as `{"type":"limit","scope":"user","reason":"cooldown","resetsAt":"2026-11-11T00:00:00.000Z"}`. The ask UI itself cannot send two questions within the 2 s cooldown, because it blocks a second submit while one is in flight, so the cooldown was exercised with direct requests.)
+    - [x] A mocked provider confirms **zero** provider calls happen on a blocked request. (`tests/unit/ask-route.test.ts`, "usage limits": for each denial reason the embedder, `match_chunks` and the LLM are asserted not called; `tests/unit/ingestion-ingest-owned-document.test.ts` asserts the store is not built and nothing is ingested.)
+    - [x] A simulated provider outage before the first token refunds the unit. (`tests/unit/ask-route.test.ts`, "refunds", and `tests/unit/ask-stream.test.ts`, "onRefundable": an embed or search failure, and an LLM failure before the first released token, each call `refund_usage` once; a failure after text was sent does not. As reported by the project owner, with a broken Gemini key the question failed with an error and `usage_daily` was unchanged. The unit being spent and then returned was not observed directly; the limit-of-1 retry check was left optional.) The project owner also ran the full `yarn` checks, which passed. Implementation details: `docs/decisions.md` (2026-11-10).
 
 - [ ] **5.3 Limit UI** · 2 h · deps: 5.2
   - **Build:** Show remaining questions and reset time; friendly "demo is resting" state for the global cap.

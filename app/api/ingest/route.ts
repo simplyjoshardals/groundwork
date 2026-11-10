@@ -80,6 +80,13 @@ export async function POST(request: Request): Promise<Response> {
       case "not_found":
         // Same answer for "does not exist" and "not yours".
         return json(404, { error: "not_found" });
+      case "limit":
+        // Over a usage limit (Task 5.2): nothing was claimed or embedded.
+        return json(429, {
+          error: "limit_reached",
+          reason: outcome.reason,
+          resetsAt: outcome.resetsAt,
+        });
     }
   } catch (error) {
     console.error("[ingest] request failed:", describeError(error));

@@ -28,6 +28,24 @@ const EVENTS: AskStreamEvent[] = [
   { type: "not_found", closest: [] },
   { type: "limit", scope: "user" },
   { type: "limit", scope: "global" },
+  {
+    type: "limit",
+    scope: "user",
+    reason: "user_limit",
+    resetsAt: "2026-11-10T00:00:00.000Z",
+  },
+  {
+    type: "limit",
+    scope: "user",
+    reason: "cooldown",
+    resetsAt: "2026-11-10T00:00:00.000Z",
+  },
+  {
+    type: "limit",
+    scope: "global",
+    reason: "global_limit",
+    resetsAt: "2026-11-10T00:00:00.000Z",
+  },
   { type: "error", code: "interrupted", message: "The answer was cut off." },
 ];
 
@@ -213,6 +231,22 @@ describe("parseStreamEvent: malformed payloads throw StreamProtocolError", () =>
     ],
     ["limit without scope", { type: "limit" }],
     ["limit with an unknown scope", { type: "limit", scope: "team" }],
+    [
+      "limit with an unknown reason",
+      { type: "limit", scope: "user", reason: "vip" },
+    ],
+    [
+      "limit with a prototype name as reason",
+      { type: "limit", scope: "user", reason: "toString" },
+    ],
+    [
+      "limit with a non-string reason",
+      { type: "limit", scope: "user", reason: 1 },
+    ],
+    [
+      "limit with a non-string resetsAt",
+      { type: "limit", scope: "user", resetsAt: 5 },
+    ],
     ["error without code", { type: "error", message: "x" }],
     [
       "error with an unknown code",
@@ -257,5 +291,43 @@ describe("isTerminalStreamEvent", () => {
   it("is false for sources and token", () => {
     expect(isTerminalStreamEvent({ type: "sources", sources: [] })).toBe(false);
     expect(isTerminalStreamEvent({ type: "token", text: "x" })).toBe(false);
+  });
+});
+
+describe("limit event: reason and resetsAt (Task 5.2)", () => {
+  it("accepts the older shape and leaves reason and resetsAt absent", () => {
+    const parsed = parseStreamEvent({ type: "limit", scope: "user" });
+    expect(parsed).toEqual({ type: "limit", scope: "user" });
+    expect(parsed).not.toHaveProperty("reason");
+    expect(parsed).not.toHaveProperty("resetsAt");
+  });
+
+  it("ignores unknown extra fields", () => {
+    expect(
+      parseStreamEvent({
+        type: "limit",
+        scope: "global",
+        reason: "global_limit",
+        resetsAt: "2026-11-10T00:00:00.000Z",
+        future: true,
+      }),
+    ).toEqual({
+      type: "limit",
+      scope: "global",
+      reason: "global_limit",
+      resetsAt: "2026-11-10T00:00:00.000Z",
+    });
+  });
+
+  it("names the field but never echoes a bad reason", () => {
+    const secret = "do-not-leak-this";
+    expect(() =>
+      parseStreamEvent({ type: "limit", scope: "user", reason: secret }),
+    ).toThrowError(/"limit".*"reason"/);
+    try {
+      parseStreamEvent({ type: "limit", scope: "user", reason: secret });
+    } catch (error) {
+      expect((error as Error).message).not.toContain(secret);
+    }
   });
 });

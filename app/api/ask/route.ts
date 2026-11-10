@@ -3,6 +3,12 @@ import {
   retrieveChunks,
   SearchFailedError,
 } from "@/features/qa";
+import {
+  consumeUsage,
+  limitInfoFor,
+  refundUsage,
+  UsageCheckError,
+} from "@/features/limits";
 import { encodeStreamEvent } from "@/lib/ask-stream/events";
 import { describeError } from "@/lib/ask/errors";
 import { buildAskMessages } from "@/lib/ask/prompt";
@@ -53,17 +59,38 @@ export async function POST(request: Request): Promise<Response> {
   }
   const { question, documentId } = parsed.data;
 
+  // Set once a usage unit has been spent, so the catch block knows to give it
+  // back when the failure is ours (Task 5.2).
+  let spentBy: string | null = null;
+
   try {
     // 2. Cookie session only. `getClaims()` validates the token.
     const supabase = await createServerSupabase();
     const { data: auth, error: authError } = await supabase.auth.getClaims();
-    if (authError || !auth?.claims) {
+    const userId = auth?.claims?.sub;
+    if (authError || typeof userId !== "string" || userId === "") {
       return jsonError(401, { error: "unauthorized" });
     }
 
-    // Built before the embedding call so a config error costs no quota.
+    // Built before spending a unit and before the embedding call, so a config
+    // error costs neither usage nor quota.
     const embedder = createGeminiEmbeddingProvider();
     const llm = createGeminiLlmProvider();
+
+    // Usage check (Task 5.2): one atomic check-and-spend, before any provider
+    // call. A denial is a normal outcome, so it is a 200 with a one-frame
+    // stream, like `not_found`. If the limiter itself fails, the catch below
+    // answers 503 and nothing is called: a broken limiter never means unlimited.
+    const usage = await consumeUsage(userId, "question");
+    if (!usage.allowed) {
+      const limit = limitInfoFor(usage);
+      // No such user: the session belongs to a deleted account.
+      if (limit === null) return jsonError(401, { error: "unauthorized" });
+      return new Response(encodeStreamEvent({ type: "limit", ...limit }), {
+        headers: SSE_HEADERS,
+      });
+    }
+    spentBy = userId;
 
     // 3 and 4. Embed the question, then search through RLS (user-scoped
     // client, SECURITY INVOKER function). Shared with the eval runner.
@@ -95,6 +122,10 @@ export async function POST(request: Request): Promise<Response> {
       messages: buildAskMessages(question, passages),
       llm,
       signal: request.signal,
+      // The LLM failed before any text was sent: the unit was ours to lose.
+      onRefundable: () => {
+        void refundUsage(userId, "question");
+      },
     });
     return new Response(stream, { headers: SSE_HEADERS });
   } catch (error) {
@@ -102,6 +133,15 @@ export async function POST(request: Request): Promise<Response> {
       "[ask] request failed before streaming:",
       describeError(error),
     );
+    // Embedding, search or setup failed after the unit was spent. A refusal
+    // (`not_found`) is not a failure and returns above without a refund.
+    if (spentBy !== null) await refundUsage(spentBy, "question");
+    if (error instanceof UsageCheckError) {
+      return jsonError(503, {
+        error: "usage_unavailable",
+        message: "Something went wrong. Please try again.",
+      });
+    }
     if (
       error instanceof RateLimitError ||
       error instanceof ProviderUnavailableError ||

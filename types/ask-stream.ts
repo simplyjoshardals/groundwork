@@ -29,13 +29,28 @@ export type StreamErrorCode =
   "search_unavailable" | "llm_unavailable" | "interrupted" | "internal_error";
 
 /**
+ * Why a `limit` event was sent (Task 5.2): the user's daily cap, the short
+ * cooldown between questions, or the app-wide daily cap.
+ */
+export type LimitReason = "user_limit" | "cooldown" | "global_limit";
+
+/**
  * One event of the answer stream. `done`, `not_found`, `limit` and `error`
  * are terminal: exactly one of them ends a complete stream.
+ *
+ * `limit` grew `reason` and `resetsAt` (ISO 8601, next UTC midnight) in Task
+ * 5.2. Both are optional so older frames and clients stay valid; the server
+ * always sends them.
  */
 export type AskStreamEvent =
   | { type: "sources"; sources: StreamSource[] }
   | { type: "token"; text: string }
   | { type: "done"; citations: number[]; invalidCitations: number[] }
   | { type: "not_found"; closest?: StreamSource[] }
-  | { type: "limit"; scope: "user" | "global" }
+  | {
+      type: "limit";
+      scope: "user" | "global";
+      reason?: LimitReason;
+      resetsAt?: string;
+    }
   | { type: "error"; code: StreamErrorCode; message: string };

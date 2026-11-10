@@ -7,6 +7,21 @@ const getClaims = vi.fn();
 const rpc = vi.fn();
 const embed = vi.fn();
 const llmStream = vi.fn();
+const { consumeUsage, refundUsage } = vi.hoisted(() => ({
+  consumeUsage: vi.fn(),
+  refundUsage: vi.fn(),
+}));
+
+// The spend and refund calls are mocked; the real denial mapping is kept.
+vi.mock("@/features/limits", async () => {
+  const types = await import("@/features/limits/types");
+  return {
+    UsageCheckError: types.UsageCheckError,
+    limitInfoFor: types.limitInfoFor,
+    consumeUsage,
+    refundUsage,
+  };
+});
 
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabase: vi.fn(async () => ({ auth: { getClaims }, rpc })),
@@ -24,6 +39,7 @@ vi.mock("@/lib/providers", async (importOriginal) => ({
 
 import * as route from "@/app/api/ask/route";
 import { REFUSAL_SIMILARITY_THRESHOLD } from "@/lib/config";
+import { UsageCheckError } from "@/features/limits/types";
 import { ProviderUnavailableError } from "@/lib/providers";
 import type { AskStreamEvent } from "@/types/ask-stream";
 
@@ -38,6 +54,8 @@ const ROW = {
   content: "Notice is 30 days.",
   similarity: 0.9,
 };
+
+const RESET = "2026-11-10T00:00:00.000Z";
 
 const post = (body: unknown, raw = false) =>
   route.POST(
@@ -59,6 +77,13 @@ async function readEvents(response: Response): Promise<AskStreamEvent[]> {
 beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   getClaims.mockResolvedValue({ data: { claims: { sub: "u1" } }, error: null });
+  consumeUsage.mockResolvedValue({
+    allowed: true,
+    usedToday: 1,
+    dailyLimit: 20,
+    resetsAt: RESET,
+  });
+  refundUsage.mockResolvedValue(undefined);
   embed.mockResolvedValue([[0.1, 0.2, 0.3]]);
   rpc.mockResolvedValue({ data: [ROW], error: null });
   llmStream.mockImplementation(async function* () {
@@ -114,6 +139,19 @@ describe("POST /api/ask: authentication", () => {
     expect(await response.json()).toEqual({ error: "unauthorized" });
     expect(embed).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
+    expect(consumeUsage).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["missing", {}],
+    ["empty", { sub: "" }],
+    ["not a string", { sub: 7 }],
+  ])("returns 401 when the sub claim is %s, spending nothing", async (_n, claims) => {
+    getClaims.mockResolvedValue({ data: { claims }, error: null });
+    const response = await post({ question: "Q" });
+    expect(response.status).toBe(401);
+    expect(consumeUsage).not.toHaveBeenCalled();
+    expect(embed).not.toHaveBeenCalled();
   });
 });
 
@@ -297,5 +335,141 @@ describe("POST /api/ask: pre-stream failures", () => {
     embed.mockResolvedValue([[0.1]]);
     expect((await post({ question: "Q" })).status).toBe(500);
     expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/ask: usage limits", () => {
+  it("spends one question unit for the signed-in user before embedding or searching", async () => {
+    await (await post({ question: "Q" })).text();
+    expect(consumeUsage).toHaveBeenCalledTimes(1);
+    expect(consumeUsage).toHaveBeenCalledWith("u1", "question");
+    const spentAt = consumeUsage.mock.invocationCallOrder[0];
+    expect(spentAt).toBeLessThan(embed.mock.invocationCallOrder[0]);
+    expect(spentAt).toBeLessThan(rpc.mock.invocationCallOrder[0]);
+  });
+
+  it("does not refund a normal answer", async () => {
+    await (await post({ question: "Q" })).text();
+    expect(refundUsage).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["user_limit", { scope: "user", reason: "user_limit" }],
+    ["cooldown", { scope: "user", reason: "cooldown" }],
+    ["global_limit", { scope: "global", reason: "global_limit" }],
+    ["not_allowed", { scope: "global", reason: "global_limit" }],
+  ])(
+    "answers a one-frame limit event for %s, with no provider or search call",
+    async (reason, expected) => {
+      consumeUsage.mockResolvedValue({
+        allowed: false,
+        reason,
+        usedToday: 20,
+        dailyLimit: 20,
+        resetsAt: RESET,
+      });
+      const response = await post({ question: "Q" });
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain(
+        "text/event-stream",
+      );
+      expect(await readEvents(response)).toEqual([
+        { type: "limit", ...expected, resetsAt: RESET },
+      ]);
+      expect(embed).not.toHaveBeenCalled();
+      expect(rpc).not.toHaveBeenCalled(); // match_chunks
+      expect(llmStream).not.toHaveBeenCalled();
+      expect(refundUsage).not.toHaveBeenCalled();
+    },
+  );
+
+  it("returns 401 for a user the limiter does not know, with no provider call", async () => {
+    consumeUsage.mockResolvedValue({
+      allowed: false,
+      reason: "unknown_user",
+      usedToday: 0,
+      dailyLimit: 0,
+      resetsAt: RESET,
+    });
+    const response = await post({ question: "Q" });
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: "unauthorized" });
+    expect(embed).not.toHaveBeenCalled();
+    expect(refundUsage).not.toHaveBeenCalled();
+  });
+
+  it("fails closed with 503 when the limiter fails: no provider call, nothing to refund", async () => {
+    consumeUsage.mockRejectedValue(
+      new UsageCheckError("consume_usage failed: db secret"),
+    );
+    const response = await post({ question: "Q" });
+    expect(response.status).toBe(503);
+    const text = await response.text();
+    expect(JSON.parse(text)).toMatchObject({ error: "usage_unavailable" });
+    expect(text).not.toContain("db secret");
+    expect(embed).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+    expect(llmStream).not.toHaveBeenCalled();
+    expect(refundUsage).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/ask: refunds", () => {
+  it("refunds when embedding fails with a provider error (503)", async () => {
+    embed.mockRejectedValue(
+      new ProviderUnavailableError("down", { provider: "gemini", status: 503 }),
+    );
+    expect((await post({ question: "Q" })).status).toBe(503);
+    expect(refundUsage).toHaveBeenCalledTimes(1);
+    expect(refundUsage).toHaveBeenCalledWith("u1", "question");
+  });
+
+  it("refunds when match_chunks fails (503)", async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: "08006", message: "x" } });
+    expect((await post({ question: "Q" })).status).toBe(503);
+    expect(refundUsage).toHaveBeenCalledTimes(1);
+    expect(refundUsage).toHaveBeenCalledWith("u1", "question");
+  });
+
+  it("refunds on an unexpected error (500)", async () => {
+    embed.mockRejectedValue(new Error("internal secret"));
+    expect((await post({ question: "Q" })).status).toBe(500);
+    expect(refundUsage).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not refund a gate #1 not_found: the question used provider quota", async () => {
+    rpc.mockResolvedValue({ data: [{ ...ROW, similarity: 0.1 }], error: null });
+    await readEvents(await post({ question: "Q" }));
+    expect(refundUsage).not.toHaveBeenCalled();
+  });
+
+  it("does not refund a sentinel not_found", async () => {
+    llmStream.mockImplementation(async function* () {
+      yield { type: "text", text: "NOT_FOUND" };
+      yield { type: "finish", reason: "stop" };
+    });
+    await readEvents(await post({ question: "Q" }));
+    expect(refundUsage).not.toHaveBeenCalled();
+  });
+
+  it("refunds once when the LLM fails before the first token", async () => {
+    llmStream.mockImplementation(async function* () {
+      yield* [];
+      throw new ProviderUnavailableError("down", { provider: "gemini" });
+    });
+    const events = await readEvents(await post({ question: "Q" }));
+    expect(events.map((e) => e.type)).toEqual(["error"]);
+    expect(refundUsage).toHaveBeenCalledTimes(1);
+    expect(refundUsage).toHaveBeenCalledWith("u1", "question");
+  });
+
+  it("does not refund when the LLM fails after text was sent", async () => {
+    llmStream.mockImplementation(async function* () {
+      yield { type: "text", text: "Partial [1]" };
+      throw new Error("boom");
+    });
+    const events = await readEvents(await post({ question: "Q" }));
+    expect(events.map((e) => e.type)).toEqual(["sources", "token", "error"]);
+    expect(refundUsage).not.toHaveBeenCalled();
   });
 });

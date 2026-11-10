@@ -14,6 +14,7 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/features/ingestion", () => ({ ingestOwnedDocument }));
 
 import * as route from "@/app/api/ingest/route";
+import { UsageCheckError } from "@/features/limits/types";
 
 const UUID = "123e4567-e89b-42d3-a456-426614174000";
 
@@ -148,5 +149,37 @@ describe("POST /api/ingest: outcomes", () => {
     const text = await response.text();
     expect(JSON.parse(text)).toMatchObject({ error: "internal_error" });
     expect(text).not.toMatch(/hunter2/);
+  });
+});
+
+describe("POST /api/ingest: usage limits (Task 5.2)", () => {
+  it.each(["user_limit", "cooldown", "global_limit"])(
+    "returns 429 with the reason and reset time for %s",
+    async (reason) => {
+      ingestOwnedDocument.mockResolvedValue({
+        status: "limit",
+        reason,
+        resetsAt: "2026-11-10T00:00:00.000Z",
+      });
+      const response = await post({ documentId: UUID });
+      expect(response.status).toBe(429);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(await response.json()).toEqual({
+        error: "limit_reached",
+        reason,
+        resetsAt: "2026-11-10T00:00:00.000Z",
+      });
+    },
+  );
+
+  it("fails closed with a generic 500 when the limiter fails, without leaking details", async () => {
+    ingestOwnedDocument.mockRejectedValue(
+      new UsageCheckError("consume_usage failed: db secret"),
+    );
+    const response = await post({ documentId: UUID });
+    expect(response.status).toBe(500);
+    const text = await response.text();
+    expect(JSON.parse(text)).toMatchObject({ error: "internal_error" });
+    expect(text).not.toContain("db secret");
   });
 });

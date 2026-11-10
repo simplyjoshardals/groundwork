@@ -467,3 +467,104 @@ describe("createAskResponseStream: citation validation", () => {
     expect(events.map((e) => e.type)).toEqual(["sources", "token", "error"]);
   });
 });
+
+describe("createAskResponseStream: onRefundable (Task 5.2)", () => {
+  const run = async (
+    gen: (signal?: AbortSignal) => AsyncGenerator<LlmStreamEvent>,
+    onRefundable = vi.fn(),
+  ) => {
+    const events = await readAll(
+      createAskResponseStream({
+        sources,
+        messages,
+        llm: llmFrom(gen),
+        onRefundable,
+      }),
+    );
+    return { events, onRefundable };
+  };
+
+  it("fires once when the LLM fails before any text", async () => {
+    const { events, onRefundable } = await run(async function* () {
+      yield* [];
+      throw new Error("boom");
+    });
+    expect(events).toEqual([
+      expect.objectContaining({ type: "error", code: "llm_unavailable" }),
+    ]);
+    expect(onRefundable).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires when the failure comes while the sentinel check still holds text back", async () => {
+    const { events, onRefundable } = await run(async function* () {
+      yield { type: "text", text: "NOT_" };
+      throw new Error("boom");
+    });
+    expect(events.map((e) => e.type)).toEqual(["error"]);
+    expect(onRefundable).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires when the response is blocked before any text", async () => {
+    const { events, onRefundable } = await run(async function* () {
+      yield { type: "finish", reason: "blocked" };
+    });
+    expect(events.map((e) => e.type)).toEqual(["error"]);
+    expect(onRefundable).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fire when the LLM fails after text was sent", async () => {
+    const { events, onRefundable } = await run(async function* () {
+      yield { type: "text", text: "Partial [1]" };
+      throw new Error("boom");
+    });
+    expect(events.map((e) => e.type)).toEqual(["sources", "token", "error"]);
+    expect(onRefundable).not.toHaveBeenCalled();
+  });
+
+  it("does not fire for a model refusal", async () => {
+    const { events, onRefundable } = await run(async function* () {
+      yield { type: "text", text: "NOT_FOUND" };
+      yield finish;
+    });
+    expect(events.map((e) => e.type)).toEqual(["not_found"]);
+    expect(onRefundable).not.toHaveBeenCalled();
+  });
+
+  it("does not fire for a normal answer", async () => {
+    const { events, onRefundable } = await run(async function* () {
+      yield { type: "text", text: "Fine [1]." };
+      yield finish;
+    });
+    expect(events.map((e) => e.type)).toEqual(["sources", "token", "done"]);
+    expect(onRefundable).not.toHaveBeenCalled();
+  });
+
+  it("does not fire when the client cancels before reading", async () => {
+    const onRefundable = vi.fn();
+    const stream = createAskResponseStream({
+      sources,
+      messages,
+      llm: llmFrom(async function* () {
+        yield finish;
+      }),
+      onRefundable,
+    });
+    await stream.cancel();
+    expect(onRefundable).not.toHaveBeenCalled();
+  });
+
+  it("still ends the stream with an error event when the hook throws", async () => {
+    const { events } = await run(
+      async function* () {
+        yield* [];
+        throw new Error("boom");
+      },
+      vi.fn(() => {
+        throw new Error("hook broke");
+      }),
+    );
+    expect(events).toEqual([
+      expect.objectContaining({ type: "error", code: "llm_unavailable" }),
+    ]);
+  });
+});

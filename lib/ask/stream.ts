@@ -49,6 +49,13 @@ export interface AskResponseStreamOptions {
   llm: Pick<LlmProvider, "stream">;
   /** The request's signal. Aborting it cancels the LLM call. */
   signal?: AbortSignal;
+  /**
+   * Called once when the LLM fails before any answer text reached the client
+   * (Task 5.2), so the caller can give the usage unit back. Not called for a
+   * refusal, a client disconnect, or a failure after text was sent. Must not
+   * throw; it is fire-and-forget from the stream's point of view.
+   */
+  onRefundable?: () => void;
 }
 
 const LLM_UNAVAILABLE_MESSAGE =
@@ -81,7 +88,7 @@ const INTERRUPTED_MESSAGE = "The answer was interrupted. Please try again.";
 export function createAskResponseStream(
   options: AskResponseStreamOptions,
 ): ReadableStream<Uint8Array> {
-  const { sources, messages, llm, signal } = options;
+  const { sources, messages, llm, signal, onRefundable } = options;
   const encoder = new TextEncoder();
   const abort = new AbortController();
   const onClientAbort = () => abort.abort();
@@ -129,6 +136,16 @@ export function createAskResponseStream(
     error: unknown,
   ) => {
     console.error("[ask] LLM stream failed:", describeError(error));
+    // Text held back by the sentinel check was never sent, so it still counts
+    // as "before the first token": the user got nothing for their unit.
+    if (!tokensSent) {
+      try {
+        onRefundable?.();
+      } catch (hookError) {
+        // A broken hook must not stop the error event from reaching the client.
+        console.error("[ask] onRefundable failed:", describeError(hookError));
+      }
+    }
     emit(
       controller,
       tokensSent
