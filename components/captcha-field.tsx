@@ -7,9 +7,11 @@ import {
 } from "@/lib/turnstile/env";
 import { loadTurnstile } from "@/lib/turnstile/load-script";
 import {
+  CAPTCHA_AUTO_RETRY_DELAY_MS,
   CAPTCHA_STATUS_DELAY_MS,
   captchaCanRetry,
   visibleCaptchaMessage,
+  widgetErrorAction,
   type CaptchaEvent,
   type CaptchaState,
 } from "@/lib/turnstile/state";
@@ -19,6 +21,11 @@ import type { TurnstileApi } from "@/lib/turnstile/types";
  * Renders one Turnstile widget and reports what happens as events. The parent
  * remounts it (React `key`) to get a fresh token, because a token can be used
  * only once. Events from a widget that was already removed are dropped.
+ *
+ * Turnstile's own retry waits 8 seconds, so the widget runs with
+ * `retry: "never"` and a widget error is retried here with `reset` after a
+ * short pause (see `widgetErrorAction`). The visitor sees a failure only after
+ * the quiet retries are used up.
  */
 function TurnstileWidget({ onEvent }: { onEvent: Dispatch<CaptchaEvent> }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -28,6 +35,8 @@ function TurnstileWidget({ onEvent }: { onEvent: Dispatch<CaptchaEvent> }) {
     if (!container) return;
     let cancelled = false;
     let widgetId: string | null = null;
+    let errorCount = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     const emit = (event: CaptchaEvent) => {
       if (!cancelled) onEvent(event);
     };
@@ -48,11 +57,26 @@ function TurnstileWidget({ onEvent }: { onEvent: Dispatch<CaptchaEvent> }) {
           size: "flexible",
           appearance: "interaction-only",
           theme: "auto",
-          callback: (token) => emit({ type: "token", token }),
+          retry: "never",
+          callback: (token) => {
+            errorCount = 0;
+            emit({ type: "token", token });
+          },
           "expired-callback": () => emit({ type: "expired" }),
           "error-callback": (code) => {
-            console.warn(`[captcha] widget error: ${code ?? "unknown"}`);
-            emit({ type: "error", reason: "widget" });
+            errorCount += 1;
+            console.warn(
+              `[captcha] widget error: ${code ?? "unknown"} (${errorCount})`,
+            );
+            if (widgetErrorAction(errorCount) === "fail") {
+              emit({ type: "error", reason: "widget" });
+              return;
+            }
+            retryTimer = setTimeout(() => {
+              if (!cancelled && widgetId !== null) {
+                window.turnstile?.reset(widgetId);
+              }
+            }, CAPTCHA_AUTO_RETRY_DELAY_MS);
           },
         });
       } catch (err) {
@@ -68,6 +92,7 @@ function TurnstileWidget({ onEvent }: { onEvent: Dispatch<CaptchaEvent> }) {
     void start(container);
     return () => {
       cancelled = true;
+      if (retryTimer !== null) clearTimeout(retryTimer);
       if (widgetId !== null) window.turnstile?.remove(widgetId);
     };
   }, [onEvent]);

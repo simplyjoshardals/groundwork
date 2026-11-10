@@ -7,6 +7,8 @@ export interface TurnstileRenderOptions {
   sitekey: string;
   /** Called with the token once the check passes. Tokens are single-use. */
   callback: (token: string) => void;
+  /** `never` leaves retrying to the caller (`reset`); the default waits 8 s. */
+  retry?: "auto" | "never";
   /** Called when the widget fails (network, unsupported browser, bad key...). */
   "error-callback"?: (errorCode?: string) => void;
   /** Called when a token expires before use; the widget refreshes itself. */

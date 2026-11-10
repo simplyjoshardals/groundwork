@@ -92,6 +92,20 @@ export function visibleCaptchaMessage(
   return captchaStatusMessage(state);
 }
 
+/**
+ * A widget error is often a one-off network or DNS blip. Turnstile's own retry
+ * waits 8 seconds by default, so the widget is rendered with `retry: "never"`
+ * and retried here: quietly, after a short pause, up to `CAPTCHA_AUTO_RETRIES`
+ * times in a row. Only the error after that is shown to the visitor.
+ */
+export const CAPTCHA_AUTO_RETRIES = 2;
+export const CAPTCHA_AUTO_RETRY_DELAY_MS = 1000;
+
+/** `errorCount` counts consecutive widget errors, including the current one. */
+export function widgetErrorAction(errorCount: number): "retry" | "fail" {
+  return errorCount <= CAPTCHA_AUTO_RETRIES ? "retry" : "fail";
+}
+
 /** A missing site key is a deployment problem; retrying cannot fix it. */
 export function captchaCanRetry(state: CaptchaState): boolean {
   return state.status === "failed" && state.reason !== "unconfigured";

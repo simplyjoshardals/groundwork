@@ -4,10 +4,13 @@ import {
   captchaCanRetry,
   captchaReducer,
   captchaStatusMessage,
+  CAPTCHA_AUTO_RETRIES,
+  CAPTCHA_AUTO_RETRY_DELAY_MS,
   CAPTCHA_STATUS_DELAY_MS,
   INITIAL_CAPTCHA_STATE,
   isCaptchaRejection,
   visibleCaptchaMessage,
+  widgetErrorAction,
   type CaptchaState,
 } from "@/lib/turnstile/state";
 import {
@@ -151,5 +154,17 @@ describe("visibleCaptchaMessage", () => {
     );
     expect(visibleCaptchaMessage(verified, false)).toBeNull();
     expect(visibleCaptchaMessage(verified, true)).toBeNull();
+  });
+});
+
+describe("widgetErrorAction", () => {
+  it("retries quietly for the first errors and fails after that", () => {
+    expect(CAPTCHA_AUTO_RETRIES).toBeGreaterThan(0);
+    expect(CAPTCHA_AUTO_RETRY_DELAY_MS).toBeGreaterThan(0);
+    for (let count = 1; count <= CAPTCHA_AUTO_RETRIES; count += 1) {
+      expect(widgetErrorAction(count)).toBe("retry");
+    }
+    expect(widgetErrorAction(CAPTCHA_AUTO_RETRIES + 1)).toBe("fail");
+    expect(widgetErrorAction(CAPTCHA_AUTO_RETRIES + 5)).toBe("fail");
   });
 });
