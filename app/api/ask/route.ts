@@ -13,7 +13,11 @@ import { encodeStreamEvent } from "@/lib/ask-stream/events";
 import { describeError } from "@/lib/ask/errors";
 import { buildAskMessages } from "@/lib/ask/prompt";
 import { parseAskRequest } from "@/lib/ask/request";
-import { createAskResponseStream, toStreamSources } from "@/lib/ask/stream";
+import {
+  createAskResponseStream,
+  toStreamSources,
+  toStreamUsage,
+} from "@/lib/ask/stream";
 import {
   createGeminiEmbeddingProvider,
   createGeminiLlmProvider,
@@ -91,6 +95,8 @@ export async function POST(request: Request): Promise<Response> {
       });
     }
     spentBy = userId;
+    // The budget after this question, for the client's counter (Task 5.3).
+    const streamUsage = toStreamUsage(usage);
 
     // 3 and 4. Embed the question, then search through RLS (user-scoped
     // client, SECURITY INVOKER function). Shared with the eval runner.
@@ -111,6 +117,7 @@ export async function POST(request: Request): Promise<Response> {
         encodeStreamEvent({
           type: "not_found",
           ...(closest.length > 0 ? { closest } : {}),
+          usage: streamUsage,
         }),
         { headers: SSE_HEADERS },
       );
@@ -122,6 +129,7 @@ export async function POST(request: Request): Promise<Response> {
       messages: buildAskMessages(question, passages),
       llm,
       signal: request.signal,
+      usage: streamUsage,
       // The LLM failed before any text was sent: the unit was ours to lose.
       onRefundable: () => {
         void refundUsage(userId, "question");

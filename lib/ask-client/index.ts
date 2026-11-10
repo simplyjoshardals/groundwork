@@ -17,6 +17,7 @@ export {
   isAbortError,
   type AskFailure,
 } from "./failures";
+export { describeUsage, formatResetTime, type UsageLine } from "./usage";
 export {
   IDLE_TIMEOUT_MS,
   requestAnswer,

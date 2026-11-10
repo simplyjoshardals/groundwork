@@ -68,6 +68,67 @@ describe("requestIngest", () => {
     ).toEqual({ status: "failed", reason: "internal_error" });
   });
 
+  describe("HTTP 429 (Task 5.3)", () => {
+    const body = (reason: string, extra: Record<string, unknown> = {}) => ({
+      error: "limit_reached",
+      reason,
+      resetsAt: "2026-11-11T00:00:00.000Z",
+      ...extra,
+    });
+
+    it.each(["user_limit", "cooldown", "global_limit"] as const)(
+      "returns a limit result for %s",
+      async (reason) => {
+        expect(await requestIngest(ID, reply(429, body(reason)))).toEqual({
+          status: "limit",
+          reason,
+          resetsAt: "2026-11-11T00:00:00.000Z",
+        });
+      },
+    );
+
+    it("leaves resetsAt out when it is missing or unreadable", async () => {
+      for (const resetsAt of [undefined, "nope", 5]) {
+        const result = await requestIngest(
+          ID,
+          reply(429, body("user_limit", { resetsAt })),
+        );
+        expect(result).toEqual({ status: "limit", reason: "user_limit" });
+        expect(result).not.toHaveProperty("resetsAt");
+      }
+    });
+
+    it("never passes extra server fields to the caller", async () => {
+      const result = await requestIngest(
+        ID,
+        reply(429, body("user_limit", { message: "secret", stack: "x" })),
+      );
+      expect(JSON.stringify(result)).not.toMatch(/secret|stack/);
+    });
+
+    it.each([
+      ["an unknown reason", body("weird")],
+      ["a prototype-key reason", body("toString")],
+      ["another error code", { error: "internal_error", reason: "user_limit" }],
+      ["no body fields", {}],
+      ["null", null],
+    ])("returns unconfirmed for a 429 with %s", async (_name, payload) => {
+      expect(await requestIngest(ID, reply(429, payload))).toEqual({
+        status: "unconfirmed",
+      });
+      expect(console.warn).toHaveBeenCalled();
+    });
+
+    it("returns unconfirmed for a 429 that is not JSON", async () => {
+      const fetchImpl = vi.fn(
+        async () => new Response("<html>", { status: 429 }),
+      );
+      expect(await requestIngest(ID, fetchImpl)).toEqual({
+        status: "unconfirmed",
+      });
+    });
+  });
+
   it("returns no_op", async () => {
     expect(await requestIngest(ID, reply(200, { status: "no_op" }))).toEqual({
       status: "no_op",

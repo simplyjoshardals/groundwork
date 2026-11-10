@@ -2,8 +2,10 @@ import {
   StreamIncompleteError,
   StreamInterruptedError,
   StreamProtocolError,
+  type AskStreamEvent,
   type StreamErrorCode,
 } from "@/lib/ask-stream";
+import { formatResetTime } from "./usage";
 
 /**
  * Everything that can go wrong on the client side of an ask, and the text the
@@ -93,14 +95,36 @@ export function failureForStatus(status: number): AskFailure {
   }
 }
 
-/** Text for an `limit` event; the wording comes from the failure-mode table. */
-export function failureForLimit(scope: "user" | "global"): AskFailure {
-  return scope === "user"
-    ? {
-        message: "You've used today's questions. Resets at 00:00 UTC.",
+/**
+ * Text for a `limit` event (Task 5.3): three distinct messages, chosen by
+ * `reason`; a frame without one (older server) falls back to its `scope`. The
+ * wording of the global state comes from the failure-mode table.
+ */
+export function failureForLimit(
+  event: Extract<AskStreamEvent, { type: "limit" }>,
+  timeZone?: string,
+): AskFailure {
+  const reason =
+    event.reason ?? (event.scope === "user" ? "user_limit" : "global_limit");
+  switch (reason) {
+    case "user_limit":
+      return {
+        message: `You've used today's questions. Resets at ${formatResetTime(event.resetsAt, timeZone)}.`,
         retryable: false,
-      }
-    : { message: "Demo is resting; back tomorrow.", retryable: false };
+      };
+    case "cooldown":
+      // The server cannot say when the cooldown ends (Task 5.2), so no time.
+      return {
+        message: "You're asking too quickly. Wait a few seconds and try again.",
+        retryable: true,
+      };
+    case "global_limit":
+      return { message: "Demo is resting; back tomorrow.", retryable: false };
+    default: {
+      const unreachable: never = reason;
+      return unreachable;
+    }
+  }
 }
 
 /** True for the error `fetch` and streams raise when an `AbortSignal` fires. */

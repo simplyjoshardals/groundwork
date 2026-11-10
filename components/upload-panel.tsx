@@ -11,6 +11,7 @@ import {
   ACCEPT_ATTRIBUTE,
   MAX_DOCS_PER_USER_HINT,
 } from "@/lib/upload/file-checks";
+import { ingestLimitMessage } from "@/lib/upload/ingest-limit";
 import { DOCUMENT_LIMIT_MESSAGE } from "@/lib/upload/limits";
 import { requestIngest } from "@/lib/upload/request-ingest";
 import {
@@ -26,6 +27,7 @@ type PanelState =
   | { status: "no_op"; fileName: string }
   | { status: "ingest_failed"; fileName: string; message: string }
   | { status: "unconfirmed"; fileName: string }
+  | { status: "ingest_limited"; message: string }
   | { status: "paused"; message: string }
   | { status: "error"; reason: UploadFailureReason | null; message: string };
 
@@ -37,6 +39,9 @@ type PanelState =
  * optional callbacks tell the list to refresh. A failed or unreachable ingest
  * never undoes the upload: the file stays stored and queued. Demo sessions get
  * an explanation instead of a control that RLS would refuse.
+ *
+ * A 429 from `/api/ingest` (Task 5.3) is shown as a distinct "uploaded, not
+ * processed yet" status per limit reason, not as "unconfirmed".
  *
  * Cap and budget (Task 4.8): `atCap` (from the document list's count) disables
  * the control and says why. The global storage budget cannot be known up front
@@ -111,15 +116,25 @@ export function UploadPanel({
       setState({ status: "processing", fileName: file.name });
       const ingest = await requestIngest(result.documentId);
       onIngestSettled?.();
-      setState(
-        ingest.status === "failed"
-          ? {
-              status: "ingest_failed",
-              fileName: file.name,
-              message: ingestFailureMessage(ingest.reason),
-            }
-          : { status: ingest.status, fileName: file.name },
-      );
+      if (ingest.status === "failed") {
+        setState({
+          status: "ingest_failed",
+          fileName: file.name,
+          message: ingestFailureMessage(ingest.reason),
+        });
+      } else if (ingest.status === "limit") {
+        // Stored and queued, but processing was refused by a usage limit.
+        setState({
+          status: "ingest_limited",
+          message: ingestLimitMessage({
+            fileName: file.name,
+            reason: ingest.reason,
+            resetsAt: ingest.resetsAt,
+          }),
+        });
+      } else {
+        setState({ status: ingest.status, fileName: file.name });
+      }
     } catch (err) {
       console.error("[upload] unexpected failure:", err);
       setState({
@@ -181,6 +196,11 @@ export function UploadPanel({
         <p role="alert" className="text-red-600">
           Uploaded {state.fileName}, but we could not confirm that processing
           finished. It may still complete. Check its status in the list below.
+        </p>
+      ) : null}
+      {state.status === "ingest_limited" ? (
+        <p role="status" className="text-amber-700">
+          {state.message}
         </p>
       ) : null}
       {state.status === "paused" ? (

@@ -409,10 +409,10 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] A mocked provider confirms **zero** provider calls happen on a blocked request. (`tests/unit/ask-route.test.ts`, "usage limits": for each denial reason the embedder, `match_chunks` and the LLM are asserted not called; `tests/unit/ingestion-ingest-owned-document.test.ts` asserts the store is not built and nothing is ingested.)
     - [x] A simulated provider outage before the first token refunds the unit. (`tests/unit/ask-route.test.ts`, "refunds", and `tests/unit/ask-stream.test.ts`, "onRefundable": an embed or search failure, and an LLM failure before the first released token, each call `refund_usage` once; a failure after text was sent does not. As reported by the project owner, with a broken Gemini key the question failed with an error and `usage_daily` was unchanged. The unit being spent and then returned was not observed directly; the limit-of-1 retry check was left optional.) The project owner also ran the full `yarn` checks, which passed. Implementation details: `docs/decisions.md` (2026-11-10).
 
-- [ ] **5.3 Limit UI** · 2 h · deps: 5.2
+- [x] **5.3 Limit UI** · 2 h · deps: 5.2
   - **Build:** Show remaining questions and reset time; friendly "demo is resting" state for the global cap.
   - **Done when:**
-    - [ ] The three states (per-user limit, cooldown, global cap) each show distinct, understandable messages.
+    - [x] The three states (per-user limit, cooldown, global cap) each show distinct, understandable messages. (`lib/ask-client/failures.ts`, `failureForLimit` chooses by `reason`; `tests/unit/ask-answer-state.test.ts` and `tests/unit/ask-usage.test.ts` assert three different messages and that only the cooldown is retryable. The questions-left counter is `components/ask-panel.tsx`. As reported by the project owner: the targeted tests, the full suite, `yarn typecheck`, `yarn lint` and `yarn build` passed, and in the browser the counter, the per-user limit, the last-question warning, the cooldown and the global cap each behaved as expected. Details: `docs/decisions.md` (2026-11-10, Task 5.3). The ingest 429 in the upload panel was handled in a follow-up, see `docs/decisions.md` (2026-11-10, Task 5.3 follow-up).)
 
 - [ ] **5.4 ⚠ CAPTCHA on anonymous sign-in** · 2.5 h · deps: 1.7 · **risky: integration details**
   - **Build:** Turnstile widget on the demo button; enable CAPTCHA protection in Supabase Auth; pass the token to anonymous sign-in. 🔎 VERIFY the option name in the current client library.

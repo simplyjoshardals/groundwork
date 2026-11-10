@@ -56,6 +56,8 @@ const ROW = {
 };
 
 const RESET = "2026-11-10T00:00:00.000Z";
+// The default `consumeUsage` answer is 1 of 20 used, so 19 are left.
+const USAGE = { remaining: 19, dailyLimit: 20, resetsAt: RESET };
 
 const post = (body: unknown, raw = false) =>
   route.POST(
@@ -197,7 +199,7 @@ describe("POST /api/ask: success", () => {
         ],
       },
       { type: "token", text: "30 days [1]" },
-      { type: "done", citations: [1], invalidCitations: [] },
+      { type: "done", citations: [1], invalidCitations: [], usage: USAGE },
     ]);
   });
 
@@ -233,6 +235,7 @@ describe("POST /api/ask: refusal gate #1", () => {
             snippet: "Notice is 30 days.",
           },
         ],
+        usage: USAGE,
       },
     ]);
   });
@@ -241,7 +244,7 @@ describe("POST /api/ask: refusal gate #1", () => {
     rpc.mockResolvedValue({ data: [], error: null });
     const events = await readEvents(await post({ question: "Q" }));
     expect(llmStream).not.toHaveBeenCalled();
-    expect(events).toEqual([{ type: "not_found" }]);
+    expect(events).toEqual([{ type: "not_found", usage: USAGE }]);
   });
 
   it("still calls the LLM at exactly the threshold", async () => {
@@ -283,6 +286,7 @@ describe("POST /api/ask: refusal gate #2 (sentinel)", () => {
             snippet: "Notice is 30 days.",
           },
         ],
+        usage: USAGE,
       },
     ]);
   });
@@ -291,6 +295,33 @@ describe("POST /api/ask: refusal gate #2 (sentinel)", () => {
     await (await post({ question: "Q" })).text();
     const messages = llmStream.mock.calls[0][0] as { content: string }[];
     expect(messages[0].content).toContain("NOT_FOUND");
+  });
+});
+
+describe("POST /api/ask: usage in the stream (Task 5.3)", () => {
+  it("reports the questions left on done, from the spent unit", async () => {
+    consumeUsage.mockResolvedValue({
+      allowed: true,
+      usedToday: 7,
+      dailyLimit: 20,
+      resetsAt: RESET,
+    });
+    const events = await readEvents(await post({ question: "Q" }));
+    expect(events.at(-1)).toMatchObject({
+      type: "done",
+      usage: { remaining: 13, dailyLimit: 20, resetsAt: RESET },
+    });
+  });
+
+  it("reports 0 left on the last allowed question", async () => {
+    consumeUsage.mockResolvedValue({
+      allowed: true,
+      usedToday: 20,
+      dailyLimit: 20,
+      resetsAt: RESET,
+    });
+    const events = await readEvents(await post({ question: "Q" }));
+    expect(events.at(-1)).toMatchObject({ usage: { remaining: 0 } });
   });
 });
 

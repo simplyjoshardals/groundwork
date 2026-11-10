@@ -17,6 +17,7 @@ import {
 } from "@/lib/documents/list-own-documents";
 import { ingestFailureMessage } from "@/lib/ingest/failure-messages";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
+import { retryLimitMessage } from "@/lib/upload/ingest-limit";
 import { requestIngest } from "@/lib/upload/request-ingest";
 
 const BADGE_LABEL: Record<DocumentStatus, string> = {
@@ -156,6 +157,16 @@ export function DocumentList({
         [documentId]:
           "We could not confirm the retry went through. It may still complete.",
       }));
+    } else if (result.status === "limit") {
+      // Refused by a usage limit (Task 5.3): nothing was claimed, so say why
+      // and when instead of leaving the stale-row text alone.
+      setNotes((prev) => ({
+        ...prev,
+        [documentId]: retryLimitMessage({
+          reason: result.reason,
+          resetsAt: result.resetsAt,
+        }),
+      }));
     }
     setRetryToken((n) => n + 1);
   }
@@ -237,7 +248,8 @@ export function DocumentList({
                     {ingestFailureMessage(doc.errorReason)}
                   </p>
                 ) : null}
-                {stuck && doc.status !== "failed" && !isRetrying ? (
+                {/* A note from the last Retry explains more than the generic text. */}
+                {stuck && doc.status !== "failed" && !isRetrying && !note ? (
                   <p className="mt-1 text-gray-700">
                     This is taking longer than expected. You can retry it.
                   </p>

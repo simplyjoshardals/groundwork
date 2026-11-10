@@ -1,4 +1,8 @@
-import type { AskStreamEvent, StreamSource } from "@/types/ask-stream";
+import type {
+  AskStreamEvent,
+  StreamSource,
+  StreamUsage,
+} from "@/types/ask-stream";
 import {
   failureForErrorCode,
   failureForLimit,
@@ -25,6 +29,12 @@ export interface AskState {
   notice: AskFailure | null;
   /** Nearest passages from a `not_found` event; empty otherwise. */
   closest: StreamSource[];
+  /**
+   * The question budget from the last `done` or `not_found`. Kept across
+   * `submit`, so the counter stays visible between questions; `null` until the
+   * first answer.
+   */
+  usage: StreamUsage | null;
 }
 
 export type AskAction =
@@ -39,6 +49,7 @@ export const initialAskState: AskState = {
   answer: "",
   notice: null,
   closest: [],
+  usage: null,
 };
 
 /** Headline of the not-found state (Task 2.7 shows it beside `closest`). */
@@ -62,19 +73,20 @@ function applyEvent(state: AskState, event: AskStreamEvent): AskState {
         answer: state.answer + event.text,
       };
     case "done":
-      return { ...state, status: "done" };
+      return { ...state, status: "done", usage: event.usage ?? state.usage };
     case "not_found":
       return {
         ...state,
         status: "not_found",
         notice: NOT_FOUND,
         closest: event.closest ?? [],
+        usage: event.usage ?? state.usage,
       };
     case "limit":
       return {
         ...state,
         status: "limit",
-        notice: failureForLimit(event.scope),
+        notice: failureForLimit(event),
       };
     case "error":
       return {
@@ -96,6 +108,7 @@ export function askReducer(state: AskState, action: AskAction): AskState {
         ...initialAskState,
         status: "loading",
         question: action.question,
+        usage: state.usage,
       };
     case "event":
       // Events that arrive after a terminal one (or before any submit) are stale.

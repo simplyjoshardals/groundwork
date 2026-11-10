@@ -4,7 +4,11 @@ import type {
   LlmProvider,
   LlmStreamEvent,
 } from "@/lib/providers/types";
-import type { AskStreamEvent, StreamSource } from "@/types/ask-stream";
+import type {
+  AskStreamEvent,
+  StreamSource,
+  StreamUsage,
+} from "@/types/ask-stream";
 import { validateCitations } from "./citations";
 import { describeError } from "./errors";
 import { createSentinelDetector } from "./sentinel";
@@ -43,10 +47,32 @@ export function toStreamSources(rows: readonly AskSourceRow[]): StreamSource[] {
   }));
 }
 
+/**
+ * What the client is told about the caller's budget (Task 5.3). `remaining`
+ * is floored at 0 so a counter that ran past the limit never shows a
+ * negative number.
+ */
+export function toStreamUsage(unit: {
+  usedToday: number;
+  dailyLimit: number;
+  resetsAt: string;
+}): StreamUsage {
+  return {
+    remaining: Math.max(0, unit.dailyLimit - unit.usedToday),
+    dailyLimit: unit.dailyLimit,
+    resetsAt: unit.resetsAt,
+  };
+}
+
 export interface AskResponseStreamOptions {
   sources: StreamSource[];
   messages: readonly LlmMessage[];
   llm: Pick<LlmProvider, "stream">;
+  /**
+   * The caller's budget after this question (Task 5.3). Sent on `done` and on
+   * the sentinel `not_found`, since both spent a unit; left out when absent.
+   */
+  usage?: StreamUsage;
   /** The request's signal. Aborting it cancels the LLM call. */
   signal?: AbortSignal;
   /**
@@ -88,7 +114,7 @@ const INTERRUPTED_MESSAGE = "The answer was interrupted. Please try again.";
 export function createAskResponseStream(
   options: AskResponseStreamOptions,
 ): ReadableStream<Uint8Array> {
-  const { sources, messages, llm, signal, onRefundable } = options;
+  const { sources, messages, llm, signal, onRefundable, usage } = options;
   const encoder = new TextEncoder();
   const abort = new AbortController();
   const onClientAbort = () => abort.abort();
@@ -166,6 +192,7 @@ export function createAskResponseStream(
     emit(controller, {
       type: "not_found",
       ...(sources.length > 0 ? { closest: sources } : {}),
+      ...(usage === undefined ? {} : { usage }),
     });
     close(controller);
     abort.abort();
@@ -187,7 +214,12 @@ export function createAskResponseStream(
         `[ask] Answer has no valid citation (${answer.length} characters, ${invalidCitations.length} invalid markers).`,
       );
     }
-    emit(controller, { type: "done", citations, invalidCitations });
+    emit(controller, {
+      type: "done",
+      citations,
+      invalidCitations,
+      ...(usage === undefined ? {} : { usage }),
+    });
     close(controller);
   };
 

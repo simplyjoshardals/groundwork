@@ -35,18 +35,36 @@ export type StreamErrorCode =
 export type LimitReason = "user_limit" | "cooldown" | "global_limit";
 
 /**
+ * The caller's question budget for today (Task 5.3), sent with `done` and
+ * `not_found`: both spend a unit, so both carry the fresh count.
+ */
+export interface StreamUsage {
+  /** Questions left today after this one; never negative. */
+  remaining: number;
+  dailyLimit: number;
+  /** Next UTC midnight, ISO 8601. */
+  resetsAt: string;
+}
+
+/**
  * One event of the answer stream. `done`, `not_found`, `limit` and `error`
  * are terminal: exactly one of them ends a complete stream.
  *
  * `limit` grew `reason` and `resetsAt` (ISO 8601, next UTC midnight) in Task
  * 5.2. Both are optional so older frames and clients stay valid; the server
- * always sends them.
+ * always sends them. `done` and `not_found` grew an optional `usage` in Task
+ * 5.3, with the same compatibility rule.
  */
 export type AskStreamEvent =
   | { type: "sources"; sources: StreamSource[] }
   | { type: "token"; text: string }
-  | { type: "done"; citations: number[]; invalidCitations: number[] }
-  | { type: "not_found"; closest?: StreamSource[] }
+  | {
+      type: "done";
+      citations: number[];
+      invalidCitations: number[];
+      usage?: StreamUsage;
+    }
+  | { type: "not_found"; closest?: StreamSource[]; usage?: StreamUsage }
   | {
       type: "limit";
       scope: "user" | "global";

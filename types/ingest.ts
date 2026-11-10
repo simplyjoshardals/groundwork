@@ -24,8 +24,8 @@ export type IngestErrorBody =
   | { error: "not_found" }
   /**
    * Over a usage limit (Task 5.2), HTTP 429. `resetsAt` is ISO 8601. The
-   * browser helper does not read this body yet (Task 5.3): any non-OK answer
-   * is still treated as "unconfirmed" there.
+   * browser helper reads this body since Task 5.3 and shows a message per
+   * `reason`; any other non-OK answer is still "unconfirmed" there.
    */
   | { error: "limit_reached"; reason: LimitReason; resetsAt: string }
   | { error: "internal_error"; message: string };

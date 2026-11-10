@@ -8,6 +8,7 @@ export type {
   AskStreamEvent,
   StreamErrorCode,
   StreamSource,
+  StreamUsage,
 } from "@/types/ask-stream";
 export {
   AskStreamError,

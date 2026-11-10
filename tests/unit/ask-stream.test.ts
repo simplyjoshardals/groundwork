@@ -3,6 +3,7 @@ import {
   createAskResponseStream,
   MAX_SNIPPET_LENGTH,
   toStreamSources,
+  toStreamUsage,
 } from "@/lib/ask/stream";
 import type { LlmStreamEvent } from "@/lib/providers/types";
 import type { AskStreamEvent } from "@/types/ask-stream";
@@ -566,5 +567,62 @@ describe("createAskResponseStream: onRefundable (Task 5.2)", () => {
     expect(events).toEqual([
       expect.objectContaining({ type: "error", code: "llm_unavailable" }),
     ]);
+  });
+});
+
+describe("usage (Task 5.3)", () => {
+  const usage = {
+    remaining: 4,
+    dailyLimit: 20,
+    resetsAt: "2026-11-11T00:00:00.000Z",
+  };
+
+  it("toStreamUsage turns a spent unit into questions left, never negative", () => {
+    expect(
+      toStreamUsage({ usedToday: 16, dailyLimit: 20, resetsAt: usage.resetsAt }),
+    ).toEqual(usage);
+    expect(
+      toStreamUsage({ usedToday: 21, dailyLimit: 20, resetsAt: usage.resetsAt })
+        .remaining,
+    ).toBe(0);
+  });
+
+  it("puts usage on the done event", async () => {
+    const llm = llmFrom(async function* () {
+      yield { type: "text", text: "Answer [1]" };
+      yield finish;
+    });
+    const events = await readAll(
+      createAskResponseStream({ sources, messages, llm, usage }),
+    );
+    expect(events.at(-1)).toEqual({
+      type: "done",
+      citations: [1],
+      invalidCitations: [],
+      usage,
+    });
+  });
+
+  it("puts usage on the sentinel not_found event", async () => {
+    const llm = llmFrom(async function* () {
+      yield { type: "text", text: "NOT_FOUND" };
+      yield finish;
+    });
+    const events = await readAll(
+      createAskResponseStream({ sources, messages, llm, usage }),
+    );
+    expect(events).toEqual([{ type: "not_found", closest: sources, usage }]);
+  });
+
+  it("sends no usage on an error event", async () => {
+    const llm = llmFrom(async function* () {
+      yield { type: "text", text: "partial" };
+      throw new Error("boom");
+    });
+    const events = await readAll(
+      createAskResponseStream({ sources, messages, llm, usage }),
+    );
+    expect(events.at(-1)?.type).toBe("error");
+    expect(JSON.stringify(events.at(-1))).not.toContain("remaining");
   });
 });

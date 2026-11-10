@@ -8,6 +8,7 @@ import { SourceList } from "@/components/source-list";
 import {
   askReducer,
   describeFailure,
+  describeUsage,
   initialAskState,
   requestAnswer,
 } from "@/lib/ask-client";
@@ -63,6 +64,13 @@ export function AskPanel({
     void ask(question);
   }
 
+  // Not shown while a limit notice is up: it already says when to come back,
+  // and the stored count would be one answer old.
+  const usageLine =
+    state.usage !== null && state.status !== "limit"
+      ? describeUsage(state.usage)
+      : null;
+
   const showWaiting =
     state.status === "loading" ||
     (state.status === "streaming" && state.answer === "");
@@ -91,6 +99,18 @@ export function AskPanel({
             {busy ? "Asking…" : "Ask"}
           </button>
         </div>
+        {usageLine ? (
+          <p
+            role="status"
+            className={
+              usageLine.lastQuestion
+                ? "text-xs font-medium text-amber-700"
+                : "text-xs text-neutral-500"
+            }
+          >
+            {usageLine.text}
+          </p>
+        ) : null}
       </form>
 
       {state.status === "idle" ? null : (

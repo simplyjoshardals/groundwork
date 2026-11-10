@@ -32,6 +32,7 @@ describe("askReducer", () => {
     expect(initialAskState.sources).toBeNull();
     expect(initialAskState.notice).toBeNull();
     expect(initialAskState.closest).toEqual([]);
+    expect(initialAskState.usage).toBeNull();
   });
 
   it("submit moves to loading and clears the previous answer", () => {
@@ -48,6 +49,7 @@ describe("askReducer", () => {
       answer: "",
       notice: null,
       closest: [],
+      usage: null,
     });
   });
 
@@ -126,6 +128,76 @@ describe("askReducer", () => {
     expect(global.status).toBe("limit");
     expect(user.notice?.message).not.toBe(global.notice?.message);
     expect(user.notice?.retryable).toBe(false);
+  });
+
+  it("shows a distinct message for each of the three limit reasons", () => {
+    const limit = (reason: "user_limit" | "cooldown" | "global_limit") =>
+      run([
+        submit,
+        event({
+          type: "limit",
+          scope: reason === "global_limit" ? "global" : "user",
+          reason,
+          resetsAt: "2026-11-11T00:00:00.000Z",
+        }),
+      ]);
+    const user = limit("user_limit");
+    const cooldown = limit("cooldown");
+    const global = limit("global_limit");
+    for (const state of [user, cooldown, global]) {
+      expect(state.status).toBe("limit");
+    }
+    const messages = [user, cooldown, global].map((s) => s.notice?.message);
+    expect(new Set(messages).size).toBe(3);
+    // Only the cooldown can succeed on a second try.
+    expect(user.notice?.retryable).toBe(false);
+    expect(cooldown.notice?.retryable).toBe(true);
+    expect(global.notice?.retryable).toBe(false);
+  });
+
+  it("takes the question budget from done and not_found", () => {
+    const usage = {
+      remaining: 17,
+      dailyLimit: 20,
+      resetsAt: "2026-11-11T00:00:00.000Z",
+    };
+    const done = run([
+      submit,
+      event({ type: "done", citations: [], invalidCitations: [], usage }),
+    ]);
+    expect(done.usage).toEqual(usage);
+    const refused = run([
+      submit,
+      event({ type: "not_found", usage: { ...usage, remaining: 16 } }),
+    ]);
+    expect(refused.usage?.remaining).toBe(16);
+  });
+
+  it("keeps the budget across submit and when an event carries none", () => {
+    const usage = {
+      remaining: 5,
+      dailyLimit: 20,
+      resetsAt: "2026-11-11T00:00:00.000Z",
+    };
+    const first = run([
+      submit,
+      event({ type: "done", citations: [], invalidCitations: [], usage }),
+    ]);
+    expect(askReducer(first, submit).usage).toEqual(usage);
+    // An older server (or a failure) sends no usage: the last count stays.
+    const second = run(
+      [
+        submit,
+        event({ type: "done", citations: [], invalidCitations: [] }),
+      ],
+      first,
+    );
+    expect(second.usage).toEqual(usage);
+    const failed = run(
+      [submit, event({ type: "error", code: "interrupted", message: "x" })],
+      first,
+    );
+    expect(failed.usage).toEqual(usage);
   });
 
   it("keeps the closest passages from a not_found event", () => {

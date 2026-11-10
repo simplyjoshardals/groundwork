@@ -3,6 +3,7 @@ import type {
   LimitReason,
   StreamErrorCode,
   StreamSource,
+  StreamUsage,
 } from "@/types/ask-stream";
 import { StreamProtocolError } from "./errors";
 
@@ -87,6 +88,39 @@ function parseOptionalLimitReason(
   return value;
 }
 
+function isCount(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+/**
+ * `undefined` (absent) is allowed. Otherwise the shape must be exact; errors
+ * name the field and never echo the value.
+ */
+function parseOptionalUsage(
+  value: unknown,
+  type: string,
+): StreamUsage | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) invalid(type, '"usage" must be an object');
+  if (!isCount(value.remaining)) {
+    invalid(type, '"usage.remaining" must be a non-negative integer');
+  }
+  if (!isCount(value.dailyLimit)) {
+    invalid(type, '"usage.dailyLimit" must be a non-negative integer');
+  }
+  if (
+    typeof value.resetsAt !== "string" ||
+    Number.isNaN(Date.parse(value.resetsAt))
+  ) {
+    invalid(type, '"usage.resetsAt" must be an ISO 8601 date string');
+  }
+  return {
+    remaining: value.remaining,
+    dailyLimit: value.dailyLimit,
+    resetsAt: value.resetsAt,
+  };
+}
+
 function parseText(value: unknown, type: string, field: string): string {
   if (typeof value !== "string") invalid(type, `"${field}" must be a string`);
   return value;
@@ -159,7 +193,8 @@ export function parseStreamEvent(json: unknown): AskStreamEvent | null {
       return { type, sources: parseSources(json.sources, type, "sources") };
     case "token":
       return { type, text: parseText(json.text, type, "text") };
-    case "done":
+    case "done": {
+      const usage = parseOptionalUsage(json.usage, type);
       return {
         type,
         citations: parseIntegers(json.citations, type, "citations"),
@@ -168,12 +203,22 @@ export function parseStreamEvent(json: unknown): AskStreamEvent | null {
           type,
           "invalidCitations",
         ),
+        ...(usage === undefined ? {} : { usage }),
       };
-    case "not_found":
-      // `closest` is optional: absent or undefined means "none supplied".
-      return json.closest === undefined
-        ? { type }
-        : { type, closest: parseSources(json.closest, type, "closest") };
+    }
+    case "not_found": {
+      // `closest` and `usage` are optional: absent means "none supplied".
+      const usage = parseOptionalUsage(json.usage, type);
+      const closest =
+        json.closest === undefined
+          ? undefined
+          : parseSources(json.closest, type, "closest");
+      return {
+        type,
+        ...(closest === undefined ? {} : { closest }),
+        ...(usage === undefined ? {} : { usage }),
+      };
+    }
     case "limit": {
       if (json.scope !== "user" && json.scope !== "global") {
         invalid(type, '"scope" must be "user" or "global"');
