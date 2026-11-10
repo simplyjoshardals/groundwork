@@ -4,8 +4,10 @@ import {
   captchaCanRetry,
   captchaReducer,
   captchaStatusMessage,
+  CAPTCHA_STATUS_DELAY_MS,
   INITIAL_CAPTCHA_STATE,
   isCaptchaRejection,
+  visibleCaptchaMessage,
   type CaptchaState,
 } from "@/lib/turnstile/state";
 import {
@@ -126,5 +128,28 @@ describe("Turnstile test keys", () => {
 
   it("keeps the dummy token Cloudflare documents", () => {
     expect(TURNSTILE_DUMMY_TOKEN).toBe("XXXX.DUMMY.TOKEN.XXXX");
+  });
+});
+
+describe("visibleCaptchaMessage", () => {
+  it("keeps a pending check silent until the delay has passed", () => {
+    expect(CAPTCHA_STATUS_DELAY_MS).toBeGreaterThan(0);
+    expect(visibleCaptchaMessage(INITIAL_CAPTCHA_STATE, false)).toBeNull();
+    expect(visibleCaptchaMessage(INITIAL_CAPTCHA_STATE, true)).toBe(
+      CAPTCHA_PENDING_MESSAGE,
+    );
+  });
+
+  it("shows failures at once and nothing once verified", () => {
+    const failed: CaptchaState = {
+      status: "failed",
+      reason: "script",
+      attempt: 0,
+    };
+    expect(visibleCaptchaMessage(failed, false)).toBe(
+      captchaStatusMessage(failed),
+    );
+    expect(visibleCaptchaMessage(verified, false)).toBeNull();
+    expect(visibleCaptchaMessage(verified, true)).toBeNull();
   });
 });

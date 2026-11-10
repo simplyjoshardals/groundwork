@@ -74,6 +74,24 @@ export function captchaStatusMessage(state: CaptchaState): string | null {
   }
 }
 
+/**
+ * How long a check may run before "Verifying…" is shown. Most checks finish
+ * sooner, and a message that flashes for a second reads as slowness.
+ */
+export const CAPTCHA_STATUS_DELAY_MS = 2000;
+
+/**
+ * The text to show right now. A pending check stays silent until
+ * `pendingDelayElapsed`; failures are always shown at once.
+ */
+export function visibleCaptchaMessage(
+  state: CaptchaState,
+  pendingDelayElapsed: boolean,
+): string | null {
+  if (state.status === "pending" && !pendingDelayElapsed) return null;
+  return captchaStatusMessage(state);
+}
+
 /** A missing site key is a deployment problem; retrying cannot fix it. */
 export function captchaCanRetry(state: CaptchaState): boolean {
   return state.status === "failed" && state.reason !== "unconfigured";

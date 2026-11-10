@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { CaptchaProvider } from "@/components/captcha-provider";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
@@ -9,7 +10,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           Ask questions about documents and see where each answer comes from.
         </p>
       </header>
-      {children}
+      <CaptchaProvider>{children}</CaptchaProvider>
     </main>
   );
 }

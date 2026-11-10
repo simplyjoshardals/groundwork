@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useReducer, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import {
   describeAuthError,
   parseCredentials,
@@ -10,13 +10,11 @@ import {
   type AuthMode,
   type FieldErrors,
 } from "@/lib/auth/credentials";
-import { CaptchaField } from "@/components/captcha-field";
+import { useCaptcha } from "@/components/captcha-provider";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import {
   CAPTCHA_REJECTED_MESSAGE,
   CAPTCHA_WAIT_MESSAGE,
-  captchaReducer,
-  INITIAL_CAPTCHA_STATE,
   isCaptchaRejection,
 } from "@/lib/turnstile/state";
 
@@ -42,8 +40,9 @@ const COPY: Record<
  * Email and password form for sign-in and sign-up, talking to Supabase Auth
  * directly from the browser (publishable key; the session lands in cookies).
  * `next` is already validated by the server page. Supabase CAPTCHA protection
- * covers sign-up and sign-in too, so the form carries a Turnstile token (single
- * use: every failed attempt asks the widget for a new one).
+ * covers sign-up and sign-in too, so the form carries the Turnstile token that
+ * `CaptchaProvider` shares with the rest of the page (single use: every attempt
+ * that spent it and stays on the page asks the widget for a new one).
  */
 export function AuthForm({
   mode,
@@ -59,10 +58,7 @@ export function AuthForm({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
-  const [captcha, dispatchCaptcha] = useReducer(
-    captchaReducer,
-    INITIAL_CAPTCHA_STATE,
-  );
+  const { state: captcha, dispatch: dispatchCaptcha } = useCaptcha();
   const pending = status === "pending";
 
   function enter() {
@@ -144,6 +140,9 @@ export function AuthForm({
       // Supabase deliberately does not reveal that case.
       setSentTo(parsed.value.email);
       setStatus("check_email");
+      // The token was spent and this page stays mounted (the link back to
+      // sign-in keeps the provider), so ask for a fresh one.
+      dispatchCaptcha({ type: "reset" });
     } catch (err) {
       console.error("[auth] request failed:", err);
       setFormError(describeAuthError(null));
@@ -230,7 +229,6 @@ export function AuthForm({
             </p>
           ) : null}
         </div>
-        <CaptchaField state={captcha} dispatch={dispatchCaptcha} />
         <button
           type="submit"
           disabled={captcha.status !== "verified"}

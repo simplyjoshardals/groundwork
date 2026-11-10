@@ -1,7 +1,8 @@
 import type { TurnstileApi } from "./types";
 
-const SCRIPT_SRC =
-  "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+/** Exported so the provider can preconnect to and preload exactly what is injected. */
+export const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
+export const TURNSTILE_SCRIPT_SRC = `${TURNSTILE_ORIGIN}/turnstile/v0/api.js?render=explicit`;
 
 let pending: Promise<TurnstileApi> | null = null;
 
@@ -21,7 +22,7 @@ export function loadTurnstile(): Promise<TurnstileApi> {
       reject(new Error(message));
     };
     const script = document.createElement("script");
-    script.src = SCRIPT_SRC;
+    script.src = TURNSTILE_SCRIPT_SRC;
     script.async = true;
     script.defer = true;
     script.onload = () => {

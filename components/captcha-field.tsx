@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useRef, type Dispatch } from "react";
+import { useEffect, useRef, useState, type Dispatch } from "react";
 import {
   MissingTurnstileEnvError,
   turnstileSiteKey,
 } from "@/lib/turnstile/env";
 import { loadTurnstile } from "@/lib/turnstile/load-script";
 import {
+  CAPTCHA_STATUS_DELAY_MS,
   captchaCanRetry,
-  captchaStatusMessage,
+  visibleCaptchaMessage,
   type CaptchaEvent,
   type CaptchaState,
 } from "@/lib/turnstile/state";
@@ -75,10 +76,11 @@ function TurnstileWidget({ onEvent }: { onEvent: Dispatch<CaptchaEvent> }) {
 }
 
 /**
- * The CAPTCHA part of a form: the widget (visible only when Turnstile needs
- * the visitor to act), a polite status line for screen readers, and a retry
- * button after a failure. The owner keeps the state with `captchaReducer` and
- * enables its submit button only while `state.status === "verified"`.
+ * The CAPTCHA widget (visible only when Turnstile needs the visitor to act), a
+ * polite status line for screen readers, and a retry button after a failure.
+ * Rendered once by `CaptchaProvider`, which owns the state; forms enable their
+ * submit buttons only while `state.status === "verified"`. "Verifying…" appears
+ * only if the check runs longer than `CAPTCHA_STATUS_DELAY_MS`.
  */
 export function CaptchaField({
   state,
@@ -87,7 +89,20 @@ export function CaptchaField({
   state: CaptchaState;
   dispatch: Dispatch<CaptchaEvent>;
 }) {
-  const message = captchaStatusMessage(state);
+  // The attempt whose check has run past the delay. Comparing it with the
+  // current attempt resets the delay on every new widget without a state
+  // update inside the effect.
+  const [slowAttempt, setSlowAttempt] = useState<number | null>(null);
+  useEffect(() => {
+    if (state.status !== "pending") return;
+    const attempt = state.attempt;
+    const timer = setTimeout(
+      () => setSlowAttempt(attempt),
+      CAPTCHA_STATUS_DELAY_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [state.status, state.attempt]);
+  const message = visibleCaptchaMessage(state, slowAttempt === state.attempt);
   return (
     <div className="flex flex-col gap-2">
       <TurnstileWidget key={state.attempt} onEvent={dispatch} />

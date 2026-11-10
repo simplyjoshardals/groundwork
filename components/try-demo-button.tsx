@@ -1,28 +1,23 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useReducer, useState } from "react";
-import { CaptchaField } from "@/components/captcha-field";
+import { useState } from "react";
+import { useCaptcha } from "@/components/captcha-provider";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import {
   CAPTCHA_REJECTED_MESSAGE,
-  captchaReducer,
-  INITIAL_CAPTCHA_STATE,
   isCaptchaRejection,
 } from "@/lib/turnstile/state";
 
 /**
  * Starts an anonymous demo session. Supabase Auth requires a Turnstile token
  * (`options.captchaToken`) and verifies it server-side; the button stays
- * disabled until the widget has produced one. A token is single-use, so every
- * failed attempt asks the widget for a new one.
+ * disabled until the shared widget (`CaptchaProvider`) has produced one. A
+ * token is single-use, so every failed attempt asks the widget for a new one.
  */
 export function TryDemoButton({ next = "/" }: { next?: string }) {
   const router = useRouter();
-  const [captcha, dispatchCaptcha] = useReducer(
-    captchaReducer,
-    INITIAL_CAPTCHA_STATE,
-  );
+  const { state: captcha, dispatch: dispatchCaptcha } = useCaptcha();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,7 +58,6 @@ export function TryDemoButton({ next = "/" }: { next?: string }) {
 
   return (
     <div className="flex w-full flex-col items-start gap-2">
-      <CaptchaField state={captcha} dispatch={dispatchCaptcha} />
       <button
         type="button"
         onClick={startDemo}
