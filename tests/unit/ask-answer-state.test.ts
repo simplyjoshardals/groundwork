@@ -117,6 +117,34 @@ describe("askReducer", () => {
     }
   });
 
+  it("points at the passages when the model failed but sources arrived (Task 5.5)", () => {
+    const state = run([
+      submit,
+      event({ type: "sources", sources: [SOURCE] }),
+      event({ type: "error", code: "llm_unavailable", message: "ignored" }),
+    ]);
+    expect(state.status).toBe("error");
+    expect(state.answer).toBe("");
+    expect(state.sources).toEqual([SOURCE]);
+    expect(state.notice?.message).toMatch(/passages/i);
+    expect(state.notice?.retryable).toBe(true);
+    expect(state.notice?.message).not.toContain("ignored");
+  });
+
+  it("keeps the plain message when llm_unavailable arrives with no sources", () => {
+    const plain = run([
+      submit,
+      event({ type: "error", code: "llm_unavailable", message: "x" }),
+    ]);
+    const empty = run([
+      submit,
+      event({ type: "sources", sources: [] }),
+      event({ type: "error", code: "llm_unavailable", message: "x" }),
+    ]);
+    expect(plain.notice?.message).not.toMatch(/passages/i);
+    expect(empty.notice?.message).toBe(plain.notice?.message);
+  });
+
   it("shows a message for not_found and limit, without Retry", () => {
     const notFound = run([submit, event({ type: "not_found" })]);
     expect(notFound.status).toBe("not_found");
@@ -186,10 +214,7 @@ describe("askReducer", () => {
     expect(askReducer(first, submit).usage).toEqual(usage);
     // An older server (or a failure) sends no usage: the last count stays.
     const second = run(
-      [
-        submit,
-        event({ type: "done", citations: [], invalidCitations: [] }),
-      ],
+      [submit, event({ type: "done", citations: [], invalidCitations: [] })],
       first,
     );
     expect(second.usage).toEqual(usage);

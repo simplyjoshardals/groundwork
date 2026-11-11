@@ -35,4 +35,11 @@ export {
   DEFAULT_GEMINI_LLM_MODEL,
   type GeminiLlmOptions,
 } from "./gemini-llm";
+export {
+  createGroqLlmProvider,
+  DEFAULT_GROQ_LLM_MODEL,
+  type GroqLlmOptions,
+} from "./groq-llm";
+export { createFailoverLlmProvider, shouldFailOver } from "./failover-llm";
+export { createAnswerLlmProvider } from "./answer-llm";
 export { DEFAULT_RETRY_POLICY, type RetryPolicy } from "./http";

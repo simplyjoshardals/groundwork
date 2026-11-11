@@ -6,9 +6,12 @@
  * so they are safe to log. Callers decide what (if anything) reaches a user.
  */
 
-export type ProviderName = "gemini";
+export type ProviderName = "gemini" | "groq";
 
-const PROVIDER_LABEL: Record<ProviderName, string> = { gemini: "Gemini" };
+const PROVIDER_LABEL: Record<ProviderName, string> = {
+  gemini: "Gemini",
+  groq: "Groq",
+};
 
 export interface ProviderErrorInit {
   provider: ProviderName;

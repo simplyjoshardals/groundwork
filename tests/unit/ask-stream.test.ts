@@ -150,16 +150,17 @@ describe("createAskResponseStream", () => {
     expect((await read()).type).toBe("done");
   });
 
-  it("emits only llm_unavailable when the LLM fails before any token", async () => {
+  it("emits sources, then llm_unavailable, when the LLM fails before any token", async () => {
     const llm = llmFrom(async function* () {
       throw new Error("secret provider detail");
     });
     const events = await readAll(
       createAskResponseStream({ sources, messages, llm }),
     );
-    // No text was released, so `sources` was never sent either.
-    expect(events.map((e) => e.type)).toEqual(["error"]);
-    const error = events[0];
+    // No text was released, but the passages still go out ahead of the error.
+    expect(events.map((e) => e.type)).toEqual(["sources", "error"]);
+    expect(events[0]).toMatchObject({ type: "sources", sources });
+    const error = events[1];
     expect(error).toMatchObject({ type: "error", code: "llm_unavailable" });
     expect(JSON.stringify(error)).not.toContain("secret");
   });
@@ -347,7 +348,7 @@ describe("createAskResponseStream: refusal gate #2 (sentinel)", () => {
     expect(pulledAfterRefusal).toBe(false);
   });
 
-  it("emits llm_unavailable, with no sources, when the LLM fails while the start is held back", async () => {
+  it("emits sources, then llm_unavailable, when the LLM fails while the start is held back", async () => {
     const llm = llmFrom(async function* () {
       yield { type: "text", text: "NOT_" };
       throw new Error("boom");
@@ -355,8 +356,8 @@ describe("createAskResponseStream: refusal gate #2 (sentinel)", () => {
     const events = await readAll(
       createAskResponseStream({ sources, messages, llm }),
     );
-    expect(events.map((e) => e.type)).toEqual(["error"]);
-    expect(events[0]).toMatchObject({ code: "llm_unavailable" });
+    expect(events.map((e) => e.type)).toEqual(["sources", "error"]);
+    expect(events[1]).toMatchObject({ code: "llm_unavailable" });
   });
 
   it("treats a blocked finish while the start is held back as an error", async () => {
@@ -367,7 +368,7 @@ describe("createAskResponseStream: refusal gate #2 (sentinel)", () => {
     const events = await readAll(
       createAskResponseStream({ sources, messages, llm }),
     );
-    expect(events.map((e) => e.type)).toEqual(["error"]);
+    expect(events.map((e) => e.type)).toEqual(["sources", "error"]);
   });
 });
 
@@ -491,6 +492,7 @@ describe("createAskResponseStream: onRefundable (Task 5.2)", () => {
       throw new Error("boom");
     });
     expect(events).toEqual([
+      expect.objectContaining({ type: "sources" }),
       expect.objectContaining({ type: "error", code: "llm_unavailable" }),
     ]);
     expect(onRefundable).toHaveBeenCalledTimes(1);
@@ -501,7 +503,7 @@ describe("createAskResponseStream: onRefundable (Task 5.2)", () => {
       yield { type: "text", text: "NOT_" };
       throw new Error("boom");
     });
-    expect(events.map((e) => e.type)).toEqual(["error"]);
+    expect(events.map((e) => e.type)).toEqual(["sources", "error"]);
     expect(onRefundable).toHaveBeenCalledTimes(1);
   });
 
@@ -509,7 +511,7 @@ describe("createAskResponseStream: onRefundable (Task 5.2)", () => {
     const { events, onRefundable } = await run(async function* () {
       yield { type: "finish", reason: "blocked" };
     });
-    expect(events.map((e) => e.type)).toEqual(["error"]);
+    expect(events.map((e) => e.type)).toEqual(["sources", "error"]);
     expect(onRefundable).toHaveBeenCalledTimes(1);
   });
 
@@ -565,6 +567,7 @@ describe("createAskResponseStream: onRefundable (Task 5.2)", () => {
       }),
     );
     expect(events).toEqual([
+      expect.objectContaining({ type: "sources" }),
       expect.objectContaining({ type: "error", code: "llm_unavailable" }),
     ]);
   });
@@ -579,7 +582,11 @@ describe("usage (Task 5.3)", () => {
 
   it("toStreamUsage turns a spent unit into questions left, never negative", () => {
     expect(
-      toStreamUsage({ usedToday: 16, dailyLimit: 20, resetsAt: usage.resetsAt }),
+      toStreamUsage({
+        usedToday: 16,
+        dailyLimit: 20,
+        resetsAt: usage.resetsAt,
+      }),
     ).toEqual(usage);
     expect(
       toStreamUsage({ usedToday: 21, dailyLimit: 20, resetsAt: usage.resetsAt })

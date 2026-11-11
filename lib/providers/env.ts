@@ -27,3 +27,11 @@ export function optionalEnv(name: string): string | null {
 export function geminiApiKey(): string {
   return requireEnv("GEMINI_API_KEY");
 }
+/** Optional: without it the answer LLM runs without a fallback (Task 5.5). */
+export function groqApiKeyIfSet(): string | null {
+  return optionalEnv("GROQ_API_KEY");
+}
+
+export function groqApiKey(): string {
+  return requireEnv("GROQ_API_KEY");
+}

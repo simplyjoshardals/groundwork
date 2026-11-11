@@ -99,7 +99,9 @@ const INTERRUPTED_MESSAGE = "The answer was interrupted. Please try again.";
  * sent just before the first text, so an answered response still starts with
  * `sources`. The only cost is that `sources` waits for the first few
  * characters of the answer instead of preceding the LLM call. If the LLM fails
- * before any text was released, the response is the `error` event alone.
+ * before any text was released (after any failover inside `llm`, Task 5.5),
+ * the response is `sources` then the `error` event, so the passages stay
+ * visible next to the "can't answer right now" note.
  *
  * The LLM is pulled only as fast as the client reads. A client disconnect
  * (request signal or stream cancel) aborts the LLM call and ends the stream
@@ -172,6 +174,9 @@ export function createAskResponseStream(
         console.error("[ask] onRefundable failed:", describeError(hookError));
       }
     }
+    // Nothing was sent, so the retrieved passages still go out ahead of the
+    // error (Task 5.5): the user can open them even though no answer came.
+    if (!tokensSent) ensureSources(controller);
     emit(
       controller,
       tokensSent

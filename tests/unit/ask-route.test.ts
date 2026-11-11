@@ -34,7 +34,7 @@ vi.mock("@/lib/providers", async (importOriginal) => ({
     dimensions: 3,
     embed,
   }),
-  createGeminiLlmProvider: () => ({ model: "llm-model", stream: llmStream }),
+  createAnswerLlmProvider: () => ({ model: "llm-model", stream: llmStream }),
 }));
 
 import * as route from "@/app/api/ask/route";
@@ -148,13 +148,16 @@ describe("POST /api/ask: authentication", () => {
     ["missing", {}],
     ["empty", { sub: "" }],
     ["not a string", { sub: 7 }],
-  ])("returns 401 when the sub claim is %s, spending nothing", async (_n, claims) => {
-    getClaims.mockResolvedValue({ data: { claims }, error: null });
-    const response = await post({ question: "Q" });
-    expect(response.status).toBe(401);
-    expect(consumeUsage).not.toHaveBeenCalled();
-    expect(embed).not.toHaveBeenCalled();
-  });
+  ])(
+    "returns 401 when the sub claim is %s, spending nothing",
+    async (_n, claims) => {
+      getClaims.mockResolvedValue({ data: { claims }, error: null });
+      const response = await post({ question: "Q" });
+      expect(response.status).toBe(401);
+      expect(consumeUsage).not.toHaveBeenCalled();
+      expect(embed).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("POST /api/ask: success", () => {
@@ -456,7 +459,10 @@ describe("POST /api/ask: refunds", () => {
   });
 
   it("refunds when match_chunks fails (503)", async () => {
-    rpc.mockResolvedValue({ data: null, error: { code: "08006", message: "x" } });
+    rpc.mockResolvedValue({
+      data: null,
+      error: { code: "08006", message: "x" },
+    });
     expect((await post({ question: "Q" })).status).toBe(503);
     expect(refundUsage).toHaveBeenCalledTimes(1);
     expect(refundUsage).toHaveBeenCalledWith("u1", "question");
@@ -489,7 +495,13 @@ describe("POST /api/ask: refunds", () => {
       throw new ProviderUnavailableError("down", { provider: "gemini" });
     });
     const events = await readEvents(await post({ question: "Q" }));
-    expect(events.map((e) => e.type)).toEqual(["error"]);
+    // Task 5.5: the passages still come through, ahead of the error.
+    expect(events.map((e) => e.type)).toEqual(["sources", "error"]);
+    expect(events[0]).toMatchObject({
+      type: "sources",
+      sources: [{ marker: 1, documentTitle: "Handbook", page: 4 }],
+    });
+    expect(events[1]).toMatchObject({ type: "error", code: "llm_unavailable" });
     expect(refundUsage).toHaveBeenCalledTimes(1);
     expect(refundUsage).toHaveBeenCalledWith("u1", "question");
   });

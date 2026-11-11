@@ -421,12 +421,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] The widget works on mobile and with keyboard only. (Widget uses Cloudflare's explicit rendering, `size: "flexible"` and `appearance: "interaction-only"`. Project owner verified keyboard completion of the interactive challenge key `3x00000000000000000000FF` and the same flow in device mode at 320–390 px. Buttons stay disabled until a token exists; a missing site key shows a visible "not configured" message and no sign-in.)
     - [x] Playwright uses the test keys so CI isn't blocked. (`playwright.config.ts` refuses to start unless `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is Cloudflare's always-pass test key `1x00000000000000000000AA`. Unit tests for the pure state machine: `tests/unit/turnstile-state.test.ts` (11 tests). No new dependency: the widget loads Cloudflare's script itself.)
 
-- [ ] **5.5 LLM failover** · 3 h · deps: 1.3, 2.5
+- [x] **5.5 LLM failover** · 3 h · deps: 1.3, 2.5
   - **Build:** Primary → fallback provider switching **only before the first token is sent**. If both fail, return the retrieved sources with a "can't generate an answer right now" note.
   - **Done when:**
-    - [ ] Forced 429 from the primary yields an answer from the fallback.
-    - [ ] Forced failure of both shows sources and the note, and refunds usage.
-    - [ ] Mid-stream failure sends an `error` event and keeps the partial text.
+    - [x] Forced 429 from the primary yields an answer from the fallback. (Unit-tested in `tests/unit/providers-answer-llm.test.ts` and `providers-failover.test.ts`: a mocked Gemini 429 switches to Groq and streams its answer. Manual: `GEMINI_LLM_MODEL=does-not-exist` forces a 404 on the primary; the route logs a primary-failure line and answers from Groq, including citation chips. As reported by the project owner: the forced-fallback path and citation chips both worked.)
+    - [x] Forced failure of both shows sources and the note, and refunds usage. (Unit-tested: both providers failing emits `sources` then `error` (`llm_unavailable`), and `refund_usage` is called once. Manual: both model ids set to non-existent values shows the closest passages, the note "I can't generate an answer right now…", and a Retry button; `usage_daily` is unchanged. As reported by the project owner: worked as expected.)
+    - [x] Mid-stream failure sends an `error` event and keeps the partial text. (Already present before this task; covered by existing stream tests and confirmed still correct. Failover never switches after the first text event. As reported by the project owner: partial text stays labelled "Incomplete answer".)
 
 - [ ] **5.6 Maintenance jobs and keep-alive** · 2.5 h · deps: 5.1, 4.7
   - **Build:** Scheduled runs (GitHub Actions cron or pg_cron) for: reap documents, purge stale anonymous users, purge old records, process the storage outbox, and a lightweight keep-alive so the free project doesn't pause.

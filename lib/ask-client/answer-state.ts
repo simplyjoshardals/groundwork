@@ -92,7 +92,9 @@ function applyEvent(state: AskState, event: AskStreamEvent): AskState {
       return {
         ...state,
         status: "error",
-        notice: failureForErrorCode(event.code),
+        notice: failureForErrorCode(event.code, {
+          hasSources: state.answer === "" && (state.sources?.length ?? 0) > 0,
+        }),
       };
     default: {
       const unreachable: never = event;

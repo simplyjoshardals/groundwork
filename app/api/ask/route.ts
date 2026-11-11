@@ -19,8 +19,8 @@ import {
   toStreamUsage,
 } from "@/lib/ask/stream";
 import {
+  createAnswerLlmProvider,
   createGeminiEmbeddingProvider,
-  createGeminiLlmProvider,
   ProviderUnavailableError,
   RateLimitError,
 } from "@/lib/providers";
@@ -79,7 +79,8 @@ export async function POST(request: Request): Promise<Response> {
     // Built before spending a unit and before the embedding call, so a config
     // error costs neither usage nor quota.
     const embedder = createGeminiEmbeddingProvider();
-    const llm = createGeminiLlmProvider();
+    // Gemini first, Groq as fallback when configured (Task 5.5).
+    const llm = createAnswerLlmProvider();
 
     // Usage check (Task 5.2): one atomic check-and-spend, before any provider
     // call. A denial is a normal outcome, so it is a 200 with a one-frame

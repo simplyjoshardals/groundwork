@@ -69,8 +69,27 @@ const STREAM_ERROR_FAILURES: Record<StreamErrorCode, AskFailure> = {
   internal_error: INTERNAL,
 };
 
-/** Text for an `error` event that arrived inside the stream. */
-export function failureForErrorCode(code: StreamErrorCode): AskFailure {
+/**
+ * Task 5.5: the model failed before writing anything, but the passages came
+ * through. The note points at them (the source list renders below it).
+ */
+const LLM_UNAVAILABLE_WITH_SOURCES: AskFailure = {
+  message:
+    "I can't generate an answer right now. The closest passages I found are listed below.",
+  retryable: true,
+};
+
+/**
+ * Text for an `error` event that arrived inside the stream. `hasSources` is
+ * true when retrieved passages are on screen and no answer text is.
+ */
+export function failureForErrorCode(
+  code: StreamErrorCode,
+  options: { hasSources?: boolean } = {},
+): AskFailure {
+  if (code === "llm_unavailable" && options.hasSources === true) {
+    return LLM_UNAVAILABLE_WITH_SOURCES;
+  }
   return STREAM_ERROR_FAILURES[code];
 }
 
