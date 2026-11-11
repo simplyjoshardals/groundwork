@@ -15,8 +15,9 @@
 -- This is plain SQL, not pgTAP: do not run it through `supabase test db`.
 --
 -- Implemented: T00 (added preflight), T01-T10, T02c-T02f (Task 3.4), T11a-d, T12a-h, T13, T15a-i,
--- T16a-T16n, T17a-d, T18a-f, T19a-f (Task 4.2 added T12, T13, T16, T18; Task 5.1 added the usage
--- tests T11a-b, T12a-b, T12f, T15, T18c and the maintenance behaviour tests T19).
+-- T16a-T16n, T17a-d, T18a-f, T19a-j (Task 4.2 added T12, T13, T16, T18; Task 5.1 added the usage
+-- tests T11a-b, T12a-b, T12f, T15, T18c and the maintenance behaviour tests T19a-f;
+-- Task 5.6 added T19g-j, the purge_old_records row count).
 --
 -- The file expects a database that was just reset (`supabase db reset`) and NOT yet seeded with
 -- `yarn seed:samples`: T00d and T00e assert exactly the 2 + 14 rows from supabase/seed.sql.
@@ -738,6 +739,52 @@ begin
     'T19f: a stale non-anonymous user must never be purged';
 end $$;
 
-do $$ begin raise notice 'security.sql: all assertions passed (T00-T10 incl. T02c-f, T11a-d, T12a-h, T13, T15a-i, T16a-n, T17a-d, T18a-f, T19a-f)'; end $$;
+-- ===== T19g-j: purge_old_records returns how many rows it removed (Task 5.6) ====
+-- The scheduled job logs this count. Old = older than the 30 day default. The expected count is
+-- measured with the same predicates just before the call, so the test also passes on a database
+-- that already holds a few old rows.
+do $$
+declare
+  v_expected integer;
+  v_n        integer;
+begin
+  insert into public.usage_daily (user_id, day, kind, used)
+  values ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', current_date - 40, 'question', 1),
+         ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', current_date - 1,  'question', 1);
+  insert into public.usage_global_daily (day, kind, used)
+  values (current_date - 40, 'question', 1),
+         (current_date - 1,  'question', 1);
+  insert into public.storage_deletions (bucket, path, created_at, processed_at)
+  values ('documents', 'task-5-6/old-processed.pdf',   now() - interval '40 days', now() - interval '40 days'),
+         ('documents', 'task-5-6/new-processed.pdf',   now() - interval '1 day',   now() - interval '1 day'),
+         ('documents', 'task-5-6/old-unprocessed.pdf', now() - interval '40 days', null);
+
+  v_expected :=
+      (select count(*) from public.usage_daily
+        where day < ((now() at time zone 'utc') - interval '30 days')::date)
+    + (select count(*) from public.usage_global_daily
+        where day < ((now() at time zone 'utc') - interval '30 days')::date)
+    + (select count(*) from public.storage_deletions
+        where processed_at is not null and processed_at < now() - interval '30 days');
+  assert v_expected >= 3, 'T19g: test setup should have created at least three old rows';
+
+  v_n := public.purge_old_records();
+  assert v_n = v_expected, 'T19g: purge_old_records must return the number of rows it removed';
+
+  assert not exists (select 1 from public.usage_daily where day = current_date - 40)
+     and not exists (select 1 from public.usage_global_daily where day = current_date - 40)
+     and not exists (select 1 from public.storage_deletions where path = 'task-5-6/old-processed.pdf'),
+    'T19h: old rows must be deleted';
+
+  assert exists (select 1 from public.usage_daily where day = current_date - 1)
+     and exists (select 1 from public.usage_global_daily where day = current_date - 1)
+     and exists (select 1 from public.storage_deletions where path = 'task-5-6/new-processed.pdf')
+     and exists (select 1 from public.storage_deletions where path = 'task-5-6/old-unprocessed.pdf'),
+    'T19i: recent rows and unprocessed outbox rows must survive';
+
+  assert public.purge_old_records() = 0, 'T19j: a second call has nothing left to remove';
+end $$;
+
+do $$ begin raise notice 'security.sql: all assertions passed (T00-T10 incl. T02c-f, T11a-d, T12a-h, T13, T15a-i, T16a-n, T17a-d, T18a-f, T19a-j)'; end $$;
 
 rollback;   -- leaves the database exactly as seeded

@@ -62,7 +62,9 @@ function parseDecision(data: unknown): UsageDecision {
 
   if (r.allowed) {
     if (r.reason !== "ok") {
-      throw new UsageCheckError("consume_usage allowed with an unexpected reason");
+      throw new UsageCheckError(
+        "consume_usage allowed with an unexpected reason",
+      );
     }
     return { allowed: true, ...unit };
   }
@@ -90,7 +92,8 @@ export async function consumeUsage(
     p_user_id: userId,
     p_kind: kind,
   });
-  if (error) throw new UsageCheckError(`consume_usage failed: ${error.message}`);
+  if (error)
+    throw new UsageCheckError(`consume_usage failed: ${error.message}`);
   return parseDecision(data);
 }
 

@@ -55,8 +55,7 @@ describe("failureForLimit", () => {
         "Africa/Lagos",
       ),
     ).toEqual({
-      message:
-        "You've used today's questions. Resets at 01:00 (00:00 UTC).",
+      message: "You've used today's questions. Resets at 01:00 (00:00 UTC).",
       retryable: false,
     });
   });
@@ -85,9 +84,9 @@ describe("failureForLimit", () => {
   });
 
   it("falls back to the scope when an older frame has no reason", () => {
-    expect(failureForLimit({ type: "limit", scope: "user" }, "UTC").message).toBe(
-      "You've used today's questions. Resets at 00:00 UTC.",
-    );
+    expect(
+      failureForLimit({ type: "limit", scope: "user" }, "UTC").message,
+    ).toBe("You've used today's questions. Resets at 00:00 UTC.");
     expect(failureForLimit({ type: "limit", scope: "global" }).message).toBe(
       "Demo is resting; back tomorrow.",
     );

@@ -139,7 +139,7 @@ isOneToOne: false
             }[]
                            },
 "purge_old_records":
-{ Args: { "p_keep"?: string }; Returns: undefined
+{ Args: { "p_keep"?: string }; Returns: number
                            },
 "purge_stale_anonymous_users":
 { Args: { "p_older_than"?: string }; Returns: number

@@ -34,8 +34,7 @@ export interface IngestOwnedDocumentInput {
  * `limit` means nothing was claimed, downloaded or embedded.
  */
 export type IngestOwnedOutcome =
-  | IngestOutcome
-  | { status: "limit"; reason: LimitReason; resetsAt: string };
+  IngestOutcome | { status: "limit"; reason: LimitReason; resetsAt: string };
 
 /**
  * True when the unit should go back: the user got no ingestion and the cause

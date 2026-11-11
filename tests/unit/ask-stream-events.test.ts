@@ -50,12 +50,20 @@ const EVENTS: AskStreamEvent[] = [
     type: "done",
     citations: [1],
     invalidCitations: [],
-    usage: { remaining: 17, dailyLimit: 20, resetsAt: "2026-11-11T00:00:00.000Z" },
+    usage: {
+      remaining: 17,
+      dailyLimit: 20,
+      resetsAt: "2026-11-11T00:00:00.000Z",
+    },
   },
   {
     type: "not_found",
     closest: [SOURCE],
-    usage: { remaining: 0, dailyLimit: 20, resetsAt: "2026-11-11T00:00:00.000Z" },
+    usage: {
+      remaining: 0,
+      dailyLimit: 20,
+      resetsAt: "2026-11-11T00:00:00.000Z",
+    },
   },
   { type: "error", code: "interrupted", message: "The answer was cut off." },
 ];
@@ -366,9 +374,9 @@ describe("done and not_found: usage (Task 5.3)", () => {
   });
 
   it("rebuilds usage field by field, dropping unknown extras", () => {
-    expect(parseStreamEvent({ ...done, usage: { ...usage, extra: 1 } })).toEqual(
-      { ...done, usage },
-    );
+    expect(
+      parseStreamEvent({ ...done, usage: { ...usage, extra: 1 } }),
+    ).toEqual({ ...done, usage });
   });
 
   it.each([

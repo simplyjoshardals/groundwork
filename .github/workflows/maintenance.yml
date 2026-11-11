@@ -1,0 +1,67 @@
+name: Maintenance
+
+# Scheduled jobs (Task 5.6): reap documents, purge stale anonymous users, purge old
+# records, process the storage outbox, and a keep-alive read so the free Supabase
+# project does not pause. The service-role key exists only as a repository secret.
+#
+# Notes:
+# - Scheduled workflows run only from the default branch, in UTC, and can be delayed.
+#   Minutes are deliberately odd; the top of the hour is the most congested slot.
+# - GitHub disables schedules on a public repo after 60 days without repository
+#   activity. A push re-arms them; so does re-enabling in the Actions tab.
+# - Run by hand: Actions > Maintenance > Run workflow.
+
+on:
+  schedule:
+    # Every 30 minutes: reap abandoned documents and retry failed file deletions.
+    - cron: "11,41 * * * *"
+    # Daily, 03:37 UTC: purge stale anonymous users and old records, plus the keep-alive.
+    - cron: "37 3 * * *"
+  workflow_dispatch:
+    inputs:
+      jobs:
+        description: "all, or space-separated: reap-documents purge-anonymous-users purge-old-records storage-outbox keep-alive"
+        required: true
+        default: "all"
+        type: string
+
+permissions:
+  contents: read
+
+# Never run two maintenance runs at once, and never cancel one halfway.
+concurrency:
+  group: maintenance
+  cancel-in-progress: false
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install
+        run: yarn install --immutable
+
+      # Job names go through an env var, never straight into the script text, and the
+      # script rejects any name it does not know.
+      - name: Run maintenance
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          JOBS: >-
+            ${{ github.event_name == 'workflow_dispatch' && inputs.jobs
+            || (github.event.schedule == '37 3 * * *'
+            && 'purge-anonymous-users purge-old-records keep-alive'
+            || 'reap-documents storage-outbox') }}
+        run: |
+          read -ra JOB_ARGS <<< "$JOBS"
+          yarn tsx --conditions=react-server scripts/run-maintenance.ts "${JOB_ARGS[@]}" --allow-remote

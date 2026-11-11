@@ -33,7 +33,8 @@ describe("ingestLimitMessage", () => {
 
   it("gives each reason a distinct message, with no time for cooldown or global", () => {
     const messages = (["user_limit", "cooldown", "global_limit"] as const).map(
-      (reason) => ingestLimitMessage({ fileName, reason, resetsAt: RESET }, "UTC"),
+      (reason) =>
+        ingestLimitMessage({ fileName, reason, resetsAt: RESET }, "UTC"),
     );
     expect(new Set(messages).size).toBe(3);
     expect(messages[1]).toContain("too quickly");
@@ -47,7 +48,10 @@ describe("ingestLimitMessage", () => {
 describe("retryLimitMessage", () => {
   it("gives the daily limit its reset time, without a file name", () => {
     expect(
-      retryLimitMessage({ reason: "user_limit", resetsAt: RESET }, "Africa/Lagos"),
+      retryLimitMessage(
+        { reason: "user_limit", resetsAt: RESET },
+        "Africa/Lagos",
+      ),
     ).toBe(
       "You've reached today's upload limit, so this can't be processed yet. Resets at 01:00 (00:00 UTC).",
     );

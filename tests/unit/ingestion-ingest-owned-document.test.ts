@@ -259,12 +259,36 @@ describe("ingestOwnedDocument: usage limits (Task 5.2)", () => {
       ["not_claimed", { status: "not_claimed" }, true],
       ["claim_lost", { status: "claim_lost" }, true],
       ["not_found", { status: "not_found" }, true],
-      ["failed: provider_unavailable", { status: "failed", reason: "provider_unavailable", error: new Error("x") }, true],
-      ["failed: internal_error", { status: "failed", reason: "internal_error", error: new Error("x") }, true],
+      [
+        "failed: provider_unavailable",
+        {
+          status: "failed",
+          reason: "provider_unavailable",
+          error: new Error("x"),
+        },
+        true,
+      ],
+      [
+        "failed: internal_error",
+        { status: "failed", reason: "internal_error", error: new Error("x") },
+        true,
+      ],
       // A problem with the user's file keeps the unit spent.
-      ["failed: scanned_pdf", { status: "failed", reason: "scanned_pdf", error: new Error("x") }, false],
-      ["failed: too_many_pages", { status: "failed", reason: "too_many_pages", error: new Error("x") }, false],
-      ["failed: corrupt_file", { status: "failed", reason: "corrupt_file", error: new Error("x") }, false],
+      [
+        "failed: scanned_pdf",
+        { status: "failed", reason: "scanned_pdf", error: new Error("x") },
+        false,
+      ],
+      [
+        "failed: too_many_pages",
+        { status: "failed", reason: "too_many_pages", error: new Error("x") },
+        false,
+      ],
+      [
+        "failed: corrupt_file",
+        { status: "failed", reason: "corrupt_file", error: new Error("x") },
+        false,
+      ],
     ])("%s", async (_label, outcome, refunded) => {
       ingestDocument.mockResolvedValue(outcome);
       expect(await run(owned())).toBe(outcome);

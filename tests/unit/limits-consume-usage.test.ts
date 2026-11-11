@@ -57,22 +57,25 @@ describe("consumeUsage", () => {
     });
   });
 
-  it.each(["user_limit", "cooldown", "global_limit", "not_allowed", "unknown_user"])(
-    "maps a %s denial",
-    async (reason) => {
-      const { client } = fakeClient({
-        data: [row({ allowed: false, reason })],
-        error: null,
-      });
-      expect(await consumeUsage("u1", "question", { client })).toEqual({
-        allowed: false,
-        reason,
-        usedToday: 3,
-        dailyLimit: 20,
-        resetsAt: RESET_ISO,
-      });
-    },
-  );
+  it.each([
+    "user_limit",
+    "cooldown",
+    "global_limit",
+    "not_allowed",
+    "unknown_user",
+  ])("maps a %s denial", async (reason) => {
+    const { client } = fakeClient({
+      data: [row({ allowed: false, reason })],
+      error: null,
+    });
+    expect(await consumeUsage("u1", "question", { client })).toEqual({
+      allowed: false,
+      reason,
+      usedToday: 3,
+      dailyLimit: 20,
+      resetsAt: RESET_ISO,
+    });
+  });
 
   describe("fails closed with UsageCheckError", () => {
     it("on an RPC error, without echoing user data", async () => {
@@ -89,10 +92,19 @@ describe("consumeUsage", () => {
       ["no rows", { data: [], error: null }],
       ["null data", { data: null, error: null }],
       ["a non-array", { data: row(), error: null }],
-      ["a missing field", { data: [row({ used_today: undefined })], error: null }],
+      [
+        "a missing field",
+        { data: [row({ used_today: undefined })], error: null },
+      ],
       ["a negative count", { data: [row({ used_today: -1 })], error: null }],
-      ["a fractional count", { data: [row({ daily_limit: 1.5 })], error: null }],
-      ["an invalid reset time", { data: [row({ resets_at: "soon" })], error: null }],
+      [
+        "a fractional count",
+        { data: [row({ daily_limit: 1.5 })], error: null },
+      ],
+      [
+        "an invalid reset time",
+        { data: [row({ resets_at: "soon" })], error: null },
+      ],
       [
         "an unknown denial reason",
         { data: [row({ allowed: false, reason: "vip" })], error: null },
@@ -136,9 +148,13 @@ describe("refundUsage", () => {
   });
 
   it("never throws on an RPC error, and logs only the message", async () => {
-    const { client } = fakeClient({ data: null, error: { message: "db down" } });
-    await expect(refundUsage("user-secret-id", "question", { client })).resolves
-      .toBeUndefined();
+    const { client } = fakeClient({
+      data: null,
+      error: { message: "db down" },
+    });
+    await expect(
+      refundUsage("user-secret-id", "question", { client }),
+    ).resolves.toBeUndefined();
     const logged = JSON.stringify(vi.mocked(console.error).mock.calls);
     expect(logged).toContain("db down");
     expect(logged).not.toContain("user-secret-id");
@@ -150,8 +166,9 @@ describe("refundUsage", () => {
         throw new TypeError("fetch failed");
       }),
     } as unknown as SupabaseClient<Database>;
-    await expect(refundUsage("u1", "question", { client })).resolves
-      .toBeUndefined();
+    await expect(
+      refundUsage("u1", "question", { client }),
+    ).resolves.toBeUndefined();
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).toContain(
       "TypeError: fetch failed",
     );
