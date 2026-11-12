@@ -331,11 +331,11 @@ All limits are as reported in searches dated 2026-10-28. **Verify on the officia
 
 **Things most likely to surprise you:**
 
-1. **Supabase pause.** Add a scheduled keep-alive (GitHub Actions cron hitting a lightweight endpoint) or at least document "if the demo is down, wait for it to wake". 🔎 VERIFY what counts as activity.
+1. **Supabase pause.** A scheduled keep-alive (GitHub Actions cron, a one-row API read, Task 5.6) runs daily, and the 30-minute jobs also query the database. Supabase pauses a free project after 7 days with too little database activity; API requests count. If the repo is public, GitHub disables schedules after 60 days without repository activity, so check the Actions tab after a quiet stretch. Still keep the friendly outage page.
 2. **Provider limits silently shrinking.** Build a startup/health check that reports remaining capacity, and make the global cap a config value you can change without redeploying logic.
 3. **Gemini billing toggle.** Keep the key's project billing disabled.
 4. **Storage fills before the database does.** Enforce a global upload budget and disable sign-up uploads when it's reached.
-5. **Anonymous users pile up** in your auth table. Add a scheduled cleanup (🔎 VERIFY whether `pg_cron` and Vercel Cron are available on the free tiers and at what frequency).
+5. **Anonymous users pile up** in your auth table. A scheduled cleanup (`purge-anonymous-users`, daily, GitHub Actions) removes stale ones. pg_cron was not used.
 
 ---
 
@@ -459,7 +459,7 @@ document-qa/
 ├─ tests/
 │  ├─ unit/                     # Vitest
 │  └─ e2e/                      # Playwright
-└─ scripts/                     # seed samples, keep-alive, cleanup (run with service role)
+└─ scripts/                     # seed samples, storage cleanup, run-maintenance (run with service role; run-maintenance is scheduled by .github/workflows/maintenance.yml)
 ```
 
 **Where code belongs:**

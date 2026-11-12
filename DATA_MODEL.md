@@ -29,7 +29,7 @@ Companion to `REQUIREMENTS.md` and `ARCHITECTURE.md`. This covers the Postgres s
 | **CAPTCHA**                       | Dashboard → Authentication → Attack Protection → enable Turnstile (or hCaptcha)                                      | Protects anonymous sign-in from bots.                                                                                                                                 |
 | `auth.users.is_anonymous` column  | Exists in current Supabase Auth                                                                                      | Used by the usage functions. 🔎 VERIFY on your project.                                                                                                               |
 | **Storage bucket**                | Created by migration 0007                                                                                            | 🔎 VERIFY the `storage.buckets` columns (`file_size_limit`, `allowed_mime_types`) in your version.                                                                    |
-| **pg_cron** (optional)            | Dashboard → Database → Extensions                                                                                    | For scheduled cleanup. Alternative: a GitHub Actions cron calling the maintenance functions. 🔎 VERIFY availability on the free plan.                                 |
+| **pg_cron** (optional)            | Dashboard → Database → Extensions                                                                                    | Not used. Scheduling is a GitHub Actions cron (Task 5.6).                                                                                                            |
 | **Exposed schemas**               | Dashboard → API settings                                                                                             | `public` is exposed (normal). **Do not expose `private`**; it holds trigger and helper functions.                                                                     |
 | **Default grants**                | Explicit `GRANT`/`REVOKE` in every migration                                                                         | Supabase has changed default Data API grants over time (**🔎 VERIFY**); being explicit means the migrations behave the same regardless.                               |
 | Deleting from `auth.users` in SQL | Used by the anonymous cleanup function                                                                               | 🔎 VERIFY it works from a `SECURITY DEFINER` function on your project; if not, delete via the Admin API instead.                                                      |
@@ -787,21 +787,46 @@ end;
 $$;
 
 create or replace function public.purge_old_records(p_keep interval default '30 days')
-returns void
-language sql
+returns integer
+language plpgsql
 security definer
 set search_path = ''
 as $$
-  delete from public.usage_daily        where day < ((now() at time zone 'utc') - p_keep)::date;
-  delete from public.usage_global_daily where day < ((now() at time zone 'utc') - p_keep)::date;
-  delete from public.storage_deletions  where processed_at is not null and processed_at < now() - p_keep;
-$$;
+declare
+  v_usage  integer;
+  v_global integer;
+  v_outbox integer;
+begin
+  with gone as (
+    delete from public.usage_daily
+     where day < ((now() at time zone 'utc') - p_keep)::date
+    returning 1
+  )
+  select count(*) into v_usage from gone;
 
--- Optional scheduling with pg_cron (🔎 VERIFY the extension is available), or call the same
--- functions from a GitHub Actions cron using the service-role key.
--- select cron.schedule('reap-documents',  '*/30 * * * *', $$select public.reap_documents()$$);
--- select cron.schedule('purge-anon',      '17 3 * * *',   $$select public.purge_stale_anonymous_users()$$);
--- select cron.schedule('purge-old',       '23 3 * * *',   $$select public.purge_old_records()$$);
+  with gone as (
+    delete from public.usage_global_daily
+     where day < ((now() at time zone 'utc') - p_keep)::date
+    returning 1
+  )
+  select count(*) into v_global from gone;
+
+  with gone as (
+    delete from public.storage_deletions
+     where processed_at is not null and processed_at < now() - p_keep
+    returning 1
+  )
+  select count(*) into v_outbox from gone;
+
+  return v_usage + v_global + v_outbox;   -- rows removed, so the scheduled job can log a count (Task 5.6)
+end;
+$$;
+-- Task 5.6: this function now returns the number of rows it removed (it returned void), so the scheduled
+-- job can log a count. As shipped, the change is the separate migration
+-- 20261111120000_purge_old_records_count.sql (drop and recreate, same grants).
+
+-- Scheduling: GitHub Actions cron (.github/workflows/maintenance.yml, Task 5.6), not pg_cron. The storage
+-- outbox needs the Storage API, and the service-role key stays in CI secrets.
 ```
 
 ### 2.9 Non-obvious choices explained
@@ -1098,6 +1123,7 @@ Optional later migration (do **not** run in the MVP):
 | 6                | `0006_ingestion_functions.sql`    | §2.6, then the block tagged 0006 in §3.2        |
 | 7                | `0007_storage.sql`                | §2.7, then the policy block tagged 0007 in §3.2 |
 | 8                | `0008_maintenance.sql`            | §2.8, then the block tagged 0008 in §3.2        |
+| 8b (Task 5.6)    | `20261111120000_purge_old_records_count.sql` | §2.8 (`purge_old_records` returns a count) |
 | (never auto-run) | `9000_optional_hnsw.sql`          | §4.3, only if measured                          |
 
 Name the actual files with the CLI's timestamp prefix (`supabase migration new <name>` generates `YYYYMMDDHHMMSS_name.sql`); the numbers above just show the order.
