@@ -29,7 +29,7 @@ Companion to `REQUIREMENTS.md` and `ARCHITECTURE.md`. This covers the Postgres s
 | **CAPTCHA**                       | Dashboard → Authentication → Attack Protection → enable Turnstile (or hCaptcha)                                      | Protects anonymous sign-in from bots.                                                                                                                                 |
 | `auth.users.is_anonymous` column  | Exists in current Supabase Auth                                                                                      | Used by the usage functions. 🔎 VERIFY on your project.                                                                                                               |
 | **Storage bucket**                | Created by migration 0007                                                                                            | 🔎 VERIFY the `storage.buckets` columns (`file_size_limit`, `allowed_mime_types`) in your version.                                                                    |
-| **pg_cron** (optional)            | Dashboard → Database → Extensions                                                                                    | Not used. Scheduling is a GitHub Actions cron (Task 5.6).                                                                                                            |
+| **pg_cron** (optional)            | Dashboard → Database → Extensions                                                                                    | Not used. Scheduling is an external cron plus GitHub Actions (Task 5.6).                                                                                             |
 | **Exposed schemas**               | Dashboard → API settings                                                                                             | `public` is exposed (normal). **Do not expose `private`**; it holds trigger and helper functions.                                                                     |
 | **Default grants**                | Explicit `GRANT`/`REVOKE` in every migration                                                                         | Supabase has changed default Data API grants over time (**🔎 VERIFY**); being explicit means the migrations behave the same regardless.                               |
 | Deleting from `auth.users` in SQL | Used by the anonymous cleanup function                                                                               | 🔎 VERIFY it works from a `SECURITY DEFINER` function on your project; if not, delete via the Admin API instead.                                                      |
@@ -825,8 +825,8 @@ $$;
 -- job can log a count. As shipped, the change is the separate migration
 -- 20261111120000_purge_old_records_count.sql (drop and recreate, same grants).
 
--- Scheduling: GitHub Actions cron (.github/workflows/maintenance.yml, Task 5.6), not pg_cron. The storage
--- outbox needs the Storage API, and the service-role key stays in CI secrets.
+-- Scheduling: .github/workflows/maintenance.yml (Task 5.6), started by an external cron and GitHub's schedule, not
+-- pg_cron. The storage outbox needs the Storage API, and the service-role key stays in CI secrets.
 ```
 
 ### 2.9 Non-obvious choices explained

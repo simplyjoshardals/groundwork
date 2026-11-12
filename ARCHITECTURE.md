@@ -331,11 +331,11 @@ All limits are as reported in searches dated 2026-10-28. **Verify on the officia
 
 **Things most likely to surprise you:**
 
-1. **Supabase pause.** A scheduled keep-alive (GitHub Actions cron, a one-row API read, Task 5.6) runs daily, and the 30-minute jobs also query the database. Supabase pauses a free project after 7 days with too little database activity; API requests count. If the repo is public, GitHub disables schedules after 60 days without repository activity, so check the Actions tab after a quiet stretch. Still keep the friendly outage page.
+1. **Supabase pause.** A keep-alive (a one-row API read, Task 5.6) runs daily, and the 30-minute jobs also query the database. Supabase pauses a free project after 7 days with too little database activity; API requests count. The jobs are started by an external cron (cron-job.org calling `workflow_dispatch`) because GitHub's own schedule is best-effort and ran far less often than configured; the GitHub schedule stays as a backup, and on a public repo GitHub disables it after 60 days without repository activity. The external token expires, so keep a reminder. Still keep the friendly outage page.
 2. **Provider limits silently shrinking.** Build a startup/health check that reports remaining capacity, and make the global cap a config value you can change without redeploying logic.
 3. **Gemini billing toggle.** Keep the key's project billing disabled.
 4. **Storage fills before the database does.** Enforce a global upload budget and disable sign-up uploads when it's reached.
-5. **Anonymous users pile up** in your auth table. A scheduled cleanup (`purge-anonymous-users`, daily, GitHub Actions) removes stale ones. pg_cron was not used.
+5. **Anonymous users pile up** in your auth table. A scheduled cleanup (`purge-anonymous-users`, daily, run by GitHub Actions and started by the external cron) removes stale ones. pg_cron was not used.
 
 ---
 
@@ -459,7 +459,7 @@ document-qa/
 ├─ tests/
 │  ├─ unit/                     # Vitest
 │  └─ e2e/                      # Playwright
-└─ scripts/                     # seed samples, storage cleanup, run-maintenance (run with service role; run-maintenance is scheduled by .github/workflows/maintenance.yml)
+└─ scripts/                     # seed samples, storage cleanup, run-maintenance (run with service role; run-maintenance runs in .github/workflows/maintenance.yml, started by an external cron and GitHub's schedule)
 ```
 
 **Where code belongs:**
