@@ -442,12 +442,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] No 5xx storm; blocked requests respond fast. (As reported by the project owner: zero 5xx, other HTTP errors, stream errors or network errors across 53 requests; blocked responses stayed inside the 2-second p95 budget.)
     - [x] You've written down the real capacity numbers and set the global caps to a safe fraction. (Numbers are in `docs/decisions.md`, 2026-11-13: the binding limit is 500 Gemini LLM requests per day, so `limit_global_question` is 250 (50%). As reported by the project owner, applied to the hosted project with `update app_config set value = 250 where key = 'limit_global_question';`. `limit_global_ingest` stays 40. The local stack keeps its default of 200.)
 
-- [ ] **5.8 Security audit pass** · 2.5 h · deps: 5.1, 4.10
+- [x] **5.8 Security audit pass** · 2.5 h · deps: 5.1, 4.10
   - **Build:** Run the full SQL suite, the API checks A1-A15 from DATA_MODEL §7.2 (script them), inspect the client bundle for secrets, review error responses, add basic security headers.
   - **Done when:**
-    - [ ] All SQL tests pass; all API checks give the expected status.
-    - [ ] The dashboard checklist in DATA_MODEL §7.3 is ticked.
-    - [ ] No endpoint reveals whether another user's document exists.
+    - [x] All SQL tests pass; all API checks give the expected status. (As reported by the project owner: `security.sql` passed on a fresh `supabase db reset`; `yarn security:api` against `yarn dev` gave 36 passed, 0 failed, 1 skipped (H6, HSTS, production only); against `yarn start` with `--prod` it gave 37 passed, 0 failed, 0 skipped. That covers A1-A15, the controls for each refusal, the header checks and the error-body checks. Details in `docs/decisions.md`, 2026-11-13, Task 5.8.)
+    - [x] The dashboard checklist in DATA_MODEL §7.3 is ticked. (As reported by the project owner, hosted project. Also checked on the production URL with `curl.exe -I -L`: CSP, HSTS, `nosniff`, `DENY`, Referrer-Policy, Permissions-Policy present and no `X-Powered-By`. The A1-A15 script is local-only by design, so the hosted API is covered by this checklist and the header check, not by a script run.)
+    - [x] No endpoint reveals whether another user's document exists. (As reported by the project owner: checks O2-O5 passed, each comparing someone else's document with a missing one on signed URL, `/api/ingest`, `DELETE /api/documents/[id]` and `/api/ask`, plus A1 for REST by id; the client bundle has 0 findings from `yarn security:bundle` (20 files); `yarn test:e2e --headed` passed 5 of 5 with A4 and A11 added to the isolation test.)
 
 - [ ] **5.9 Failure-mode drills** · 2 h · deps: 5.5, 5.2
   - **Build:** Walk the `ARCHITECTURE.md` §5 table: break each dependency on purpose (bad provider key, paused DB, huge file, slow request) and watch the app.

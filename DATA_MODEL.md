@@ -1692,6 +1692,8 @@ The SQL tests prove the database rules. These prove the **deployed API** enforce
 
 Wire A1, A4, A10, and A11 into your Playwright "cross-user isolation" flow so a regression fails CI.
 
+**Built (Task 5.8):** `yarn security:api` runs A1-A15 against the local stack with the users' own tokens, plus a control for each refusal (the same request works for its owner), comparisons that show someone else's document and a missing one get the same answer, and a check of the security headers. A1 and A10 were already in `tests/e2e/cross-user-isolation.e2e.ts`; A4 and A11 were added there. E2E is not in CI (decision 4.9), so a regression in those four fails `yarn test:e2e`, not the CI run. The script is local-only; for the hosted project use §7.3.
+
 ### 7.3 Manual checks in the Supabase dashboard
 
 - **Auth → Policies:** every table in `public` shows RLS enabled; `storage.objects` lists only the two policies above.
@@ -1699,6 +1701,9 @@ Wire A1, A4, A10, and A11 into your Playwright "cross-user isolation" flow so a 
 - **API settings → Exposed schemas:** `private` is **not** listed.
 - **Project settings → API keys:** the service-role/secret key appears only in Vercel server environment variables.
 - **Auth settings:** anonymous sign-ins enabled; CAPTCHA enabled; email confirmation behavior is what you expect.
+- **Migrations:** every migration is applied to the hosted project (`supabase db push` reports nothing to apply). Task 5.6 found it behind once.
+
+Done for the hosted project in Task 5.8, as reported by the project owner (`docs/decisions.md`, 2026-11-13).
 
 ### 7.4 What these tests deliberately do not cover
 

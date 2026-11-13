@@ -408,6 +408,8 @@ All limits are as reported in searches dated 2026-10-28. **Verify on the officia
 
 Also: enable GitHub secret scanning, and rotate any key that was ever committed, even briefly.
 
+**Built (Task 5.8):** Security headers come from `lib/security/headers.ts` through `headers()` in `next.config.ts`: a Content-Security-Policy, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, and HSTS in production only; `X-Powered-By` is off. The CSP is static, with `'unsafe-inline'` for scripts and no nonce, so it limits where scripts, frames, workers and network requests can come from but does not stop an injected inline script. A new third-party origin (analytics, fonts, embeds) needs an entry in `lib/security/headers.ts`, or the browser will block it. `yarn security:api` runs the DATA_MODEL §7.2 checks, the "does not reveal whether a document exists" comparisons and a header check against the local stack. `yarn security:bundle` scans `.next/static` for secrets after a build. The Supabase auth cookie is `SameSite=Lax` (confirmed in the browser); the cookie-authenticated POST routes do not check `Origin`, so that setting is what stops cross-site forgery. Sources, results and open observations: `docs/decisions.md`, 2026-11-13, Task 5.8.
+
 ---
 
 ## 7. Project Structure
@@ -439,6 +441,7 @@ document-qa/
 │  ├─ providers/             # EmbeddingProvider / LlmProvider interfaces + adapters
 │  ├─ supabase/              # browser, server (user-scoped), admin (service-role) clients
 │  ├─ pdf/                   # extraction (PDF, txt, md) + scanned-PDF detection
+│  ├─ security/              # response-header builder, used by next.config.ts (pure, no server-only)
 │  ├─ chunking/              # normalization, page-bounded chunker, txt/md virtual pages
 │  ├─ ask/                   # /api/ask helpers: request validation, prompt, response stream, error text, limits (server-side; limits.ts is also used by the browser)
 │  ├─ ask-stream/            # shared ask event types + client parser (no server-only)
@@ -446,6 +449,7 @@ document-qa/
 │  └─ config.ts              # limits, thresholds, model IDs (all tunable in one place)
 ├─ types/                    # generated DB types, shared event contract types
 ├─ proxy.ts                    # session refresh (Next 16 name for middleware)
+├─ next.config.ts              # Turbopack rules, security headers (from lib/security)
 ├─ eval/
 │  ├─ dataset/                  # facts.md (ground truth), qa.json (question/answer/page pairs incl. unanswerable + injection), injection-memo.md (fixture)
 │  ├─ dataset.ts                # zod schema + loader for qa.json
@@ -459,7 +463,7 @@ document-qa/
 ├─ tests/
 │  ├─ unit/                     # Vitest
 │  └─ e2e/                      # Playwright
-└─ scripts/                     # seed samples, storage cleanup, run-maintenance (run with service role; run-maintenance runs in .github/workflows/maintenance.yml, started by an external cron and GitHub's schedule)
+└─ scripts/                     # seed samples, storage cleanup, run-maintenance (run with service role; run-maintenance runs in .github/workflows/maintenance.yml, started by an external cron and GitHub's schedule); security-api-checks and security-bundle-scan (Task 5.8, local only)
 ```
 
 **Where code belongs:**
