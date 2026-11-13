@@ -145,6 +145,41 @@ describe("POST /api/ask: authentication", () => {
   });
 
   it.each([
+    [
+      "a retryable fetch error",
+      Object.assign(new Error("fetch failed"), {
+        name: "AuthRetryableFetchError",
+        status: 0,
+      }),
+    ],
+    [
+      "a 503 from the auth server",
+      Object.assign(new Error("unavailable"), {
+        name: "AuthApiError",
+        status: 503,
+      }),
+    ],
+  ])(
+    "returns 503 auth_unavailable on %s (not 401), spending and calling nothing (Task 5.9)",
+    async (_name, error) => {
+      getClaims.mockResolvedValue({ data: null, error });
+      const response = await post({ question: "Q" });
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({
+        error: "auth_unavailable",
+      });
+      expect(consumeUsage).not.toHaveBeenCalled();
+      expect(refundUsage).not.toHaveBeenCalled();
+      expect(embed).not.toHaveBeenCalled();
+      expect(rpc).not.toHaveBeenCalled();
+      expect(console.error).toHaveBeenCalledWith(
+        "[ask] auth service unavailable:",
+        expect.stringContaining("Error"),
+      );
+    },
+  );
+
+  it.each([
     ["missing", {}],
     ["empty", { sub: "" }],
     ["not a string", { sub: 7 }],

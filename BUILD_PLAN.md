@@ -449,10 +449,10 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] The dashboard checklist in DATA_MODEL §7.3 is ticked. (As reported by the project owner, hosted project. Also checked on the production URL with `curl.exe -I -L`: CSP, HSTS, `nosniff`, `DENY`, Referrer-Policy, Permissions-Policy present and no `X-Powered-By`. The A1-A15 script is local-only by design, so the hosted API is covered by this checklist and the header check, not by a script run.)
     - [x] No endpoint reveals whether another user's document exists. (As reported by the project owner: checks O2-O5 passed, each comparing someone else's document with a missing one on signed URL, `/api/ingest`, `DELETE /api/documents/[id]` and `/api/ask`, plus A1 for REST by id; the client bundle has 0 findings from `yarn security:bundle` (20 files); `yarn test:e2e --headed` passed 5 of 5 with A4 and A11 added to the isolation test.)
 
-- [ ] **5.9 Failure-mode drills** · 2 h · deps: 5.5, 5.2
+- [x] **5.9 Failure-mode drills** · 2 h · deps: 5.5, 5.2
   - **Build:** Walk the `ARCHITECTURE.md` §5 table: break each dependency on purpose (bad provider key, paused DB, huge file, slow request) and watch the app.
   - **Done when:**
-    - [ ] Each drill shows a clear user-facing message and a clear log line; nothing hangs.
+    - [x] Each drill shows a clear user-facing message and a clear log line; nothing hangs. (As reported by the project owner, local stack: all six drills behaved as expected (bad Gemini key on ask and on ingest, both LLMs broken, Supabase stopped, the file drills, and a hung provider), and the full suite (`yarn typecheck`, `yarn lint`, `yarn test`) passed. The drills found one real gap, an unreachable auth service being reported as a missing session, which is fixed. Details in `docs/decisions.md`, 2026-11-13, Task 5.9.)
 
 - [ ] **5.10 Structured logging** · 2 h · deps: 5.2
   - **Build:** One structured log line per ask and ingest: request ID, user ID (hashed or truncated), timings, provider used, outcome, refusal path. No document content, no secrets.

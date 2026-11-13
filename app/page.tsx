@@ -3,18 +3,31 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { SignOutButton } from "@/components/sign-out-button";
 import { DocumentsPanel } from "@/components/documents-panel";
+import { ReloadButton } from "@/components/reload-button";
 import { Workspace } from "@/components/workspace";
-import { getSessionState } from "@/lib/auth/session";
+import { AUTH_UNAVAILABLE_MESSAGE } from "@/lib/auth/auth-unavailable";
+import { getSessionCheck } from "@/lib/auth/session";
 
 /**
  * The app. Signed out, it redirects to the sign-in page; with a session (demo
  * or regular), it shows the ask UI and, when the URL names a document, the
  * viewer. This guard is a UI convenience: `/api/ask` re-checks the session on
- * every request and RLS decides what data is visible.
+ * every request and RLS decides what data is visible. If the auth service
+ * cannot be reached (for example a paused project) it shows a waiting message
+ * instead of sending a signed-in user to the sign-in page (Task 5.9).
  */
 export default async function Home() {
-  const session = await getSessionState();
+  const session = await getSessionCheck();
   if (session.status === "signed_out") redirect("/sign-in");
+  if (session.status === "unavailable") {
+    return (
+      <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-8">
+        <h1 className="text-2xl font-semibold">Groundwork</h1>
+        <p role="alert">{AUTH_UNAVAILABLE_MESSAGE}</p>
+        <ReloadButton />
+      </main>
+    );
+  }
 
   const intro = (
     <>

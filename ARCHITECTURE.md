@@ -364,6 +364,8 @@ All limits are as reported in searches dated 2026-10-28. **Verify on the officia
 | **Concurrent ingest of the same doc**                                         | Two calls for one ID                | Status transition guarded by an atomic "only if currently `queued`/`failed`" update                                          | Second call is a no-op                                                                                          |
 | **Deleting a doc mid-processing**                                             | Row gone while ingesting            | Ingest checks the row before writing chunks; cascade deletes chunks; delete storage file                                     | Nothing odd                                                                                                     |
 
+**Built (Task 5.9):** An unreachable auth service (the "Supabase project paused" row) shows "Demo is waking up. Retry in a minute." on `/`, on "Try demo" and on `/api/ask`, which answers 503 `auth_unavailable`; a missing or invalid session still gets the sign-in path.
+
 ---
 
 ## 6. Security Boundaries

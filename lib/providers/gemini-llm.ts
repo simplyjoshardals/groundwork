@@ -43,7 +43,7 @@ const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 export const DEFAULT_GEMINI_LLM_MODEL = "gemini-3.5-flash-lite";
 
 /** The id goes into a URL path, so it is restricted to a safe character set. */
-const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
+const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;``
 
 export interface GeminiLlmOptions {
   /** Takes precedence over `GEMINI_LLM_MODEL`, which takes precedence over the default. */

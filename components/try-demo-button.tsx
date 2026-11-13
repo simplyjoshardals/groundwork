@@ -3,6 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useCaptcha } from "@/components/captcha-provider";
+import {
+  AUTH_UNAVAILABLE_MESSAGE,
+  isAuthUnavailable,
+} from "@/lib/auth/auth-unavailable";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import {
   CAPTCHA_REJECTED_MESSAGE,
@@ -35,10 +39,14 @@ export function TryDemoButton({ next = "/" }: { next?: string }) {
           "Anonymous sign-in failed:",
           signInError.code ?? signInError.message,
         );
+        // Task 5.9: an unreachable auth service (for example a paused
+        // project) is not the visitor's mistake and is worth retrying later.
         setError(
           isCaptchaRejection(signInError)
             ? CAPTCHA_REJECTED_MESSAGE
-            : "Could not start the demo. Please try again.",
+            : isAuthUnavailable(signInError)
+              ? AUTH_UNAVAILABLE_MESSAGE
+              : "Could not start the demo. Please try again.",
         );
         dispatchCaptcha({ type: "reset" });
         return;

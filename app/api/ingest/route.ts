@@ -1,4 +1,5 @@
 import { ingestOwnedDocument } from "@/features/ingestion";
+import { isAuthUnavailable } from "@/lib/auth/auth-unavailable";
 import { parseIngestRequest } from "@/lib/ingest/request";
 import { describeError } from "@/lib/ask/errors";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -16,7 +17,16 @@ export const dynamic = "force-dynamic";
  */
 export const maxDuration = 300;
 
-function json(status: number, body: IngestErrorBody | IngestResponseBody) {
+/** Task 5.9: the auth service could not be reached, which is not a 401. */
+interface AuthUnavailableBody {
+  error: "auth_unavailable";
+  message: string;
+}
+
+function json(
+  status: number,
+  body: IngestErrorBody | IngestResponseBody | AuthUnavailableBody,
+) {
   return Response.json(body, {
     status,
     headers: { "Cache-Control": "no-store" },
@@ -45,6 +55,16 @@ export async function POST(request: Request): Promise<Response> {
     const supabase = await createServerSupabase();
     const { data: auth, error: authError } = await supabase.auth.getClaims();
     const userId = auth?.claims?.sub;
+    if (authError && isAuthUnavailable(authError)) {
+      console.error(
+        "[ingest] auth service unavailable:",
+        describeError(authError),
+      );
+      return json(503, {
+        error: "auth_unavailable",
+        message: "The demo is temporarily unavailable. Please try again.",
+      });
+    }
     if (authError || typeof userId !== "string" || userId === "") {
       return json(401, { error: "unauthorized" });
     }

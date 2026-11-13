@@ -5,6 +5,8 @@ import {
   AskIdleTimeoutError,
   AskNetworkError,
   isAbortError,
+  isKnownHttpErrorCode,
+  type KnownHttpErrorCode,
 } from "./failures";
 
 /**
@@ -20,6 +22,29 @@ export interface RequestAnswerOptions {
   idleTimeoutMs?: number;
   /** Injected for tests; defaults to the global `fetch`. */
   fetchImpl?: typeof fetch;
+}
+
+/** Our own error bodies are tiny; anything larger is not ours. */
+const MAX_ERROR_BODY_CHARS = 1_000;
+
+/**
+ * Reads the `error` code of a non-2xx body, only if it is one the client
+ * knows. The body's text is never shown (Task 1.8), so anything else, or a
+ * body that cannot be read, is null. Always frees the socket.
+ */
+async function readKnownErrorCode(
+  response: Response,
+): Promise<KnownHttpErrorCode | null> {
+  try {
+    const text = await response.text();
+    if (text.length > MAX_ERROR_BODY_CHARS) return null;
+    const json: unknown = JSON.parse(text);
+    if (typeof json !== "object" || json === null) return null;
+    const code = (json as { error?: unknown }).error;
+    return isKnownHttpErrorCode(code) ? code : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -79,9 +104,12 @@ export async function* requestAnswer(
     }
 
     if (!response.ok) {
-      // The body is a fixed JSON message the UI never shows; free the socket.
-      await response.body?.cancel().catch(() => undefined);
-      throw new AskHttpError(response.status);
+      // Only a known `error` code is read from the body; its text is never
+      // shown. Reading it also frees the socket.
+      throw new AskHttpError(
+        response.status,
+        await readKnownErrorCode(response),
+      );
     }
     if (!response.body) {
       throw new StreamProtocolError("The response has no body.");

@@ -5,6 +5,7 @@ import {
   type AskStreamEvent,
   type StreamErrorCode,
 } from "@/lib/ask-stream";
+import { AUTH_UNAVAILABLE_MESSAGE } from "@/lib/auth/auth-unavailable";
 import { formatResetTime } from "./usage";
 
 /**
@@ -23,12 +24,27 @@ export interface AskFailure {
 /** `/api/ask` answered with a non-2xx status (a plain JSON body, not a stream). */
 export class AskHttpError extends Error {
   readonly status: number;
+  /**
+   * The server's `error` code when it is one the client knows (Task 5.9);
+   * otherwise null. Never free text from the server.
+   */
+  readonly code: KnownHttpErrorCode | null;
 
-  constructor(status: number) {
+  constructor(status: number, code: KnownHttpErrorCode | null = null) {
     super(`/api/ask responded with HTTP ${status}.`);
     this.name = "AskHttpError";
     this.status = status;
+    this.code = code;
   }
+}
+
+/** Error codes in a non-2xx body that change what the user is told. */
+export type KnownHttpErrorCode = "auth_unavailable";
+
+export function isKnownHttpErrorCode(
+  value: unknown,
+): value is KnownHttpErrorCode {
+  return value === "auth_unavailable";
 }
 
 /** The request never produced a response (offline, DNS, connection reset). */
@@ -94,7 +110,17 @@ export function failureForErrorCode(
 }
 
 /** Text for a non-2xx response, chosen by status only. */
-export function failureForStatus(status: number): AskFailure {
+export function failureForStatus(
+  status: number,
+  code: KnownHttpErrorCode | null = null,
+): AskFailure {
+  // Task 5.9: the auth service is unreachable (for example a paused project).
+  if (status === 503 && code === "auth_unavailable") {
+    return {
+      message: AUTH_UNAVAILABLE_MESSAGE,
+      retryable: true,
+    };
+  }
   switch (status) {
     case 400:
       return {
@@ -160,7 +186,9 @@ export function isAbortError(error: unknown): boolean {
  * started themselves before calling this (`isAbortError`).
  */
 export function describeFailure(error: unknown): AskFailure {
-  if (error instanceof AskHttpError) return failureForStatus(error.status);
+  if (error instanceof AskHttpError) {
+    return failureForStatus(error.status, error.code);
+  }
   if (error instanceof AskIdleTimeoutError) {
     return {
       message: "The connection stalled and no answer arrived. Please retry.",

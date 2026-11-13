@@ -9,6 +9,7 @@ import {
   refundUsage,
   UsageCheckError,
 } from "@/features/limits";
+import { isAuthUnavailable } from "@/lib/auth/auth-unavailable";
 import { encodeStreamEvent } from "@/lib/ask-stream/events";
 import { describeError } from "@/lib/ask/errors";
 import { buildAskMessages } from "@/lib/ask/prompt";
@@ -72,6 +73,18 @@ export async function POST(request: Request): Promise<Response> {
     const supabase = await createServerSupabase();
     const { data: auth, error: authError } = await supabase.auth.getClaims();
     const userId = auth?.claims?.sub;
+    // Task 5.9: an unreachable auth service (paused project, outage) is not a
+    // missing session. Say so, instead of telling the user to reload.
+    if (authError && isAuthUnavailable(authError)) {
+      console.error(
+        "[ask] auth service unavailable:",
+        describeError(authError),
+      );
+      return jsonError(503, {
+        error: "auth_unavailable",
+        message: "The demo is temporarily unavailable. Please try again.",
+      });
+    }
     if (authError || typeof userId !== "string" || userId === "") {
       return jsonError(401, { error: "unauthorized" });
     }
