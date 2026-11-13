@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { getChunk } from "@/lib/documents/get-chunk";
 import { getViewerDocument } from "@/lib/documents/get-viewer-document";
@@ -118,6 +119,31 @@ test("user B cannot see, open, fetch or ask about user A's document", async ({
       pageB.getByRole("button", { name: /^Source \d+:/ }),
     ).toHaveCount(0);
     await expect(pageB.getByText(/single-column/i)).toHaveCount(0);
+
+    // 5. Write attacks, DATA_MODEL 7.2 A4 and A11: B tries to plant a row and
+    // a file under A's identity. The two controls are in `yarn security:api`
+    // (A4c, A12c: the same requests work for their owner).
+    const { data: userA } = await clientA.auth.getUser();
+    if (!userA.user) throw new Error("E2E: could not read user A's id.");
+    const forgedId = randomUUID();
+    const forged = await clientB.from("documents").insert({
+      id: forgedId,
+      owner_id: userA.user.id,
+      title: "forged",
+      original_filename: "forged.txt",
+      mime_type: "text/plain",
+      size_bytes: 1,
+      storage_path: `${userA.user.id}/${forgedId}/forged.txt`,
+    });
+    expect(forged.error?.code).toBe("42501");
+    const intruder = await clientB.storage
+      .from("documents")
+      .upload(
+        `${userA.user.id}/${randomUUID()}/x.txt`,
+        new Blob(["x"], { type: "text/plain" }),
+        { contentType: "text/plain" },
+      );
+    expect(intruder.error?.message).toMatch(/row-level security/i);
   } finally {
     await contextB.close();
   }

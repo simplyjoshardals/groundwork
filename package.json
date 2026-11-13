@@ -21,6 +21,8 @@
     "eval:answers": "tsx --conditions=react-server --env-file=.env.local eval/run-full.ts",
     "eval:calibrate": "tsx eval/calibrate-threshold.ts",
     "eval:validate": "tsx eval/validate-dataset.ts",
+    "security:api": "tsx --conditions=react-server --env-file=.env.local scripts/security-api-checks.ts",
+    "security:bundle": "tsx scripts/security-bundle-scan.ts",
     "load:abuse": "tsx --conditions=react-server --env-file=.env.local scripts/abuse-load-test.ts",
     "provider:smoke": "tsx --conditions=react-server --env-file=.env.local scripts/provider-smoke.ts",
     "spike:provider": "tsx --env-file=.env.local spikes/provider/run.ts",
