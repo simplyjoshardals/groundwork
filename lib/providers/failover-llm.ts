@@ -29,6 +29,15 @@ function describe(error: unknown): string {
     : "A non-Error value was thrown";
 }
 
+/** Task 5.10: lets the caller learn that a failover happened, for its request log. */
+export interface FailoverHooks {
+  /**
+   * Called once, right before the fallback is used. `from` and `to` are model
+   * ids; `error` is what the primary threw. A hook that throws is ignored.
+   */
+  onFailover?: (info: { from: string; to: string; error: unknown }) => void;
+}
+
 /**
  * Task 5.5. Streams from `primary`; if it fails before yielding any text and
  * the failure is one `shouldFailOver` accepts, streams from `fallback`
@@ -43,6 +52,7 @@ function describe(error: unknown): string {
 export function createFailoverLlmProvider(
   primary: LlmProvider,
   fallback: LlmProvider,
+  hooks: FailoverHooks = {},
 ): LlmProvider {
   return {
     model: primary.model,
@@ -61,6 +71,11 @@ export function createFailoverLlmProvider(
         console.warn(
           `[ask] Primary LLM (${primary.model}) failed before any text; trying fallback (${fallback.model}): ${describe(error)}`,
         );
+        try {
+          hooks.onFailover?.({ from: primary.model, to: fallback.model, error });
+        } catch (hookError) {
+          console.error("[ask] onFailover failed:", describe(hookError));
+        }
       }
       yield* fallback.stream(messages, options);
     },

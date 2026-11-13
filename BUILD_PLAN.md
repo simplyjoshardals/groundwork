@@ -454,11 +454,11 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
   - **Done when:**
     - [x] Each drill shows a clear user-facing message and a clear log line; nothing hangs. (As reported by the project owner, local stack: all six drills behaved as expected (bad Gemini key on ask and on ingest, both LLMs broken, Supabase stopped, the file drills, and a hung provider), and the full suite (`yarn typecheck`, `yarn lint`, `yarn test`) passed. The drills found one real gap, an unreachable auth service being reported as a missing session, which is fixed. Details in `docs/decisions.md`, 2026-11-13, Task 5.9.)
 
-- [ ] **5.10 Structured logging** · 2 h · deps: 5.2
+- [x] **5.10 Structured logging** · 2 h · deps: 5.2
   - **Build:** One structured log line per ask and ingest: request ID, user ID (hashed or truncated), timings, provider used, outcome, refusal path. No document content, no secrets.
   - **Done when:**
-    - [ ] You can answer "why did this request fail?" from Vercel logs alone.
-    - [ ] A grep for key patterns and document text in the logs finds nothing.
+    - [x] You can answer "why did this request fail?" from Vercel logs alone. (As reported by the project owner, local stack: each request wrote one JSON line with `outcome`, the model used, timings and, on a failure, the error name and provider codes; the forced fallback (`GEMINI_LLM_MODEL=does-not-exist` with `GROQ_API_KEY` set) showed `failover: true` and the Groq model. Details in `docs/decisions.md`, 2026-11-13, Task 5.10.)
+    - [x] A grep for key patterns and document text in the logs finds nothing. (As reported by the project owner: nothing found. Also covered by unit tests that run the routes with distinctive question, passage, title and answer strings and assert none reach any console call, and that error messages stay off the structured line.)
 
 **Slice 5 done:** [ ] Global DoD · [ ] **Milestone M5 recorded** · [ ] Now (and only now) the link may go on your CV
 

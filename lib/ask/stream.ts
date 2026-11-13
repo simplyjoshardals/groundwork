@@ -64,6 +64,30 @@ export function toStreamUsage(unit: {
   };
 }
 
+/** How a response stream ended (Task 5.10), for the request log. */
+export type AskStreamOutcome =
+  | "answered"
+  | "not_found"
+  | "llm_unavailable"
+  | "interrupted"
+  | "client_aborted";
+
+export interface AskStreamFinish {
+  outcome: AskStreamOutcome;
+  /** Milliseconds from creating the stream to the first released token, or null. */
+  firstTokenMs: number | null;
+  /** Milliseconds from creating the stream to its end. */
+  durationMs: number;
+  /** Characters of answer text released. The text itself is never passed on. */
+  answerChars: number;
+  /** Only for `answered`. */
+  citations?: number;
+  invalidCitations?: number;
+  uncited?: boolean;
+  /** Only for `llm_unavailable` and `interrupted`: what the LLM threw. */
+  error?: unknown;
+}
+
 export interface AskResponseStreamOptions {
   sources: StreamSource[];
   messages: readonly LlmMessage[];
@@ -82,6 +106,13 @@ export interface AskResponseStreamOptions {
    * throw; it is fire-and-forget from the stream's point of view.
    */
   onRefundable?: () => void;
+  /**
+   * Called once, when the stream ends for any reason (Task 5.10): answered,
+   * refused by the sentinel, failed before or after text, or the client left.
+   * Meant for the request log. Must not throw; if it does, the error is logged
+   * and the stream is unaffected.
+   */
+  onFinish?: (info: AskStreamFinish) => void;
 }
 
 const LLM_UNAVAILABLE_MESSAGE =
@@ -116,7 +147,11 @@ const INTERRUPTED_MESSAGE = "The answer was interrupted. Please try again.";
 export function createAskResponseStream(
   options: AskResponseStreamOptions,
 ): ReadableStream<Uint8Array> {
-  const { sources, messages, llm, signal, onRefundable, usage } = options;
+  const { sources, messages, llm, signal, onRefundable, onFinish, usage } =
+    options;
+  const startedAt = performance.now();
+  let firstTokenAt: number | null = null;
+  let reported = false;
   const encoder = new TextEncoder();
   const abort = new AbortController();
   const onClientAbort = () => abort.abort();
@@ -133,6 +168,28 @@ export function createAskResponseStream(
 
   const stopIterator = () => {
     void Promise.resolve(iterator?.return?.()).catch(() => undefined);
+  };
+  const report = (
+    outcome: AskStreamOutcome,
+    extra: Pick<
+      AskStreamFinish,
+      "citations" | "invalidCitations" | "uncited" | "error"
+    > = {},
+  ) => {
+    if (reported) return;
+    reported = true;
+    const endedAt = performance.now();
+    try {
+      onFinish?.({
+        outcome,
+        firstTokenMs: firstTokenAt === null ? null : firstTokenAt - startedAt,
+        durationMs: endedAt - startedAt,
+        answerChars: answer.length,
+        ...extra,
+      });
+    } catch (hookError) {
+      console.error("[ask] onFinish failed:", describeError(hookError));
+    }
   };
   const emit = (
     controller: ReadableStreamDefaultController<Uint8Array>,
@@ -151,6 +208,7 @@ export function createAskResponseStream(
   ) => {
     ensureSources(controller);
     emit(controller, { type: "token", text });
+    firstTokenAt ??= performance.now();
     tokensSent = true;
     answer += text;
   };
@@ -177,6 +235,7 @@ export function createAskResponseStream(
     // Nothing was sent, so the retrieved passages still go out ahead of the
     // error (Task 5.5): the user can open them even though no answer came.
     if (!tokensSent) ensureSources(controller);
+    report(tokensSent ? "interrupted" : "llm_unavailable", { error });
     emit(
       controller,
       tokensSent
@@ -199,6 +258,7 @@ export function createAskResponseStream(
       ...(sources.length > 0 ? { closest: sources } : {}),
       ...(usage === undefined ? {} : { usage }),
     });
+    report("not_found");
     close(controller);
     abort.abort();
     stopIterator();
@@ -219,6 +279,11 @@ export function createAskResponseStream(
         `[ask] Answer has no valid citation (${answer.length} characters, ${invalidCitations.length} invalid markers).`,
       );
     }
+    report("answered", {
+      citations: citations.length,
+      invalidCitations: invalidCitations.length,
+      uncited,
+    });
     emit(controller, {
       type: "done",
       citations,
@@ -234,6 +299,7 @@ export function createAskResponseStream(
     async pull(controller) {
       while (!closed) {
         if (abort.signal.aborted) {
+          report("client_aborted");
           close(controller);
           return;
         }
@@ -269,6 +335,7 @@ export function createAskResponseStream(
         } catch (error) {
           if (closed) return;
           if (abort.signal.aborted) {
+            report("client_aborted");
             close(controller);
             return;
           }
@@ -279,6 +346,7 @@ export function createAskResponseStream(
     },
 
     cancel() {
+      report("client_aborted");
       closed = true;
       signal?.removeEventListener("abort", onClientAbort);
       abort.abort();

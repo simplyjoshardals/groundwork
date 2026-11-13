@@ -40,6 +40,10 @@ export {
   DEFAULT_GROQ_LLM_MODEL,
   type GroqLlmOptions,
 } from "./groq-llm";
-export { createFailoverLlmProvider, shouldFailOver } from "./failover-llm";
+export {
+  createFailoverLlmProvider,
+  shouldFailOver,
+  type FailoverHooks,
+} from "./failover-llm";
 export { createAnswerLlmProvider } from "./answer-llm";
 export { DEFAULT_RETRY_POLICY, type RetryPolicy } from "./http";

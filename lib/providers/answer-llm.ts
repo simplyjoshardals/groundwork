@@ -1,6 +1,6 @@
 import "server-only";
 import { groqApiKeyIfSet } from "./env";
-import { createFailoverLlmProvider } from "./failover-llm";
+import { createFailoverLlmProvider, type FailoverHooks } from "./failover-llm";
 import { createGeminiLlmProvider } from "./gemini-llm";
 import { createGroqLlmProvider } from "./groq-llm";
 import type { LlmProvider } from "./types";
@@ -26,7 +26,9 @@ let warnedNoFallback = false;
  * and CI do not need a second key. Embeddings never fall back (their vectors
  * are not interchangeable), so this is only for the answer model.
  */
-export function createAnswerLlmProvider(): LlmProvider {
+export function createAnswerLlmProvider(
+  hooks: FailoverHooks = {},
+): LlmProvider {
   if (groqApiKeyIfSet() === null) {
     if (!warnedNoFallback) {
       warnedNoFallback = true;
@@ -45,5 +47,6 @@ export function createAnswerLlmProvider(): LlmProvider {
       retryPolicy: FALLBACK_RETRY,
       timeoutMs: FALLBACK_TIMEOUT_MS,
     }),
+    hooks,
   );
 }
