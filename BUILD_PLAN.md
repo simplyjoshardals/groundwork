@@ -435,12 +435,12 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] The service-role key lives only in CI secrets. (`SUPABASE_SECRET_KEY` and `NEXT_PUBLIC_SUPABASE_URL` are repository secrets, passed as env to the one step that runs the script. Nothing is committed; the workflow has `contents: read` permissions, and the script refuses a non-local URL unless `--allow-remote` is passed, which only the workflow does. The external trigger uses a separate fine-grained GitHub token (this repository only, Actions read and write) stored in cron-job.org and not in the repo.)
     - [x] 🔎 VERIFY: what counts as "activity" for Supabase's inactivity pause, and that your keep-alive qualifies. (Supabase's docs say a free project is paused after 7 days with too little database activity and that requests through the API count. The keep-alive is a one-row `select` on `documents` through the API, daily (from the external trigger, with GitHub's schedule as backup), and the 30-minute jobs also query the database. Whether a service-role read counts as "user" activity is not stated in the docs and was not observed; confirm over a quiet week that the project does not pause.)
 
-- [ ] **5.7 ⚠ Abuse load test** · 2 h · deps: 5.2, 5.4 · **risky: protects your free quota**
+- [x] **5.7 ⚠ Abuse load test** · 2 h · deps: 5.2, 5.4 · **risky: protects your free quota**
   - **Build:** A script that creates ~50 anonymous sessions (with CAPTCHA bypassed in a test environment only) and fires questions concurrently.
   - **Done when:**
-    - [ ] The global cap trips at the configured number; provider call counts match the counters.
-    - [ ] No 5xx storm; blocked requests respond fast.
-    - [ ] You've written down the real capacity numbers and set the global caps to a safe fraction.
+    - [x] The global cap trips at the configured number; provider call counts match the counters. (As reported by the project owner, local stack, real Gemini, cap 10, 50 sessions: all 8 checks passed; the global counter moved by exactly 10; 10 embedding calls for 10 spent units and 7 LLM calls for 7 answers, counted independently by a fetch-counting preload; the cooldown phase gave 1 allowed and 2 blocked. `yarn load:abuse`; details in `docs/decisions.md`, 2026-11-13, Task 5.7.)
+    - [x] No 5xx storm; blocked requests respond fast. (As reported by the project owner: zero 5xx, other HTTP errors, stream errors or network errors across 53 requests; blocked responses stayed inside the 2-second p95 budget.)
+    - [x] You've written down the real capacity numbers and set the global caps to a safe fraction. (Numbers are in `docs/decisions.md`, 2026-11-13: the binding limit is 500 Gemini LLM requests per day, so `limit_global_question` is 250 (50%). As reported by the project owner, applied to the hosted project with `update app_config set value = 250 where key = 'limit_global_question';`. `limit_global_ingest` stays 40. The local stack keeps its default of 200.)
 
 - [ ] **5.8 Security audit pass** · 2.5 h · deps: 5.1, 4.10
   - **Build:** Run the full SQL suite, the API checks A1-A15 from DATA_MODEL §7.2 (script them), inspect the client bundle for secrets, review error responses, add basic security headers.
@@ -558,7 +558,7 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 - [x] **After 0.7:** direct highlight first, or passage panel first?
 - [x] **After 2.2:** is baseline hit@k acceptable? (Yes: 15/15 on the 2.2 baseline and again in the 2.8 run. It is at its ceiling, so it can only show a regression. `See docs/decisions.md`, 2026-11-04 and 2026-11-06.)
 - [x] **After 2.3:** are the answerable and unanswerable score distributions separable enough? (No: they overlap from 0.6705 to 0.7142, AUC 0.853. A conservative 0.65 floor was chosen and retrieval tuning consciously deferred; see `docs/decisions.md`, 2026-11-05.)
-- [ ] **After 5.7:** what are the real global caps?
+- [x] **After 5.7:** what are the real global caps? (250 questions per day and 40 ingestions per day, from the 500 requests per day Gemini 3.5 Flash Lite limit read in AI Studio; see `docs/decisions.md`, 2026-11-13.)
 
 ---
 
