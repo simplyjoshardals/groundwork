@@ -1,77 +1,76 @@
-import type { ReactNode, SVGProps } from "react";
+import {
+  BookmarkSimpleIcon,
+  CheckCircleIcon,
+  CheckIcon as PhCheckIcon,
+  CircleHalfIcon,
+  ClockIcon,
+  InfoIcon as PhInfoIcon,
+  WarningCircleIcon,
+  WarningIcon as PhWarningIcon,
+  WarningOctagonIcon,
+} from "@phosphor-icons/react/ssr";
+import type { IconProps as PhosphorProps } from "@phosphor-icons/react";
 
-type IconProps = Omit<SVGProps<SVGSVGElement>, "children"> & {
+// Phosphor is the only icon library. The `/ssr` entry keeps these usable in
+// Server Components (no client boundary); types come from the main entry,
+// which costs nothing at runtime. Import icons here, never straight from
+// Phosphor in a feature component, so the set stays small and consistent.
+
+export type IconProps = Omit<
+  PhosphorProps,
+  "children" | "weight" | "mirrored" | "alt"
+> & {
   /** Pixel size. Banners use 16, badges 12. */
   size?: number;
 };
 
 /**
- * Decorative 16 px line icons in `currentColor`. They are always
- * `aria-hidden`: the text next to them carries the meaning, and an
- * icon-only control must get its name from `aria-label` (DESIGN rule 9).
- * Shapes differ by meaning (circle-i, triangle, circle-!, check) so color
- * is never the only signal.
+ * Weights: `regular` for general UI, `fill` for status glyphs (badges,
+ * banners). Always `aria-hidden`: the text next to an icon carries the
+ * meaning, and an icon-only control gets its name from `aria-label`
+ * (DESIGN rule 9). Shapes differ by meaning, so color is never the only
+ * signal.
  */
-function Icon({
-  size = 16,
-  className,
-  children,
-  ...rest
-}: IconProps & { children: ReactNode }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-      className={className}
-      {...rest}
-    >
-      {children}
-    </svg>
-  );
+const HIDDEN = { "aria-hidden": true, focusable: "false" } as const;
+
+// --- general UI (regular) ---------------------------------------------
+
+export function CheckIcon({ size = 16, ...rest }: IconProps) {
+  return <PhCheckIcon size={size} weight="regular" {...HIDDEN} {...rest} />;
 }
 
-export function InfoIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <circle cx="8" cy="8" r="6.25" />
-      <path d="M8 7.5v3.5" />
-      <path d="M8 5.25h.01" />
-    </Icon>
-  );
+// --- banner tones (fill): circle-i, triangle, octagon ------------------
+
+export function InfoIcon({ size = 16, ...rest }: IconProps) {
+  return <PhInfoIcon size={size} weight="fill" {...HIDDEN} {...rest} />;
 }
 
-export function WarningIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M8 2.25 14.25 13H1.75L8 2.25Z" />
-      <path d="M8 6.5v3" />
-      <path d="M8 11.25h.01" />
-    </Icon>
-  );
+export function WarningIcon({ size = 16, ...rest }: IconProps) {
+  return <PhWarningIcon size={size} weight="fill" {...HIDDEN} {...rest} />;
 }
 
-export function ErrorIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <circle cx="8" cy="8" r="6.25" />
-      <path d="M8 4.75v3.5" />
-      <path d="M8 10.75h.01" />
-    </Icon>
-  );
+export function ErrorIcon({ size = 16, ...rest }: IconProps) {
+  return <WarningOctagonIcon size={size} weight="fill" {...HIDDEN} {...rest} />;
 }
 
-export function CheckIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="m3.5 8.5 3 3 6-7" />
-    </Icon>
-  );
+// --- badge statuses (fill): clock, half circle, check, "!", bookmark ----
+
+export function QueuedIcon({ size = 12, ...rest }: IconProps) {
+  return <ClockIcon size={size} weight="bold" {...HIDDEN} {...rest} />;
+}
+
+export function ProcessingIcon({ size = 12, ...rest }: IconProps) {
+  return <CircleHalfIcon size={size} weight="fill" {...HIDDEN} {...rest} />;
+}
+
+export function ReadyIcon({ size = 12, ...rest }: IconProps) {
+  return <CheckCircleIcon size={size} weight="fill" {...HIDDEN} {...rest} />;
+}
+
+export function FailedIcon({ size = 12, ...rest }: IconProps) {
+  return <WarningCircleIcon size={size} weight="fill" {...HIDDEN} {...rest} />;
+}
+
+export function SampleIcon({ size = 12, ...rest }: IconProps) {
+  return <BookmarkSimpleIcon size={size} weight="fill" {...HIDDEN} {...rest} />;
 }

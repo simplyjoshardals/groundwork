@@ -1,6 +1,13 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactElement } from "react";
 import { cn } from "./cn";
-import { CheckIcon } from "./icons";
+import {
+  FailedIcon,
+  type IconProps,
+  ProcessingIcon,
+  QueuedIcon,
+  ReadyIcon,
+  SampleIcon,
+} from "./icons";
 
 export type BadgeStatus =
   | "queued"
@@ -17,32 +24,26 @@ const LABELS: Record<BadgeStatus, string> = {
   sample: "Sample",
 };
 
-const COLORS: Record<BadgeStatus, string> = {
-  queued: "bg-sunken text-muted",
-  processing: "bg-accent-soft text-accent",
-  ready: "bg-accent-soft text-accent",
-  failed: "bg-danger-soft text-danger",
-  sample: "bg-highlight-soft text-ink",
+// Every badge is a soft fill with a hairline edge in its own tone. Queued is
+// the exception that proves the rule: no fill and a dashed edge, a slot
+// still waiting to be filled. Nothing animates.
+const STYLES: Record<BadgeStatus, string> = {
+  queued: "border-dashed border-control bg-transparent text-muted",
+  processing: "border-current/20 bg-accent-soft text-accent",
+  ready: "border-current/20 bg-accent-soft text-accent",
+  failed: "border-current/25 bg-danger-soft text-danger",
+  sample: "border-highlight/60 bg-highlight-soft text-ink",
 };
 
-const DOT = "size-1.5 shrink-0 rounded-full";
-
-function Marker({ status }: { status: BadgeStatus }) {
-  switch (status) {
-    case "queued":
-      return <span aria-hidden="true" className={cn(DOT, "border border-current")} />;
-    case "processing":
-      return <span aria-hidden="true" className={cn(DOT, "bg-current dot-pulse")} />;
-    case "failed":
-      return <span aria-hidden="true" className={cn(DOT, "bg-current")} />;
-    case "ready":
-      // The check replaces the dot: a distinct shape, so Ready never depends
-      // on color alone. (DESIGN 5.4 "solid, with a check glyph".)
-      return <CheckIcon size={12} />;
-    case "sample":
-      return null;
-  }
-}
+// A different glyph per status, so the shape says it as well as the color
+// and the label: clock, half circle, check, exclamation, bookmark.
+const GLYPHS: Record<BadgeStatus, (props: IconProps) => ReactElement> = {
+  queued: QueuedIcon,
+  processing: ProcessingIcon,
+  ready: ReadyIcon,
+  failed: FailedIcon,
+  sample: SampleIcon,
+};
 
 export type BadgeProps = Omit<ComponentProps<"span">, "children"> & {
   status: BadgeStatus;
@@ -50,16 +51,17 @@ export type BadgeProps = Omit<ComponentProps<"span">, "children"> & {
 
 /** The label is always rendered: color is never the only signal. */
 export function Badge({ status, className, ...props }: BadgeProps) {
+  const Glyph = GLYPHS[status];
   return (
     <span
       className={cn(
-        "inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium",
-        COLORS[status],
+        "inline-flex h-5 items-center gap-1 rounded-full border pr-2 pl-1.5 text-xs font-medium",
+        STYLES[status],
         className,
       )}
       {...props}
     >
-      <Marker status={status} />
+      <Glyph />
       {LABELS[status]}
     </span>
   );

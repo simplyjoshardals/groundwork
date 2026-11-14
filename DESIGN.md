@@ -18,7 +18,7 @@ Paste this whole file into every UI prompt. It is the single source of truth for
 6. Every interactive element has a visible focus ring, an accessible name, and a 44 px touch target on coarse pointers.
 7. Dark mode is its own palette (section 3), not inverted. The PDF page stays paper-colored in dark mode.
 8. Animate only `opacity`, `transform`, color, and background-position. Respect reduced motion (section 7).
-9. No gradients (the one exception is the skeleton shimmer band, section 5.9), glass, glow effects (except the dark highlight), emoji, or icon-only buttons without a label or `aria-label`.
+9. No gradients (the one exception is the skeleton shimmer band, section 5.9), glass, glow effects (except the dark highlight), emoji, pulsing or spinning status indicators, a second icon library (Phosphor only, section 5.11), or icon-only buttons without a label or `aria-label`.
 10. Copy follows the voice in section 8: calm, specific, no exclamation marks, no "Oops".
 
 ---
@@ -277,7 +277,7 @@ Paper logic: flat by default, edges instead of shadows.
 ## 2. Brand assets
 
 - **Wordmark:** "Groundwork" in Newsreader 600, 20 px in the header, tracking `-0.01em`. On the landing hero only, a 3 px `bg-accent` rule runs under the whole word.
-- **Favicon / app icon:** a serif "G" in `--accent-fg` on a `--accent` rounded square. `app/icon.svg` holds the G as an outlined path (Newsreader 600, opsz 24, light-theme colors, because an icon cannot read CSS variables). `app/apple-icon.png` is the same G, full-bleed with no rounded corners, because iOS applies its own mask. The default `app/favicon.ico` is deleted.
+- **Favicon / app icon:** a custom Groundwork mark, supplied as a finished raster asset rather than drawn in code (it replaced the earlier serif "G" placeholder). `app/icon.png` is 512 px, square. `app/apple-icon.png` is 180 px, full-bleed with no rounded corners, because iOS applies its own mask and a transparent or pre-rounded icon gets a black or double-rounded edge. Both come from one 1024 px master, and the mark must stay recognisable at 16 px (thick shapes, no fine detail). Next emits the link tags from these file names, so there is no `<link>` to maintain, and `app/icon.svg` is removed: if it stayed, the page would carry two competing favicons. The default `app/favicon.ico` is deleted and replaced with a custom `favicon.ico` as a fallback for desktop tabs and legacy browsers.
 - **Metadata:** title template `%s · Groundwork`, default title "Groundwork: ask your documents, see the source". Per-route titles. Fix the current "Create Next App" title first.
 - **Social image:** `app/opengraph-image.tsx` with the wordmark, the headline, and a highlighted footnote. Verify the `next/og` font-loading approach for your Next version.
 
@@ -382,15 +382,15 @@ Input: `h-10 w-full rounded-md border border-control bg-surface px-3 text-base t
 
 ### 5.4 Badge
 
-`inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium` plus a 6 px dot. The label is always present: color is never the only signal.
+`inline-flex h-5 items-center gap-1 rounded-full border pr-2 pl-1.5 text-xs font-medium` with a 12 px Phosphor glyph before the label. Every badge is a soft fill with a hairline edge in its own tone (`border-current/20`), so it reads as a small stamped label rather than a flat chip. **Nothing animates**: a status is a state, and the row's progress line (section 7) carries "work in progress". The label is always present and each status has its own glyph shape, so color is never the only signal.
 
-| Status | Colors | Dot |
+| Status | Classes | Glyph |
 |---|---|---|
-| Queued | `bg-sunken text-muted` | hollow |
-| Processing | `bg-accent-soft text-accent` | pulsing (static under reduced motion) |
-| Ready | `bg-accent-soft text-accent` | a 12 px check glyph replaces the dot |
-| Failed | `bg-danger-soft text-danger` | solid |
-| Sample | `bg-highlight-soft text-ink` | none |
+| Queued | `border-dashed border-control bg-transparent text-muted` (no fill: a slot still waiting) | clock, bold |
+| Processing | `border-current/20 bg-accent-soft text-accent` | half-filled circle, static |
+| Ready | `border-current/20 bg-accent-soft text-accent` | check in a circle, fill |
+| Failed | `border-current/25 bg-danger-soft text-danger` | exclamation in a circle, fill |
+| Sample | `border-highlight/60 bg-highlight-soft text-ink` | bookmark, fill |
 
 ### 5.5 Citation marker and source card
 
@@ -402,13 +402,13 @@ Input: `h-10 w-full rounded-md border border-control bg-surface px-3 text-base t
 
 ### 5.6 Banner (inline notice)
 
-`flex gap-3 rounded-md border-l-2 px-4 py-3 text-sm` with a 16 px icon.
+A banner is a slip of paper with a small tab at the start: `flex items-start gap-3 rounded-md border p-3 text-sm text-ink`, a full 1 px frame (not a left rule: the left rule is the margin-note motif and belongs to the cited passage in 6.6), and a 28 px icon chip (`size-7 rounded-sm border bg-surface`) holding a 16 px fill-weight glyph. Text sits beside the chip with `text-pretty`; an optional action sits to its right from `sm` up and wraps below the text on narrow screens. The frame firms up as urgency rises, and the icon shape changes with the tone, so the tone never rests on color alone.
 
-| Tone | Classes | ARIA | Use |
-|---|---|---|---|
-| info | `bg-sunken border-control text-ink` | `role="status"` | neutral notes, refusals' secondary text |
-| warn | `bg-warn-soft border-warn text-ink` | `role="status"` | limits, offline, stale data, paused uploads |
-| danger | `bg-danger-soft border-danger text-ink` | `role="alert"` | failures that block the user |
+| Tone | Frame and fill | Chip | Icon | ARIA | Use |
+|---|---|---|---|---|---|
+| info | `border-line bg-sunken` | `border-line text-muted` | circle with "i" | `role="status"` | neutral notes, refusals' secondary text |
+| warn | `border-warn/35 bg-warn-soft` | `border-warn/30 text-warn` | triangle | `role="status"` | limits, offline, stale data, paused uploads |
+| danger | `border-danger/60 bg-danger-soft` | `border-danger/40 text-danger` | octagon | `role="alert"` | failures that block the user |
 
 Retry actions are a `secondary` `sm` button inside the banner.
 
@@ -440,6 +440,16 @@ One region, bottom center, `max-w-sm`, `rounded-lg bg-toast text-toast-fg shadow
 Each row: `rounded-lg border border-line bg-surface p-4`, grid: title (`font-medium`, wraps), status badge, meta in mono `text-xs text-muted` ("6 pages · PDF · added 2 days ago"). Row actions (Retry, Delete) are ghost `sm` buttons, visible on hover and focus-within on desktop, always visible on touch. A processing row shows a 2 px indeterminate progress line along its bottom edge (static fill under reduced motion). Status changes update the badge in place with a `--dur-base` crossfade. The row does not change height.
 
 ---
+
+### 5.11 Icons
+
+Phosphor is the only icon library (`@phosphor-icons/react`, pinned exactly). Feature components never import it directly: everything goes through `components/ui/icons.tsx`, which re-exports the small set in use under semantic names (`InfoIcon`, `ReadyIcon`, ...), so the set stays small and consistent. It imports from the `/ssr` entry so icons work in Server Components without a client boundary.
+
+- **Weights:** `regular` for general UI, `fill` for status glyphs (badges, banners). One weight per role, never mixed within a role.
+- **Sizes:** 12 px in badges, 16 px elsewhere, in `currentColor`.
+- **Accessibility:** every icon is `aria-hidden` and `focusable="false"` (set once in `icons.tsx`). The text beside it carries the meaning, and an icon-only control gets its name from `aria-label`.
+- **Shape carries meaning:** statuses and banner tones each have a different glyph, so color is never the only signal.
+- **No raw `<svg>`, no emoji, no text glyphs (`×`, `→`) standing in for icons.**
 
 ## 6. Screen inventory and states
 
@@ -567,7 +577,7 @@ Motion makes state changes legible. It never decorates.
 | Docked viewer / shelf swap | crossfade only; the grid never reflows | `--dur-base` |
 | **Highlight wipe** (signature) | the highlight background grows left to right once over the cited passage, after the page has scrolled into place and settled | `--dur-highlight` / `--ease-paper`; animate `background-size`, play once, never loop |
 | Skeleton shimmer | a soft light band moves across, `background-position` | 1.4 s linear, infinite, only while loading |
-| Processing dot, progress line | pulse (opacity) / indeterminate slide | 1.2 s ease-in-out, infinite |
+| Processing row progress line | indeterminate slide (the badge itself is static) | 1.2 s ease-in-out, infinite; static under reduced motion |
 | Streaming text | **no per-character animation.** Render text as it arrives. An optional 1 px caret blinks at the end while streaming. | caret: 1 s steps |
 
 Rules:

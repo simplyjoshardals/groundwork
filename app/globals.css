@@ -259,16 +259,6 @@
   }
 }
 
-@keyframes pulse-dot {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
-
 /* The one allowed gradient (DESIGN rule 9 exception): the shimmer band.
    Static `bg-sunken` under reduced motion. */
 @utility skeleton {
@@ -287,11 +277,6 @@
     background-image: none;
     animation: none;
   }
-}
-
-/* Processing dot. */
-@utility dot-pulse {
-  animation: pulse-dot 1.2s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

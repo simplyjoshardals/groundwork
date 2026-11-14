@@ -437,30 +437,30 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] The service-role key lives only in CI secrets. (`SUPABASE_SECRET_KEY` and `NEXT_PUBLIC_SUPABASE_URL` are repository secrets, passed as env to the one step that runs the script. Nothing is committed; the workflow has `contents: read` permissions, and the script refuses a non-local URL unless `--allow-remote` is passed, which only the workflow does. The external trigger uses a separate fine-grained GitHub token (this repository only, Actions read and write) stored in cron-job.org and not in the repo.)
     - [x] 🔎 VERIFY: what counts as "activity" for Supabase's inactivity pause, and that your keep-alive qualifies. (Supabase's docs say a free project is paused after 7 days with too little database activity and that requests through the API count. The keep-alive is a one-row `select` on `documents` through the API, daily (from the external trigger, with GitHub's schedule as backup), and the 30-minute jobs also query the database. Whether a service-role read counts as "user" activity is not stated in the docs and was not observed; confirm over a quiet week that the project does not pause.)
 
-- [ ] **5.7 ⚠ Abuse load test** · 2 h · deps: 5.2, 5.4 · **risky: protects your free quota**
+- [x] **5.7 ⚠ Abuse load test** · 2 h · deps: 5.2, 5.4 · **risky: protects your free quota**
   - **Build:** A script that creates ~50 anonymous sessions (with CAPTCHA bypassed in a test environment only) and fires questions concurrently.
   - **Done when:**
-    - [ ] The global cap trips at the configured number; provider call counts match the counters.
-    - [ ] No 5xx storm; blocked requests respond fast.
-    - [ ] You've written down the real capacity numbers and set the global caps to a safe fraction.
+    - [x] The global cap trips at the configured number; provider call counts match the counters. (As reported by the project owner, local stack, real Gemini, cap 10, 50 sessions: all 8 checks passed; the global counter moved by exactly 10; 10 embedding calls for 10 spent units and 7 LLM calls for 7 answers, counted independently by a fetch-counting preload; the cooldown phase gave 1 allowed and 2 blocked. `yarn load:abuse`; details in `docs/decisions.md`, 2026-11-13, Task 5.7.)
+    - [x] No 5xx storm; blocked requests respond fast. (As reported by the project owner: zero 5xx, other HTTP errors, stream errors or network errors across 53 requests; blocked responses stayed inside the 2-second p95 budget.)
+    - [x] You've written down the real capacity numbers and set the global caps to a safe fraction. (Numbers are in `docs/decisions.md`, 2026-11-13: the binding limit is 500 Gemini LLM requests per day, so `limit_global_question` is 250 (50%). As reported by the project owner, applied to the hosted project with `update app_config set value = 250 where key = 'limit_global_question';`. `limit_global_ingest` stays 40. The local stack keeps its default of 200.)
 
-- [ ] **5.8 Security audit pass** · 2.5 h · deps: 5.1, 4.10
+- [x] **5.8 Security audit pass** · 2.5 h · deps: 5.1, 4.10
   - **Build:** Run the full SQL suite, the API checks A1-A15 from DATA_MODEL §7.2 (script them), inspect the client bundle for secrets, review error responses, add basic security headers.
   - **Done when:**
-    - [ ] All SQL tests pass; all API checks give the expected status.
-    - [ ] The dashboard checklist in DATA_MODEL §7.3 is ticked.
-    - [ ] No endpoint reveals whether another user's document exists.
+    - [x] All SQL tests pass; all API checks give the expected status. (As reported by the project owner: `security.sql` passed on a fresh `supabase db reset`; `yarn security:api` against `yarn dev` gave 36 passed, 0 failed, 1 skipped (H6, HSTS, production only); against `yarn start` with `--prod` it gave 37 passed, 0 failed, 0 skipped. That covers A1-A15, the controls for each refusal, the header checks and the error-body checks. Details in `docs/decisions.md`, 2026-11-13, Task 5.8.)
+    - [x] The dashboard checklist in DATA_MODEL §7.3 is ticked. (As reported by the project owner, hosted project. Also checked on the production URL with `curl.exe -I -L`: CSP, HSTS, `nosniff`, `DENY`, Referrer-Policy, Permissions-Policy present and no `X-Powered-By`. The A1-A15 script is local-only by design, so the hosted API is covered by this checklist and the header check, not by a script run.)
+    - [x] No endpoint reveals whether another user's document exists. (As reported by the project owner: checks O2-O5 passed, each comparing someone else's document with a missing one on signed URL, `/api/ingest`, `DELETE /api/documents/[id]` and `/api/ask`, plus A1 for REST by id; the client bundle has 0 findings from `yarn security:bundle` (20 files); `yarn test:e2e --headed` passed 5 of 5 with A4 and A11 added to the isolation test.)
 
-- [ ] **5.9 Failure-mode drills** · 2 h · deps: 5.5, 5.2
+- [x] **5.9 Failure-mode drills** · 2 h · deps: 5.5, 5.2
   - **Build:** Walk the `ARCHITECTURE.md` §5 table: break each dependency on purpose (bad provider key, paused DB, huge file, slow request) and watch the app.
   - **Done when:**
-    - [ ] Each drill shows a clear user-facing message and a clear log line; nothing hangs.
+    - [x] Each drill shows a clear user-facing message and a clear log line; nothing hangs. (As reported by the project owner, local stack: all six drills behaved as expected (bad Gemini key on ask and on ingest, both LLMs broken, Supabase stopped, the file drills, and a hung provider), and the full suite (`yarn typecheck`, `yarn lint`, `yarn test`) passed. The drills found one real gap, an unreachable auth service being reported as a missing session, which is fixed. Details in `docs/decisions.md`, 2026-11-13, Task 5.9.)
 
-- [ ] **5.10 Structured logging** · 2 h · deps: 5.2
+- [x] **5.10 Structured logging** · 2 h · deps: 5.2
   - **Build:** One structured log line per ask and ingest: request ID, user ID (hashed or truncated), timings, provider used, outcome, refusal path. No document content, no secrets.
   - **Done when:**
-    - [ ] You can answer "why did this request fail?" from Vercel logs alone.
-    - [ ] A grep for key patterns and document text in the logs finds nothing.
+    - [x] You can answer "why did this request fail?" from Vercel logs alone. (As reported by the project owner, local stack: each request wrote one JSON line with `outcome`, the model used, timings and, on a failure, the error name and provider codes; the forced fallback (`GEMINI_LLM_MODEL=does-not-exist` with `GROQ_API_KEY` set) showed `failover: true` and the Groq model. Details in `docs/decisions.md`, 2026-11-13, Task 5.10.)
+    - [x] A grep for key patterns and document text in the logs finds nothing. (As reported by the project owner: nothing found. Also covered by unit tests that run the routes with distinctive question, passage, title and answer strings and assert none reach any console call, and that error messages stay off the structured line.)
 
 **Slice 5 done:** [ ] Global DoD · [ ] **Milestone M5 recorded** · [ ] Now (and only now) the link may go on your CV
 
@@ -484,13 +484,19 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 - [ ] The relevant checks from the `DESIGN.md` sleekness checklist (§9) pass by hand.
 - [ ] No new colors, fonts or shadows outside the tokens (`DESIGN.md` §1 and §11).
 
-- [ ] **U0 Foundations** · 2 h · deps: 5.10
+- [x] **U0 Foundations** · 2 h · deps: 5.10
   - **Build:** The design tokens and Tailwind v4 config in `globals.css` (DESIGN §1); three font families via `next/font/google`, variable and latin-subset, preloading only the serif and the sans (DESIGN §1.3); fixed page title and favicon (DESIGN §2); primitives: Button, Input, Badge, Card, Banner, Skeleton, one `icons.tsx` and `cn` (DESIGN §5); the theme script that sets `data-theme` before paint (DESIGN §3); the reduced-motion base (DESIGN §7).
   - **Verify first:** the Tailwind v4 syntax used in DESIGN §1.2, each font's availability and axes in `next/font/google` for your Next version, and what the `@tailwindcss/turbopack` entry in `package.json` is.
   - **Done when:**
-    - [ ] The correct typefaces and tab title show on the existing pages, in light and dark, with no flash of the wrong theme on load.
-    - [ ] Every primitive has been seen in all its variants and states, in light and dark.
-    - [ ] Existing tests pass and nothing uses colors, fonts or shadows outside the tokens.
+    - [x] The correct typefaces and tab title show on the existing pages, in light and dark, with no flash of the wrong theme on load.
+    - [x] Every primitive has been seen in all its variants and states, in light and dark.
+    - [x] Existing tests pass and nothing uses colors, fonts or shadows outside the tokens.
+  - **Refinements after the first review (done; confirmed working by the project owner locally):**
+    - [x] Badges: pulsing removed; soft fill, hairline edge and a distinct glyph per status; no animation (DESIGN §5.4).
+    - [x] Banners: redesigned as a framed slip with an icon chip, firmer frame as urgency rises; same props and ARIA roles (DESIGN §5.6).
+    - [x] Icons: the whole icon system is Phosphor (`@phosphor-icons/react`, pinned, `/ssr` entry) through the single `components/ui/icons.tsx`; the hand-drawn SVGs are gone and the repo was checked for other icon usage (DESIGN §5.11).
+    - [x] App icon: the generic G is replaced by the supplied Groundwork asset as `app/icon.png` and `app/apple-icon.png` (DESIGN §2).
+    - [x] Hydration warning: caused by a browser extension (ColorZilla's `cz-shortcut-listen` on `<body>`), not the app. Reproduced in a clean extension-free Chromium only by injecting the attribute; production builds log nothing. No code change, and the root `suppressHydrationWarning` for the theme script stays.
 
 - [ ] **U1 Landing, sign-in, sign-up and global pages** · 5 h · deps: U0
   - **Build:** The landing page at `/` for signed-out visitors instead of the redirect, sign-in and sign-up pages, the global 404, error and loading pages, and the waiting page for an unreachable auth service (DESIGN §6.1, §6.2, §6.7, §6.8). Move the Turnstile provider from the `(auth)` layout to the landing page and reserve the widget's height. Update the Playwright flows that assumed the redirect. The eval-numbers strip stays empty until 6.5 produces real numbers.

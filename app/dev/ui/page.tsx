@@ -11,7 +11,17 @@ import {
 } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
-import { CheckIcon, ErrorIcon, InfoIcon, WarningIcon } from "@/components/ui/icons";
+import {
+  CheckIcon,
+  ErrorIcon,
+  FailedIcon,
+  InfoIcon,
+  ProcessingIcon,
+  QueuedIcon,
+  ReadyIcon,
+  SampleIcon,
+  WarningIcon,
+} from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeSwitch } from "./theme-switch";
@@ -206,11 +216,27 @@ export default function UiPreviewPage() {
         </div>
       </Section>
 
-      <Section title="Badge" note="Queued is hollow, Processing pulses (static under reduced motion), Ready has a check.">
-        <div className="flex flex-wrap items-center gap-3">
-          {STATUSES.map((s) => (
-            <Badge key={s} status={s} />
-          ))}
+      <Section title="Badge" note="Soft fill, hairline edge in the tone, a distinct glyph per status. Queued is dashed and unfilled. Nothing animates.">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            {STATUSES.map((s) => (
+              <Badge key={s} status={s} />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface p-4">
+              <Label>on surface</Label>
+              {STATUSES.map((s) => (
+                <Badge key={s} status={s} />
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-sunken p-4">
+              <Label>on sunken</Label>
+              {STATUSES.map((s) => (
+                <Badge key={s} status={s} />
+              ))}
+            </div>
+          </div>
         </div>
       </Section>
 
@@ -277,12 +303,19 @@ export default function UiPreviewPage() {
         </div>
       </Section>
 
-      <Section title="Icons" note="aria-hidden; the shape differs by meaning, not just the color.">
+      <Section title="Icons" note="Phosphor only, through components/ui/icons.tsx. aria-hidden; the shape differs by meaning, not just the color. Regular for UI, fill for status.">
         <div className="flex flex-wrap items-center gap-6 text-ink">
           <span className="flex items-center gap-2 text-sm"><InfoIcon /> info</span>
           <span className="flex items-center gap-2 text-sm text-warn"><WarningIcon /> warning</span>
           <span className="flex items-center gap-2 text-sm text-danger"><ErrorIcon /> error</span>
           <span className="flex items-center gap-2 text-sm text-accent"><CheckIcon /> check</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-6 text-ink">
+          <span className="flex items-center gap-2 text-sm text-muted"><QueuedIcon size={16} /> queued</span>
+          <span className="flex items-center gap-2 text-sm text-accent"><ProcessingIcon size={16} /> processing</span>
+          <span className="flex items-center gap-2 text-sm text-accent"><ReadyIcon size={16} /> ready</span>
+          <span className="flex items-center gap-2 text-sm text-danger"><FailedIcon size={16} /> failed</span>
+          <span className="flex items-center gap-2 text-sm"><SampleIcon size={16} /> sample</span>
         </div>
       </Section>
     </main>
