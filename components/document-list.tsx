@@ -28,10 +28,10 @@ const BADGE_LABEL: Record<DocumentStatus, string> = {
 };
 
 const BADGE_CLASS: Record<DocumentStatus, string> = {
-  queued: "border-gray-300 text-gray-700",
-  processing: "border-blue-300 text-blue-700",
-  ready: "border-green-300 text-green-700",
-  failed: "border-red-300 text-red-700",
+  queued: "border-control text-ink",
+  processing: "border-accent text-accent",
+  ready: "border-accent text-accent",
+  failed: "border-danger text-danger",
 };
 
 /** Never throws: a missing public env var is reported like any other failed read. */
@@ -178,13 +178,13 @@ export function DocumentList({
       </h2>
 
       {documents === null && !loadFailed ? (
-        <p role="status" className="mt-2 text-gray-600">
+        <p role="status" className="mt-2 text-muted">
           Loading your documents…
         </p>
       ) : null}
 
       {documents === null && loadFailed ? (
-        <div role="alert" className="mt-2 text-red-600">
+        <div role="alert" className="mt-2 text-danger">
           <p>We could not load your documents.</p>
           <button
             type="button"
@@ -197,7 +197,7 @@ export function DocumentList({
       ) : null}
 
       {documents !== null && loadFailed ? (
-        <p role="status" className="mt-2 text-amber-700">
+        <p role="status" className="mt-2 text-warn">
           Could not refresh. Showing the last list we have.{" "}
           <button
             type="button"
@@ -210,7 +210,7 @@ export function DocumentList({
       ) : null}
 
       {documents !== null && documents.length === 0 ? (
-        <p className="mt-2 text-gray-600">
+        <p className="mt-2 text-muted">
           No documents yet. Upload a PDF, TXT or Markdown file to get started.
         </p>
       ) : null}
@@ -225,7 +225,7 @@ export function DocumentList({
             return (
               <li
                 key={doc.id}
-                className="rounded-md border border-gray-200 p-3"
+                className="rounded-md border border-line p-3"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="min-w-0 wrap-break-word font-medium">
@@ -237,25 +237,25 @@ export function DocumentList({
                     {BADGE_LABEL[doc.status]}
                   </span>
                   {doc.status === "ready" && doc.pageCount !== null ? (
-                    <span className="text-xs text-gray-600">
+                    <span className="text-xs text-muted">
                       {doc.pageCount} {doc.pageCount === 1 ? "page" : "pages"}
                     </span>
                   ) : null}
                 </div>
 
                 {doc.status === "failed" ? (
-                  <p className="mt-1 text-red-600">
+                  <p className="mt-1 text-danger">
                     {ingestFailureMessage(doc.errorReason)}
                   </p>
                 ) : null}
                 {/* A note from the last Retry explains more than the generic text. */}
                 {stuck && doc.status !== "failed" && !isRetrying && !note ? (
-                  <p className="mt-1 text-gray-700">
+                  <p className="mt-1 text-ink">
                     This is taking longer than expected. You can retry it.
                   </p>
                 ) : null}
                 {note ? (
-                  <p role="status" className="mt-1 text-gray-700">
+                  <p role="status" className="mt-1 text-ink">
                     {note}
                   </p>
                 ) : null}
@@ -266,7 +266,7 @@ export function DocumentList({
                       type="button"
                       disabled={isRetrying}
                       onClick={() => void onRetry(doc.id)}
-                      className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-60"
+                      className="rounded-md border border-control px-3 py-1 disabled:opacity-60"
                     >
                       {isRetrying ? "Retrying…" : "Retry"}
                     </button>

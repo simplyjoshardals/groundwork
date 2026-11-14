@@ -42,7 +42,7 @@ export function AnswerText({
             type="button"
             title={label}
             onClick={(event) => onOpenSource(source, event.currentTarget)}
-            className="mx-0.5 inline-block rounded bg-neutral-100 px-1 align-baseline text-xs font-medium text-neutral-700 hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-black"
+            className="mx-0.5 inline-block rounded bg-sunken px-1 align-baseline text-xs font-medium text-ink hover:bg-line focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
           >
             <span aria-hidden="true">[{source.marker}]</span>
             <span className="sr-only">{label}</span>

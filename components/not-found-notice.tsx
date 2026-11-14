@@ -17,15 +17,15 @@ export function NotFoundNotice({
   return (
     <div
       role="status"
-      className="flex flex-col gap-3 rounded-md border border-neutral-200 bg-neutral-50 p-4 text-sm"
+      className="flex flex-col gap-3 rounded-md border border-line bg-sunken p-4 text-sm"
     >
       <p className="font-medium">{message}</p>
-      <p className="text-neutral-600">
+      <p className="text-muted">
         Try rephrasing, or ask about something the documents cover.
       </p>
       {closest.length > 0 ? (
         <details>
-          <summary className="cursor-pointer font-medium text-neutral-700">
+          <summary className="cursor-pointer font-medium text-ink">
             Closest passages ({closest.length})
           </summary>
           <div className="mt-3">

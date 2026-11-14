@@ -6,7 +6,7 @@ export function ReloadButton() {
     <button
       type="button"
       onClick={() => window.location.reload()}
-      className="w-fit rounded-md border border-gray-300 px-3 py-1 text-sm"
+      className="w-fit rounded-md border border-control px-3 py-1 text-sm"
     >
       Try again
     </button>

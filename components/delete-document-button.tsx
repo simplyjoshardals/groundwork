@@ -72,12 +72,12 @@ export function DeleteDocumentButton({
             setPhase("confirming");
           }}
           aria-label={`Delete ${documentTitle}`}
-          className="rounded-md border border-red-300 px-2 py-1 text-sm text-red-700 hover:bg-red-50"
+          className="rounded-md border border-danger px-2 py-1 text-sm text-danger hover:bg-danger-soft"
         >
           Delete
         </button>
         {error ? (
-          <p role="alert" className="text-xs text-red-700">
+          <p role="alert" className="text-xs text-danger">
             {error}
           </p>
         ) : null}
@@ -96,7 +96,7 @@ export function DeleteDocumentButton({
         type="button"
         onClick={confirmDelete}
         disabled={phase === "deleting"}
-        className="rounded-md bg-red-600 px-2 py-1 text-white hover:bg-red-700 disabled:opacity-60"
+        className="rounded-md bg-danger px-2 py-1 text-danger-fg hover:bg-danger disabled:opacity-60"
       >
         {phase === "deleting" ? "Deleting…" : "Yes, delete"}
       </button>
@@ -104,7 +104,7 @@ export function DeleteDocumentButton({
         type="button"
         onClick={() => setPhase("idle")}
         disabled={phase === "deleting"}
-        className="rounded-md border px-2 py-1 hover:bg-gray-50 disabled:opacity-60"
+        className="rounded-md border px-2 py-1 hover:bg-sunken disabled:opacity-60"
       >
         Cancel
       </button>

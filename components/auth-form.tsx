@@ -171,7 +171,7 @@ export function AuthForm({
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
       {notice ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {notice}
         </p>
       ) : null}
@@ -190,10 +190,10 @@ export function AuthForm({
             aria-describedby={
               fieldErrors.email ? `${mode}-email-error` : undefined
             }
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="rounded-md border border-control px-3 py-2 text-sm"
           />
           {fieldErrors.email ? (
-            <p id={`${mode}-email-error`} className="text-sm text-red-600">
+            <p id={`${mode}-email-error`} className="text-sm text-danger">
               {fieldErrors.email}
             </p>
           ) : null}
@@ -216,15 +216,15 @@ export function AuthForm({
                   ? `${mode}-password-hint`
                   : undefined
             }
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="rounded-md border border-control px-3 py-2 text-sm"
           />
           {mode === "sign-up" ? (
-            <p id={`${mode}-password-hint`} className="text-xs text-gray-600">
+            <p id={`${mode}-password-hint`} className="text-xs text-muted">
               At least {MIN_PASSWORD_LENGTH} characters.
             </p>
           ) : null}
           {fieldErrors.password ? (
-            <p id={`${mode}-password-error`} className="text-sm text-red-600">
+            <p id={`${mode}-password-error`} className="text-sm text-danger">
               {fieldErrors.password}
             </p>
           ) : null}
@@ -232,13 +232,13 @@ export function AuthForm({
         <button
           type="submit"
           disabled={captcha.status !== "verified"}
-          className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg disabled:opacity-60"
         >
           {pending ? copy.pending : copy.submit}
         </button>
       </fieldset>
       {formError ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {formError}
         </p>
       ) : null}

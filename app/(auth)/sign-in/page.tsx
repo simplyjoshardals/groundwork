@@ -44,7 +44,7 @@ export default async function SignInPage({
           Create one
         </Link>
       </p>
-      <hr className="border-gray-200" />
+      <hr className="border-line" />
       {session.status === "signed_in" ? (
         <Link href={next} className="text-sm underline">
           Continue with the demo session

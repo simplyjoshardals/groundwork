@@ -17,7 +17,7 @@ import type { HighlightStatus } from "@/lib/pdf-highlight/plan";
 export type { TextPassage } from "@/lib/text-viewer/pages";
 
 const BUTTON_CLASS =
-  "rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50";
+  "rounded-md border border-control px-3 py-1.5 text-sm font-medium disabled:opacity-50";
 
 export interface TextViewerProps {
   storagePath: string;
@@ -96,7 +96,7 @@ export function TextViewer({
 
   if (state.state === "loading") {
     return (
-      <p role="status" className="text-sm text-neutral-600">
+      <p role="status" className="text-sm text-muted">
         Loading the document…
       </p>
     );
@@ -104,7 +104,7 @@ export function TextViewer({
   if (state.state === "error") {
     return (
       <div role="alert" className="flex flex-col items-start gap-2 text-sm">
-        <p className="text-red-600">{describeTextFileFailure(state.reason)}</p>
+        <p className="text-danger">{describeTextFileFailure(state.reason)}</p>
         {isRetryableTextFailure(state.reason) ? (
           <button type="button" onClick={retry} className={BUTTON_CLASS}>
             Retry
@@ -115,7 +115,7 @@ export function TextViewer({
   }
   if (state.pages.length === 0) {
     return (
-      <p role="status" className="text-sm text-neutral-600">
+      <p role="status" className="text-sm text-muted">
         This document has no text to show.
       </p>
     );
@@ -135,7 +135,7 @@ export function TextViewer({
         >
           Previous
         </button>
-        <p aria-live="polite" className="text-neutral-700">
+        <p aria-live="polite" className="text-ink">
           Page {shownPage} of {pageCount}
         </p>
         <button
@@ -153,14 +153,14 @@ export function TextViewer({
         tabIndex={0}
         role="region"
         aria-label={`Document text, page ${shownPage}`}
-        className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-words rounded-md border border-neutral-200 p-3 text-sm text-neutral-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+        className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-words rounded-md border border-line p-3 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
         {plan !== null && plan.status === "highlight" ? (
           <>
             {plan.before}
             <mark
               ref={markRef}
-              className="rounded-sm bg-yellow-200 text-neutral-900"
+              className="rounded-sm bg-highlight-soft text-ink"
             >
               {plan.match}
             </mark>

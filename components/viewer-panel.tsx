@@ -22,7 +22,7 @@ import type { ViewerLocation } from "@/lib/viewer-url/location";
 const PDF_MIME_TYPE = "application/pdf";
 
 const BUTTON_CLASS =
-  "rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium";
+  "rounded-md border border-control px-3 py-1.5 text-sm font-medium";
 
 /** Looks the document up with the browser (user) session; never throws. */
 async function lookUpDocument(
@@ -172,26 +172,26 @@ export function ViewerPanel({
   let body: ReactNode;
   if (location.status === "invalid") {
     body = (
-      <p role="alert" className="text-sm text-red-600">
+      <p role="alert" className="text-sm text-danger">
         This citation link is not valid.
       </p>
     );
   } else if (result === null) {
     body = (
-      <p role="status" className="text-sm text-neutral-600">
+      <p role="status" className="text-sm text-muted">
         Opening the document…
       </p>
     );
   } else if (!result.ok && result.reason === "not_found") {
     body = (
-      <p role="alert" className="text-sm text-red-600">
+      <p role="alert" className="text-sm text-danger">
         {describeSignedUrlFailure("not_found")}
       </p>
     );
   } else if (!result.ok) {
     body = (
       <div role="alert" className="flex flex-col items-start gap-2 text-sm">
-        <p className="text-red-600">{describeSignedUrlFailure("failed")}</p>
+        <p className="text-danger">{describeSignedUrlFailure("failed")}</p>
         <button type="button" onClick={retry} className={BUTTON_CLASS}>
           Retry
         </button>
@@ -210,7 +210,7 @@ export function ViewerPanel({
     );
   } else if (!isPdf) {
     body = (
-      <p role="status" className="text-sm text-neutral-600">
+      <p role="status" className="text-sm text-muted">
         Preview is not available for this file type. The document&apos;s title
         is shown above.
       </p>
@@ -234,7 +234,7 @@ export function ViewerPanel({
       tabIndex={-1}
       aria-label="Document viewer"
       onKeyDown={onKeyDown}
-      className="fixed inset-x-0 bottom-0 top-12 z-20 flex flex-col gap-3 overflow-y-auto rounded-t-xl border border-neutral-200 bg-white p-4 shadow-xl outline-none lg:sticky lg:top-6 lg:z-auto lg:max-h-[calc(100vh-3rem)] lg:rounded-xl lg:shadow-none"
+      className="fixed inset-x-0 bottom-0 top-12 z-20 flex flex-col gap-3 overflow-y-auto rounded-t-xl border border-line bg-surface p-4 shadow-sheet outline-none lg:sticky lg:top-6 lg:z-auto lg:max-h-[calc(100vh-3rem)] lg:rounded-xl lg:shadow-none"
     >
       <div className="flex items-start justify-between gap-3">
         <h2 className="min-w-0 wrap-break-word text-sm font-semibold">
@@ -251,7 +251,7 @@ export function ViewerPanel({
         >
           <p
             className={
-              note.tone === "error" ? "text-red-600" : "text-neutral-600"
+              note.tone === "error" ? "text-danger" : "text-muted"
             }
           >
             {note.text}

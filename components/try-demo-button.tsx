@@ -70,12 +70,12 @@ export function TryDemoButton({ next = "/" }: { next?: string }) {
         type="button"
         onClick={startDemo}
         disabled={pending || captcha.status !== "verified"}
-        className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg disabled:opacity-60"
       >
         {pending ? "Starting demo…" : "Try demo"}
       </button>
       {error ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       ) : null}

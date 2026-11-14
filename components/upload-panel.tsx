@@ -159,14 +159,14 @@ export function UploadPanel({
         disabled={busy || atCap}
         onChange={onChange}
         aria-describedby={atCap ? `${capId} ${hintId}` : hintId}
-        className="block w-full text-sm file:mr-3 file:rounded-md file:border file:border-gray-300 file:bg-transparent file:px-3 file:py-1 disabled:opacity-60"
+        className="block w-full text-sm file:mr-3 file:rounded-md file:border file:border-control file:bg-transparent file:px-3 file:py-1 disabled:opacity-60"
       />
-      <p id={hintId} className="text-gray-600">
+      <p id={hintId} className="text-muted">
         PDF, TXT or Markdown, up to {maxMb} MB. You can keep up to{" "}
         {MAX_DOCS_PER_USER_HINT} documents.
       </p>
       {atCap ? (
-        <p id={capId} role="status" className="text-amber-700">
+        <p id={capId} role="status" className="text-warn">
           {DOCUMENT_LIMIT_MESSAGE}
         </p>
       ) : null}
@@ -187,31 +187,31 @@ export function UploadPanel({
         </p>
       ) : null}
       {state.status === "ingest_failed" ? (
-        <p role="alert" className="text-red-600">
+        <p role="alert" className="text-danger">
           Uploaded {state.fileName}, but it could not be processed.{" "}
           {state.message}
         </p>
       ) : null}
       {state.status === "unconfirmed" ? (
-        <p role="alert" className="text-red-600">
+        <p role="alert" className="text-danger">
           Uploaded {state.fileName}, but we could not confirm that processing
           finished. It may still complete. Check its status in the list below.
         </p>
       ) : null}
       {state.status === "ingest_limited" ? (
-        <p role="status" className="text-amber-700">
+        <p role="status" className="text-warn">
           {state.message}
         </p>
       ) : null}
       {state.status === "paused" ? (
-        <p role="status" className="text-amber-700">
+        <p role="status" className="text-warn">
           {state.message}
         </p>
       ) : null}
       {/* At the cap the notice above already says it: no second copy. */}
       {state.status === "error" &&
       !(atCap && state.reason === "limit_reached") ? (
-        <p role="alert" className="text-red-600">
+        <p role="alert" className="text-danger">
           {state.message}
         </p>
       ) : null}

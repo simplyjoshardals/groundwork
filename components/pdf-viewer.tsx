@@ -49,7 +49,7 @@ const DOCUMENT_OPTIONS = { disableRange: true, disableStream: true };
 const MAX_PAGE_WIDTH = 900;
 
 const BUTTON_CLASS =
-  "rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium disabled:opacity-60";
+  "rounded-md border border-control px-3 py-1.5 text-sm font-medium disabled:opacity-60";
 
 export interface PdfViewerProps {
   /** Path in the private `documents` bucket, for example `samples/x.pdf`. */
@@ -293,7 +293,7 @@ export function PdfViewer({
       aria-label="PDF viewer"
       tabIndex={0}
       onKeyDown={onKeyDown}
-      className="flex flex-col gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+      className="flex flex-col gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
     >
       <div className="flex items-center gap-3">
         <button
@@ -307,7 +307,7 @@ export function PdfViewer({
         >
           Previous
         </button>
-        <p aria-live="polite" className="text-sm text-neutral-600">
+        <p aria-live="polite" className="text-sm text-muted">
           {numPages === null
             ? "Page " + shownPage
             : `Page ${shownPage} of ${numPages}`}
@@ -326,7 +326,7 @@ export function PdfViewer({
       <div ref={pageAreaRef} className="overflow-auto">
         {errorMessage !== null ? (
           <div role="alert" className="flex flex-col items-start gap-2 text-sm">
-            <p className="text-red-600">{errorMessage}</p>
+            <p className="text-danger">{errorMessage}</p>
             {retryable ? (
               <button type="button" onClick={retry} className={BUTTON_CLASS}>
                 Retry
@@ -334,7 +334,7 @@ export function PdfViewer({
             ) : null}
           </div>
         ) : currentUrl === null ? (
-          <p role="status" className="text-sm text-neutral-600">
+          <p role="status" className="text-sm text-muted">
             Loading PDF…
           </p>
         ) : currentUrl.ok ? (
@@ -343,7 +343,7 @@ export function PdfViewer({
             options={DOCUMENT_OPTIONS}
             suspense={false}
             loading={
-              <p role="status" className="text-sm text-neutral-600">
+              <p role="status" className="text-sm text-muted">
                 Loading PDF…
               </p>
             }
@@ -375,7 +375,7 @@ export function PdfViewer({
               }}
               onRenderTextLayerSuccess={onTextLayerRendered}
               loading={
-                <p role="status" className="text-sm text-neutral-600">
+                <p role="status" className="text-sm text-muted">
                   Loading page…
                 </p>
               }
@@ -393,7 +393,7 @@ export function PdfViewer({
       </div>
 
       {ready ? (
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-muted">
           Focus the viewer and use the left and right arrow keys to change page.
         </p>
       ) : null}

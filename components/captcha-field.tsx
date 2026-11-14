@@ -136,8 +136,8 @@ export function CaptchaField({
           <p
             className={
               state.status === "failed"
-                ? "text-sm text-red-600"
-                : "text-sm text-gray-600"
+                ? "text-sm text-danger"
+                : "text-sm text-muted"
             }
           >
             {message}

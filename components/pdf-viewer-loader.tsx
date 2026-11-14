@@ -14,7 +14,7 @@ export const PdfViewer = dynamic(
   {
     ssr: false,
     loading: () => (
-      <p role="status" className="text-sm text-neutral-600">
+      <p role="status" className="text-sm text-muted">
         Loading viewer…
       </p>
     ),

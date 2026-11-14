@@ -1,6 +1,6 @@
 # Document Q&A: Build Plan
 
-Companion to `REQUIREMENTS.md`, `ARCHITECTURE.md`, and `DATA_MODEL.md`. Tick boxes as you go. Section references like "DATA_MODEL §2.3" point to those files so nothing is duplicated here.
+Companion to `REQUIREMENTS.md`, `ARCHITECTURE.md`, `DATA_MODEL.md`, and `DESIGN.md`. Tick boxes as you go. Section references like "DATA_MODEL §2.3" point to those files so nothing is duplicated here.
 
 **Your profile, as I'm planning for it:** comfortable with Next.js, TypeScript, Tailwind, and Supabase basics. Likely new or shaky: pgvector and RAG retrieval, SSE streaming through Vercel, PDF.js text layers, deep RLS and column-level grants, storage policies, anonymous auth, and Playwright. The plan puts the unfamiliar things **first** and the familiar CRUD and UI work **later**.
 
@@ -24,6 +24,7 @@ Companion to `REQUIREMENTS.md`, `ARCHITECTURE.md`, and `DATA_MODEL.md`. Tick box
 - [ ] **Slice 3:** Verify a citation: PDF viewer with highlight (~17 h)
 - [ ] **Slice 4:** Your own documents: sign-up, upload, ingest, delete (~26 h)
 - [ ] **Slice 5:** Public-ready: limits, CAPTCHA, fallback, hardening (~24 h)
+- [ ] **UI slices U0 to U6:** Frontend redesign: tokens, landing, workspace, ask, viewer, documents, polish (~41 h, rough)
 - [ ] **Slice 6:** Ship: accessibility, polish, README, demo (~23 h)
 
 ---
@@ -38,6 +39,7 @@ Companion to `REQUIREMENTS.md`, `ARCHITECTURE.md`, and `DATA_MODEL.md`. Tick box
 | **3** | Click a citation and see the PDF open at the right page with the passage highlighted (or the exact passage shown beside the page if highlighting can't be trusted).       | Viewer UI, storage policies, signed URLs, chunk fetch                                                |
 | **4** | Sign up, upload a PDF/txt/md, watch it process, ask questions about it, and delete it. Errors like scanned PDFs are explained clearly.                                    | Auth UI, upload, ingest API, status polling, delete + outbox, Playwright E2E                         |
 | **5** | The app survives strangers: per-user and global limits, CAPTCHA on demo, provider failover, cleanup jobs, and a tested security boundary.                                 | Usage functions, CAPTCHA, failover, cron, load and security tests                                    |
+| **U0-U6** | See a designed, consistent, accessible UI: landing page, workspace, streamed answers with citations, the viewer, and the document shelf, in light and dark. | Design tokens, components, pages and layout; one visible-documents query |
 | **6** | A recruiter has a polished experience, and you have a README with eval numbers, a diagram, and a demo video.                                                              | Accessibility, UX polish, docs                                                                       |
 
 ---
@@ -435,32 +437,116 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] The service-role key lives only in CI secrets. (`SUPABASE_SECRET_KEY` and `NEXT_PUBLIC_SUPABASE_URL` are repository secrets, passed as env to the one step that runs the script. Nothing is committed; the workflow has `contents: read` permissions, and the script refuses a non-local URL unless `--allow-remote` is passed, which only the workflow does. The external trigger uses a separate fine-grained GitHub token (this repository only, Actions read and write) stored in cron-job.org and not in the repo.)
     - [x] 🔎 VERIFY: what counts as "activity" for Supabase's inactivity pause, and that your keep-alive qualifies. (Supabase's docs say a free project is paused after 7 days with too little database activity and that requests through the API count. The keep-alive is a one-row `select` on `documents` through the API, daily (from the external trigger, with GitHub's schedule as backup), and the 30-minute jobs also query the database. Whether a service-role read counts as "user" activity is not stated in the docs and was not observed; confirm over a quiet week that the project does not pause.)
 
-- [x] **5.7 ⚠ Abuse load test** · 2 h · deps: 5.2, 5.4 · **risky: protects your free quota**
+- [ ] **5.7 ⚠ Abuse load test** · 2 h · deps: 5.2, 5.4 · **risky: protects your free quota**
   - **Build:** A script that creates ~50 anonymous sessions (with CAPTCHA bypassed in a test environment only) and fires questions concurrently.
   - **Done when:**
-    - [x] The global cap trips at the configured number; provider call counts match the counters. (As reported by the project owner, local stack, real Gemini, cap 10, 50 sessions: all 8 checks passed; the global counter moved by exactly 10; 10 embedding calls for 10 spent units and 7 LLM calls for 7 answers, counted independently by a fetch-counting preload; the cooldown phase gave 1 allowed and 2 blocked. `yarn load:abuse`; details in `docs/decisions.md`, 2026-11-13, Task 5.7.)
-    - [x] No 5xx storm; blocked requests respond fast. (As reported by the project owner: zero 5xx, other HTTP errors, stream errors or network errors across 53 requests; blocked responses stayed inside the 2-second p95 budget.)
-    - [x] You've written down the real capacity numbers and set the global caps to a safe fraction. (Numbers are in `docs/decisions.md`, 2026-11-13: the binding limit is 500 Gemini LLM requests per day, so `limit_global_question` is 250 (50%). As reported by the project owner, applied to the hosted project with `update app_config set value = 250 where key = 'limit_global_question';`. `limit_global_ingest` stays 40. The local stack keeps its default of 200.)
+    - [ ] The global cap trips at the configured number; provider call counts match the counters.
+    - [ ] No 5xx storm; blocked requests respond fast.
+    - [ ] You've written down the real capacity numbers and set the global caps to a safe fraction.
 
-- [x] **5.8 Security audit pass** · 2.5 h · deps: 5.1, 4.10
+- [ ] **5.8 Security audit pass** · 2.5 h · deps: 5.1, 4.10
   - **Build:** Run the full SQL suite, the API checks A1-A15 from DATA_MODEL §7.2 (script them), inspect the client bundle for secrets, review error responses, add basic security headers.
   - **Done when:**
-    - [x] All SQL tests pass; all API checks give the expected status. (As reported by the project owner: `security.sql` passed on a fresh `supabase db reset`; `yarn security:api` against `yarn dev` gave 36 passed, 0 failed, 1 skipped (H6, HSTS, production only); against `yarn start` with `--prod` it gave 37 passed, 0 failed, 0 skipped. That covers A1-A15, the controls for each refusal, the header checks and the error-body checks. Details in `docs/decisions.md`, 2026-11-13, Task 5.8.)
-    - [x] The dashboard checklist in DATA_MODEL §7.3 is ticked. (As reported by the project owner, hosted project. Also checked on the production URL with `curl.exe -I -L`: CSP, HSTS, `nosniff`, `DENY`, Referrer-Policy, Permissions-Policy present and no `X-Powered-By`. The A1-A15 script is local-only by design, so the hosted API is covered by this checklist and the header check, not by a script run.)
-    - [x] No endpoint reveals whether another user's document exists. (As reported by the project owner: checks O2-O5 passed, each comparing someone else's document with a missing one on signed URL, `/api/ingest`, `DELETE /api/documents/[id]` and `/api/ask`, plus A1 for REST by id; the client bundle has 0 findings from `yarn security:bundle` (20 files); `yarn test:e2e --headed` passed 5 of 5 with A4 and A11 added to the isolation test.)
+    - [ ] All SQL tests pass; all API checks give the expected status.
+    - [ ] The dashboard checklist in DATA_MODEL §7.3 is ticked.
+    - [ ] No endpoint reveals whether another user's document exists.
 
-- [x] **5.9 Failure-mode drills** · 2 h · deps: 5.5, 5.2
+- [ ] **5.9 Failure-mode drills** · 2 h · deps: 5.5, 5.2
   - **Build:** Walk the `ARCHITECTURE.md` §5 table: break each dependency on purpose (bad provider key, paused DB, huge file, slow request) and watch the app.
   - **Done when:**
-    - [x] Each drill shows a clear user-facing message and a clear log line; nothing hangs. (As reported by the project owner, local stack: all six drills behaved as expected (bad Gemini key on ask and on ingest, both LLMs broken, Supabase stopped, the file drills, and a hung provider), and the full suite (`yarn typecheck`, `yarn lint`, `yarn test`) passed. The drills found one real gap, an unreachable auth service being reported as a missing session, which is fixed. Details in `docs/decisions.md`, 2026-11-13, Task 5.9.)
+    - [ ] Each drill shows a clear user-facing message and a clear log line; nothing hangs.
 
-- [x] **5.10 Structured logging** · 2 h · deps: 5.2
+- [ ] **5.10 Structured logging** · 2 h · deps: 5.2
   - **Build:** One structured log line per ask and ingest: request ID, user ID (hashed or truncated), timings, provider used, outcome, refusal path. No document content, no secrets.
   - **Done when:**
-    - [x] You can answer "why did this request fail?" from Vercel logs alone. (As reported by the project owner, local stack: each request wrote one JSON line with `outcome`, the model used, timings and, on a failure, the error name and provider codes; the forced fallback (`GEMINI_LLM_MODEL=does-not-exist` with `GROQ_API_KEY` set) showed `failover: true` and the Groq model. Details in `docs/decisions.md`, 2026-11-13, Task 5.10.)
-    - [x] A grep for key patterns and document text in the logs finds nothing. (As reported by the project owner: nothing found. Also covered by unit tests that run the routes with distinctive question, passage, title and answer strings and assert none reach any console call, and that error messages stay off the structured line.)
+    - [ ] You can answer "why did this request fail?" from Vercel logs alone.
+    - [ ] A grep for key patterns and document text in the logs finds nothing.
 
 **Slice 5 done:** [ ] Global DoD · [ ] **Milestone M5 recorded** · [ ] Now (and only now) the link may go on your CV
+
+---
+
+### UI Slices (U0 to U6): Frontend Redesign (~41 h, rough)
+
+**Goal:** Apply the design in `DESIGN.md` to the working app, one slice at a time, in the order a first-time visitor meets it. The backend is not redesigned; the only backend-adjacent change is a visible-documents query in U2. Estimates are rough placeholders: revisit them after U0.
+
+**How to run each slice:**
+
+- [ ] One new chat per slice, using the UI slice prompt (Prompt 7) with `DESIGN.md` attached and a lean Repomix of just the files that slice touches.
+- [ ] After the build, paste screenshots (light, dark, 375 px) back for the critique round. Two or three rounds is normal.
+- [ ] If a slice adds a missing pattern to `DESIGN.md`, save the updated file before the next slice.
+- [ ] One branch per slice (`slice-u0-foundations`), merged when it passes the Global DoD (section 4) **and** the UI DoD below.
+
+**UI DoD (in addition to the Global DoD):**
+
+- [ ] Existing Playwright tests pass (update any that assumed old behavior).
+- [ ] Screenshots saved in light, dark and 375 px.
+- [ ] The relevant checks from the `DESIGN.md` sleekness checklist (§9) pass by hand.
+- [ ] No new colors, fonts or shadows outside the tokens (`DESIGN.md` §1 and §11).
+
+- [ ] **U0 Foundations** · 2 h · deps: 5.10
+  - **Build:** The design tokens and Tailwind v4 config in `globals.css` (DESIGN §1); three font families via `next/font/google`, variable and latin-subset, preloading only the serif and the sans (DESIGN §1.3); fixed page title and favicon (DESIGN §2); primitives: Button, Input, Badge, Card, Banner, Skeleton, one `icons.tsx` and `cn` (DESIGN §5); the theme script that sets `data-theme` before paint (DESIGN §3); the reduced-motion base (DESIGN §7).
+  - **Verify first:** the Tailwind v4 syntax used in DESIGN §1.2, each font's availability and axes in `next/font/google` for your Next version, and what the `@tailwindcss/turbopack` entry in `package.json` is.
+  - **Done when:**
+    - [ ] The correct typefaces and tab title show on the existing pages, in light and dark, with no flash of the wrong theme on load.
+    - [ ] Every primitive has been seen in all its variants and states, in light and dark.
+    - [ ] Existing tests pass and nothing uses colors, fonts or shadows outside the tokens.
+
+- [ ] **U1 Landing, sign-in, sign-up and global pages** · 5 h · deps: U0
+  - **Build:** The landing page at `/` for signed-out visitors instead of the redirect, sign-in and sign-up pages, the global 404, error and loading pages, and the waiting page for an unreachable auth service (DESIGN §6.1, §6.2, §6.7, §6.8). Move the Turnstile provider from the `(auth)` layout to the landing page and reserve the widget's height. Update the Playwright flows that assumed the redirect. The eval-numbers strip stays empty until 6.5 produces real numbers.
+  - **Done when:**
+    - [ ] A signed-out visitor sees the landing page at `/`, and Try demo still works end to end with the CAPTCHA.
+    - [ ] Shared `?doc=...` links still work.
+    - [ ] The page does not shift when the Turnstile widget loads.
+    - [ ] The 404, error, loading and waiting pages are each reached by hand and look designed.
+    - [ ] The updated Playwright tests pass on a preview deployment.
+
+- [ ] **U2 App shell and workspace layout** · 5 h · deps: U1
+  - **Build:** The header with question counter, session chip and theme toggle; the two-column workspace where the shelf and the viewer swap in the right column (DESIGN §4, §6.3); the initial documents fetch on the server through the RLS-scoped client; the demo sample shelf. First verify that your RLS select policy exposes `is_public` rows to anonymous users, then add a visible-documents query (`listOwnDocuments` is own-only today).
+  - **Done when:**
+    - [ ] A demo visitor sees the sample documents on first paint, with no shelf loading flash.
+    - [ ] An anonymous visitor sees only the public samples; a signed-in user never sees another user's documents.
+    - [ ] If the RLS policy had to change, the whole SQL suite passes and a new test proves anonymous users see only `is_public` rows.
+    - [ ] The counter, session chip and theme toggle work, and the theme persists across reloads.
+    - [ ] The layout holds at 375 px, 768 px and desktop, and the right column swaps between the shelf and the existing viewer.
+
+- [ ] **U3 Ask experience** · 8 h · deps: U2
+  - **Build:** The composer, example question chips, the streaming answer split into paragraphs, skeletons, footnote-style sources, citation markers that cross-highlight their source card, the refusal card, and the error, limit and offline banners (DESIGN §5.5, §5.6, §6.4). Prefetch the document and chunk (small in-memory cache, about 60 s) when a citation marker is hovered or focused. No popover: the marker and its source card highlight each other instead.
+  - **Done when:**
+    - [ ] The layout does not shift while a long answer streams.
+    - [ ] The `aria-live` region announces the answer sensibly, not every token (check the accessibility tree or a screen reader).
+    - [ ] Each state is reachable and designed: empty, streaming, refusal, error, limit-reached, offline.
+    - [ ] A citation marker can be focused and activated by keyboard, and highlights its source card.
+    - [ ] A first-time visitor gets to a cited answer in two clicks (the 6.3 criterion).
+
+- [ ] **U4 Viewer** · 10 h · deps: U3
+  - **Build:** The docked viewer panel on wide screens and a native `<dialog>` sheet below `xl` (DESIGN §4.3, §6.6); the paper skeleton; the highlight wipe; the fallback passage design; a dark-mode treatment for the PDF page without inverting it; focus returning to the citation marker on close. Style the PDF.js text layer and `mark[data-hl]` with the tokens.
+  - **Done when:**
+    - [ ] Both modes work with the keyboard alone: open, Tab order, Escape closes, focus returns to the marker, and the background does not scroll while the sheet is open.
+    - [ ] The highlight and the fallback both look right in light and dark, and the PDF page stays readable in dark mode.
+    - [ ] The viewer works at 375 px.
+    - [ ] The existing viewer tests and the citation Playwright flow pass.
+
+- [ ] **U5 Documents** · 6 h · deps: U2
+  - **Build:** The dropzone, document rows, status badges, delete dialog, retry notes, toasts, the privacy note next to the upload control, and the cap-reached and paused states (DESIGN §5.7, §5.8, §5.10, §6.5).
+  - **Done when:**
+    - [ ] Every document status the app has shows its badge and the right note, including the scanned-PDF error.
+    - [ ] Delete works by keyboard alone: dialog, cancel, confirm, toast.
+    - [ ] The privacy note is visible near the upload control (the 6.3 criterion).
+    - [ ] The cap-reached and paused states are reached by hand and look designed.
+    - [ ] The upload, delete and isolation Playwright tests still pass.
+
+- [ ] **U6 Polish and proof** · 5 h · deps: U3, U4, U5
+  - **Build:** A dark-mode pass on every screen; the motion pass (DESIGN §7); the responsive pass at 375 px, 768 px and desktop; the accessibility pass with axe (DESIGN §10); the bundle check against the targets (about 100 kB gzipped first-load JS on the landing page, about 170 kB on the app route, PDF.js chunk lazy; these are targets, not measurements; add `@next/bundle-analyzer` as a dev dependency if `next build` doesn't print per-route sizes); the OG image; screenshots and short clips for the README and the demo video.
+  - **Done when:**
+    - [ ] Every screen has been checked in light and dark, at 375 px and on desktop.
+    - [ ] The whole `DESIGN.md` sleekness checklist (§9) is ticked or consciously deferred.
+    - [ ] axe reports no serious or critical violations on the main screens, and demo, ask, citation works with the keyboard alone.
+    - [ ] Bundle sizes are measured and recorded in `docs/decisions.md`, with a note if a target was missed.
+    - [ ] The 5.8 API checks and the client-bundle secret inspection are re-run with nothing regressed (the Turnstile provider moved).
+    - [ ] Screenshots, a GIF and clips are saved for 6.6 and 6.7.
+
+**UI slices done:** [ ] UI DoD ticked for each slice · [ ] Clips saved for the README
 
 ---
 
@@ -468,35 +554,42 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 
 **Goal:** Turn a working project into one a stranger understands in five minutes.
 
+**Note:** the UI slices (U0 to U6) run before this slice and absorb most of 6.1, 6.3 and 6.4 and part of 6.8. Here, confirm the acceptance criteria instead of redoing the work, and revisit those estimates.
+
 - [ ] **6.1 Accessibility pass** · 3.5 h · deps: Slice 4
   - **Build:** Keyboard-only walkthrough; `aria-live="polite"` on the streaming answer; descriptive labels on citation chips and viewer controls; focus management when the viewer opens and closes; contrast fixes.
   - **Done when:**
     - [ ] You can complete demo → ask → citation using only the keyboard.
     - [ ] axe reports no serious or critical violations on the main screens.
+  - **Note:** mostly covered by U6 (axe, keyboard walkthrough) and the accessibility rules in each UI slice. Confirm here.
 
 - [ ] **6.2 Single-document filter** · 2 h · deps: 4.6
   - **Build:** A dropdown to scope a question to one document (passes `p_document_id` to `match_chunks`).
   - **Done when:**
     - [ ] A question scoped to document A never returns passages from B.
     - [ ] Scoping to another user's document ID returns nothing.
+  - **Note:** not absorbed by the UI slices. The control goes in the composer built in U3, so do it after U3.
 
 - [ ] **6.3 Landing page and demo UX** · 2.5 h · deps: Slice 3
   - **Build:** A clear pitch, "Try demo" button, 3-4 clickable example questions based on the samples (including one deliberately unanswerable), and a visible "what this app guarantees" blurb.
   - **Done when:**
     - [ ] A first-time visitor gets to a cited answer in two clicks.
     - [ ] The privacy note (don't upload sensitive documents; text goes to AI providers) is visible near the upload control.
+  - **Note:** built in U1 to U3, with the privacy note in U5. Confirm the criteria below.
 
 - [ ] **6.4 Responsive check** · 2 h · deps: 6.3
   - **Build:** Review on a phone-sized viewport; fix layout, viewer drawer, and touch targets.
   - **Done when:**
     - [ ] Demo flow works on a real phone.
     - [ ] No horizontal scrolling on the main screens.
+  - **Note:** done in U6. Confirm on a real phone.
 
 - [ ] **6.5 Final eval run** · 2 h · deps: 5.5
   - **Build:** Run the eval against the final configuration; save results.
   - **Done when:**
     - [ ] The results table (and the previous baseline for comparison) is committed to `eval/results/`.
     - [ ] You noted what you changed between baseline and final (chunk size, threshold, prompt), since "I improved retrieval from X% to Y% by doing Z" is a strong interview line.
+  - **Note:** once the numbers exist, fill in the eval-numbers strip on the landing page (DESIGN §6.1).
 
 - [ ] **6.6 README** · 3.5 h · deps: 6.5
   - **Build:** Pitch, GIF, architecture diagram (from `ARCHITECTURE.md`), security model (RLS, column grants, server-only functions), eval results with method and limitations, limits and why they exist, how to run locally, tradeoffs and known issues, what you'd do next.
@@ -513,6 +606,7 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
   - **Build:** Add the demo → ask → citation flow and an axe check to the existing Playwright suite.
   - **Done when:**
     - [ ] All Playwright tests pass locally and against a preview deployment.
+  - **Note:** the axe check lands in U6. Add the demo, ask, citation flow here if it isn't in the suite yet.
 
 - [ ] **6.9 Repo hygiene** · 1.5 h · deps: none
   - **Build:** Move or delete `/spikes` (keep the findings in `docs/`), add a LICENSE, confirm `.env.example`, run `npm audit`, remove dead code and TODOs, add a short "Future work" list (multi-turn, hybrid search, reranking, OCR).
@@ -538,6 +632,7 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 4. **The hard UI piece (Slice 3)** before CRUD, so a surprise there doesn't land at the end.
 5. **Familiar work in the middle (Slice 4)**, where progress is predictable.
 6. **Hardening before exposure (Slice 5)**, then polish.
+7. **UI redesign after hardening (U0 to U6).** The design is applied once behavior is stable, so layout work isn't redone when limits or flows change. The order follows what a first-time visitor meets: landing, workspace, ask, citation, then upload.
 
 ### Risky tasks and why
 
@@ -551,6 +646,9 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 | **1.2 / 4.10** RLS and isolation                  | A policy gap leaks data                                  | Column grants, restrictive policies, storage policies, and RPC grants are easy to get subtly wrong            | SQL tests from day one; deliberately break a policy once to see the test catch it |
 | **5.4 / 5.7** CAPTCHA and abuse                   | Public link drains free quota                            | Free tiers have hard caps and no spending cushion                                                             | Load test with 50 anonymous sessions before sharing                               |
 | **4.1** Email confirmation                        | Default email sending is rate-limited                    | A real signup could silently fail                                                                             | Decide the approach in Slice 4, not at launch                                     |
+| **U1** Landing and Turnstile move | The CAPTCHA or the entry flow regresses | The Turnstile provider moves from the `(auth)` layout to the landing page, `/` stops redirecting, and e2e assumed the redirect | Reserve the widget height; run the demo flow and Playwright on a preview before merging |
+| **U3** Streaming ask UI | Layout shifts or noisy screen-reader output while text streams | The core interaction; layout stability and `aria-live` are easy to get subtly wrong | Test with a long streamed answer and the accessibility tree before moving on |
+| **U4** Viewer | Docked and sheet modes, dark-mode PDF, text-layer styling | One component serves two modes (focus, scroll lock, Escape); PDF.js text-layer and `mark[data-hl]` CSS; dark mode without inversion | Keyboard-only test; check a real PDF in light and dark. The riskiest UI slice |
 
 ### Decision gates (stop and decide before continuing)
 
@@ -558,7 +656,7 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 - [x] **After 0.7:** direct highlight first, or passage panel first?
 - [x] **After 2.2:** is baseline hit@k acceptable? (Yes: 15/15 on the 2.2 baseline and again in the 2.8 run. It is at its ceiling, so it can only show a regression. `See docs/decisions.md`, 2026-11-04 and 2026-11-06.)
 - [x] **After 2.3:** are the answerable and unanswerable score distributions separable enough? (No: they overlap from 0.6705 to 0.7142, AUC 0.853. A conservative 0.65 floor was chosen and retrieval tuning consciously deferred; see `docs/decisions.md`, 2026-11-05.)
-- [x] **After 5.7:** what are the real global caps? (250 questions per day and 40 ingestions per day, from the 500 requests per day Gemini 3.5 Flash Lite limit read in AI Studio; see `docs/decisions.md`, 2026-11-13.)
+- [ ] **After 5.7:** what are the real global caps?
 
 ---
 
@@ -626,6 +724,8 @@ Hours are focused working hours. "Likely" is the sum of the task estimates above
 | 5 Public-ready            |         20 |      24 |          30 | CAPTCHA integration; load-test findings; cron setup           |
 | 6 Ship                    |         18 |      23 |          28 | README and polish expand to fill available time               |
 | **Total**                 |    **130** | **155** |     **202** |                                                               |
+
+**UI slices U0 to U6 (added later, not in the totals or calendar below):** optimistic 33 h, likely 41 h, pessimistic 59 h. These are rough; revisit them after U0. Slice 6 should shrink a little because 6.1, 6.3, 6.4 and 6.8 are partly absorbed.
 
 **Calendar translation** (at the _likely_ total, adding about 30% buffer for the unexpected, roughly 200 h):
 

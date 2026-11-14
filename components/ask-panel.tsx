@@ -89,12 +89,12 @@ export function AskPanel({
             onChange={(event) => setInput(event.target.value)}
             maxLength={MAX_QUESTION_LENGTH}
             autoComplete="off"
-            className="min-w-0 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            className="min-w-0 flex-1 rounded-md border border-control px-3 py-2 text-sm"
           />
           <button
             type="submit"
             disabled={busy || input.trim().length === 0}
-            className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg disabled:opacity-60"
           >
             {busy ? "Asking…" : "Ask"}
           </button>
@@ -104,8 +104,8 @@ export function AskPanel({
             role="status"
             className={
               usageLine.lastQuestion
-                ? "text-xs font-medium text-amber-700"
-                : "text-xs text-neutral-500"
+                ? "text-xs font-medium text-warn"
+                : "text-xs text-muted"
             }
           >
             {usageLine.text}
@@ -115,10 +115,10 @@ export function AskPanel({
 
       {state.status === "idle" ? null : (
         <div aria-busy={busy} className="flex flex-col gap-4">
-          <h2 className="text-sm text-neutral-500">{state.question}</h2>
+          <h2 className="text-sm text-muted">{state.question}</h2>
 
           {showWaiting ? (
-            <p role="status" className="text-sm text-neutral-600">
+            <p role="status" className="text-sm text-muted">
               {state.status === "loading"
                 ? "Searching the documents…"
                 : "Writing the answer…"}
@@ -128,7 +128,7 @@ export function AskPanel({
           {state.answer !== "" ? (
             <div className="flex flex-col gap-1">
               {state.status === "error" ? (
-                <p className="text-xs font-medium text-neutral-500">
+                <p className="text-xs font-medium text-muted">
                   Incomplete answer
                 </p>
               ) : null}
@@ -142,7 +142,7 @@ export function AskPanel({
           ) : null}
 
           {state.status === "done" && state.answer === "" ? (
-            <p className="text-sm text-neutral-600">
+            <p className="text-sm text-muted">
               No answer was generated. Try rephrasing the question.
             </p>
           ) : null}
@@ -157,14 +157,14 @@ export function AskPanel({
               role={state.status === "error" ? "alert" : "status"}
               className="flex flex-col items-start gap-2 text-sm"
             >
-              <p className={state.status === "error" ? "text-red-600" : ""}>
+              <p className={state.status === "error" ? "text-danger" : ""}>
                 {state.notice.message}
               </p>
               {state.notice.retryable ? (
                 <button
                   type="button"
                   onClick={() => void ask(state.question)}
-                  className="rounded-md border border-neutral-300 px-3 py-1.5 font-medium"
+                  className="rounded-md border border-control px-3 py-1.5 font-medium"
                 >
                   Retry
                 </button>

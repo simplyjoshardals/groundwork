@@ -36,12 +36,12 @@ export function SignOutButton() {
         type="button"
         onClick={signOut}
         disabled={pending}
-        className="rounded-md border border-gray-300 px-3 py-1 text-sm disabled:opacity-60"
+        className="rounded-md border border-control px-3 py-1 text-sm disabled:opacity-60"
       >
         {pending ? "Signing out…" : "Sign out"}
       </button>
       {error ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       ) : null}

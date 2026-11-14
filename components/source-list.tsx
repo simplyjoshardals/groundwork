@@ -14,7 +14,7 @@ export function SourceList({
 }) {
   if (sources.length === 0) {
     return (
-      <p className="text-sm text-neutral-600">
+      <p className="text-sm text-muted">
         No matching passages were found in the documents.
       </p>
     );
@@ -27,13 +27,13 @@ export function SourceList({
         {sources.map((source) => (
           <li
             key={source.marker}
-            className="rounded-md border border-neutral-200 p-3 text-sm"
+            className="rounded-md border border-line p-3 text-sm"
           >
             <p className="font-medium">
-              <span className="text-neutral-500">[{source.marker}]</span>{" "}
+              <span className="text-muted">[{source.marker}]</span>{" "}
               {source.documentTitle}, p. {source.page}
             </p>
-            <p className="mt-1 text-neutral-600">{source.snippet}</p>
+            <p className="mt-1 text-muted">{source.snippet}</p>
           </li>
         ))}
       </ol>
