@@ -381,9 +381,11 @@ Input: `h-10 w-full rounded-md border border-control bg-surface px-3 text-base t
 
 **Field** (`components/ui/field.tsx`): label (`text-sm font-medium text-ink`), input, helper, error, in a `flex flex-col gap-1`. The caller passes a stable `id`; `aria-invalid` and `aria-describedby` (error first, then helper) are set for it.
 
-**Composer (the ask box):** a `rounded-lg border border-control bg-surface` container, auto-growing `<textarea>` (1 to 4 lines, Enter submits, Shift+Enter newline) set in `font-serif text-read`. The primary submit button sits inside, bottom right. A character counter (mono, `text-xs`) appears only past 80% of the limit. The composer is 56 px tall at rest.
+**Composer (the ask box):** a `rounded-lg border border-control bg-surface` container, auto-growing `<textarea>` (1 to 4 lines, Enter submits, Shift+Enter newline) set in `font-serif text-read`. The primary submit button sits inside, bottom right. A character counter (mono, `text-xs`) appears only past 80% of the limit. The composer is 56 px tall at rest. **The focus ring sits on the container, not the textarea** (`focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/40`; the textarea has `outline-none`), because the textarea is not the visual edge. A one-line helper row under the box is always present (offline note on the left, counter on the right, counter hidden with `invisible` until 80%), so neither shifts the page. Enter is ignored while an input method is composing. The box clears on submit; the question is echoed above the answer.
 
 **File dropzone:** `rounded-lg border border-dashed border-control bg-surface p-6 text-center`, hover and drag-over `bg-accent-soft border-accent`, with a real `<input type="file">` underneath (keyboard and screen readers use it). Hint line: types, size, count.
+
+**Example chip** (idle ask state, 6.4): `rounded-full border border-control bg-surface px-3 py-1.5 text-sm text-ink`, hover `bg-sunken`, `pointer-coarse:min-h-11`, disabled while asking or offline. A click asks immediately with the chip's full question (its `title`). The chip that cannot be answered is set apart by `border-dashed` as well as by its label.
 
 ### 5.3 Card
 
@@ -539,6 +541,12 @@ Header per 4.2, two-column body per 4.2. Contains Ask, Shelf, Viewer below.
 | P | (a) Provider fallback ("closest passages"): info banner plus the source cards. (b) Refusal ("not found"): **neutral card** (`bg-sunken`, not red, no Retry) with the existing message in serif, the "Try rephrasing" line, and a `<details>` "Closest passages (n)". (c) Done with no text: info line. |
 | O | Warn banner "Connection lost. Check your network and retry." with Retry. While offline the submit button is disabled with helper text. |
 | D | Limit states, each a warn banner with no Retry: daily limit ("You've used today's questions. Resets at …"), too fast ("You're asking too quickly…", clears itself), kill switch ("Demo is resting; back tomorrow."). Expired demo session: banner plus a primary "Start a new demo" button. |
+
+**Layout stability while streaming.** Nothing above the answer moves: the composer, the echoed question and the status line keep their place, and the skeleton (3 lines, then 2 source cards) is replaced by content of the same width. Content below the answer (the source cards) is pushed down as paragraphs arrive; this is inherent to a list under streaming text and is accepted, but nothing above it ever shifts.
+
+**Notes.** The idle line lives in the ask panel (the page no longer carries its own intro). A cooldown limit keeps its Retry button (the question is cleared from the composer on submit, so Retry is the only way back to it); the daily and kill-switch limits have none. The highlighted marker and its card carry `aria-current="true"`. Ask copy in code uses straight apostrophes inside sentences the server and e2e tests compare against ("I couldn't find that in your documents."); chip labels use curly ones.
+
+**Ask drill (dev only).** `/dev-states/ask/index` lists scripted scenarios (`answer`, `slow`, `refusal`, `error-early`, `error-mid`, `fallback`, `limit-daily`, `limit-cooldown`, `limit-global`, `network`, `expired`, `empty`); `/dev-states/ask/<name>` runs the real ask panel against one, `?chips=1` shows the chips. It 404s outside `next dev`.
 
 ### 6.5 Documents shelf
 
@@ -726,4 +734,4 @@ Typographic finish (applies everywhere): `text-wrap: balance` on headings, `pret
 - No purple or blue gradients, no glass or blur surfaces, no glow (except the dark highlight).
 - No centered-hero-plus-three-icon-cards template. The landing page earns its layout from the specimen.
 - No full-page spinners. No modal for something that can be inline. No dropdown menus.
-- No new colors, fonts, or shadows. If something is missing from the tokens, propose a token first.
+- No new colors, fonts, or shadows. If something is missing from the tokens, propose a token first.

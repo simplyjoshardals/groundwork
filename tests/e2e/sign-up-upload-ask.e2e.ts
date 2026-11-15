@@ -46,8 +46,13 @@ test("sign up, upload a PDF, wait for ready, ask, and see a cited source", async
   // Retrieval returns several passages from the file, so these match many
   // elements; `.first()` checks that at least one is shown.
   const sources = page.getByRole("region", { name: "Sources" });
+  // A source card is a list item holding the title and "p. N" in separate spans.
   await expect(
-    sources.getByText(new RegExp(`${escapeRegExp(title)}, p\\. \\d+`)).first(),
+    sources
+      .getByRole("listitem")
+      .filter({ hasText: title })
+      .filter({ hasText: /p\. \d+/ })
+      .first(),
   ).toBeVisible({ timeout: ANSWER_TIMEOUT_MS });
   // A citation chip in the answer: its accessible name is "Source n: title, page p".
   await expect(

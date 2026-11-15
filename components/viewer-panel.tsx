@@ -6,17 +6,14 @@ import { PassageFallback } from "@/components/passage-fallback";
 import { PdfViewer } from "@/components/pdf-viewer-loader";
 import type { HighlightPassage } from "@/components/pdf-viewer-loader";
 import { TextViewer, type TextPassage } from "@/components/text-viewer";
-import {
-  getViewerDocument,
-  type ViewerDocumentResult,
-} from "@/lib/documents/get-viewer-document";
+import type { ViewerDocumentResult } from "@/lib/documents/get-viewer-document";
 import { selectFallbackPassage } from "@/lib/pdf-highlight/fallback";
 import { describeHighlightStatus } from "@/lib/pdf-highlight/messages";
 import type { HighlightStatus } from "@/lib/pdf-highlight/plan";
 import { useChunkPassage } from "@/lib/pdf-highlight/use-chunk-passage";
 import { describeSignedUrlFailure } from "@/lib/pdf-viewer/messages";
-import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { isTextMimeType } from "@/lib/text-viewer/pages";
+import { loadViewerDocument } from "@/lib/viewer-prefetch";
 import type { ViewerLocation } from "@/lib/viewer-url/location";
 
 const PDF_MIME_TYPE = "application/pdf";
@@ -29,7 +26,7 @@ async function lookUpDocument(
   documentId: string,
 ): Promise<ViewerDocumentResult> {
   try {
-    return await getViewerDocument(createBrowserSupabase(), documentId);
+    return await loadViewerDocument(documentId);
   } catch (error) {
     // Name only: messages could carry configuration details.
     console.error(

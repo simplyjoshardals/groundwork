@@ -61,6 +61,7 @@ describe("failureForLimit", () => {
     ).toEqual({
       message: "You've used today's questions. Resets at 01:00 (00:00 UTC).",
       retryable: false,
+      tone: "warn",
     });
   });
 
@@ -84,7 +85,11 @@ describe("failureForLimit", () => {
         reason: "global_limit",
         resetsAt: RESET,
       }),
-    ).toEqual({ message: "Demo is resting; back tomorrow.", retryable: false });
+    ).toEqual({
+      message: "Demo is resting; back tomorrow.",
+      retryable: false,
+      tone: "warn",
+    });
   });
 
   it("falls back to the scope when an older frame has no reason", () => {

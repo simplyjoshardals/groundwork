@@ -1,12 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  getChunk,
-  type ChunkPassage,
-  type ChunkResult,
-} from "@/lib/documents/get-chunk";
-import { createBrowserSupabase } from "@/lib/supabase/browser";
+import type { ChunkPassage, ChunkResult } from "@/lib/documents/get-chunk";
+import { loadChunkPassage } from "@/lib/viewer-prefetch";
 
 export type ChunkPassageState =
   /** The link names no chunk. */
@@ -21,7 +17,7 @@ export type ChunkPassageState =
 /** Loads the chunk with the browser (user) session; never throws. */
 async function loadChunk(chunkId: string): Promise<ChunkResult> {
   try {
-    return await getChunk(createBrowserSupabase(), chunkId);
+    return await loadChunkPassage(chunkId);
   } catch (error) {
     // Name only: messages could carry configuration details.
     console.error(

@@ -19,6 +19,13 @@ import { formatResetTime } from "./usage";
 export interface AskFailure {
   message: string;
   retryable: boolean;
+  /**
+   * How the banner looks (DESIGN §6.4: errors, warnings and notes are different
+   * components). Omitted means "danger", the default for an error.
+   */
+  tone?: "warn" | "info";
+  /** An extra button the banner offers; only the expired demo session has one. */
+  action?: "new-session";
 }
 
 /** `/api/ask` answered with a non-2xx status (a plain JSON body, not a stream). */
@@ -93,6 +100,7 @@ const LLM_UNAVAILABLE_WITH_SOURCES: AskFailure = {
   message:
     "I can't generate an answer right now. The closest passages I found are listed below.",
   retryable: true,
+  tone: "info",
 };
 
 /**
@@ -130,8 +138,9 @@ export function failureForStatus(
     case 401:
       return {
         message:
-          "Your demo session has expired. Reload the page to start a new one.",
+          "Your demo session has expired. Start a new demo to keep asking.",
         retryable: false,
+        action: "new-session",
       };
     case 503:
       return STREAM_ERROR_FAILURES.search_unavailable;
@@ -156,15 +165,21 @@ export function failureForLimit(
       return {
         message: `You've used today's questions. Resets at ${formatResetTime(event.resetsAt, timeZone)}.`,
         retryable: false,
+        tone: "warn",
       };
     case "cooldown":
       // The server cannot say when the cooldown ends (Task 5.2), so no time.
       return {
         message: "You're asking too quickly. Wait a few seconds and try again.",
         retryable: true,
+        tone: "warn",
       };
     case "global_limit":
-      return { message: "Demo is resting; back tomorrow.", retryable: false };
+      return {
+        message: "Demo is resting; back tomorrow.",
+        retryable: false,
+        tone: "warn",
+      };
     default: {
       const unreachable: never = reason;
       return unreachable;
@@ -202,6 +217,7 @@ export function describeFailure(error: unknown): AskFailure {
     return {
       message: "Connection lost. Check your network and retry.",
       retryable: true,
+      tone: "warn",
     };
   }
   if (error instanceof StreamIncompleteError) {

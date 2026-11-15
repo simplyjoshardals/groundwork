@@ -19,12 +19,13 @@ import type { StreamSource } from "@/types/ask-stream";
  * polling and state survive.
  */
 export function Workspace({
-  intro,
   shelf,
   account,
+  showExamples,
 }: {
-  intro: ReactNode;
   shelf: ReactNode;
+  /** Show the example question chips (demo, or no documents of one's own). */
+  showExamples: boolean;
   /** Shown under the shelf, below `md` only. */
   account?: ReactNode;
 }) {
@@ -54,8 +55,11 @@ export function Workspace({
   return (
     <div className="mx-auto grid w-full max-w-2xl items-start gap-8 xl:max-w-none xl:grid-cols-[minmax(0,40rem)_minmax(0,1fr)]">
       <div className="flex min-w-0 flex-col gap-6">
-        {intro}
-        <AskPanel onOpenSource={onOpenSource} />
+        <AskPanel
+          onOpenSource={onOpenSource}
+          openChunkId={location.status === "open" ? location.chunkId : null}
+          showExamples={showExamples}
+        />
       </div>
       <div className="flex min-w-0 flex-col gap-6 xl:sticky xl:top-20">
         <div

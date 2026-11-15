@@ -54,7 +54,7 @@ export const initialAskState: AskState = {
 
 /** Headline of the not-found state (Task 2.7 shows it beside `closest`). */
 const NOT_FOUND: AskFailure = {
-  message: "I couldn't find that in the documents.",
+  message: "I couldn't find that in your documents.",
   retryable: false,
 };
 

@@ -53,13 +53,9 @@ export default async function Home({
     peekUsage(session.userId),
   ]);
   const initial = toInitialDocuments(documents);
+  const hasOwnDocuments =
+    !session.isAnonymous && documents.ok && documents.documents.length > 0;
 
-  const intro = (
-    <p className="text-pretty text-muted">
-      Ask questions about the documents on the shelf. Every claim comes with a
-      source you can open.
-    </p>
-  );
   const shelf = session.isAnonymous ? (
     <SampleShelf documents={documents.ok ? documents.documents : null} />
   ) : (
@@ -80,7 +76,7 @@ export default async function Home({
         {/* `useSearchParams` (in Workspace) needs a Suspense boundary. */}
         <Suspense fallback={<WorkspaceSkeleton />}>
           <Workspace
-            intro={intro}
+            showExamples={session.isAnonymous || !hasOwnDocuments}
             shelf={shelf}
             account={
               <AccountSection

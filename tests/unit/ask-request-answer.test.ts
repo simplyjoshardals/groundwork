@@ -275,9 +275,10 @@ describe("describeFailure", () => {
     });
   });
 
-  it("tells the user to reload on a 401 and offers no Retry", () => {
+  it("tells the user to start a new demo on a 401 and offers no Retry", () => {
     const failure = describeFailure(new AskHttpError(401));
     expect(failure.retryable).toBe(false);
-    expect(failure.message).toContain("Reload");
+    expect(failure.message).toContain("new demo");
+    expect(failure.action).toBe("new-session");
   });
 });
