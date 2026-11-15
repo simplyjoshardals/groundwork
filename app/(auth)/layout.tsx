@@ -1,16 +1,26 @@
 import type { ReactNode } from "react";
 import { CaptchaProvider } from "@/components/captcha-provider";
+import { PlainHeader } from "@/components/plain-header";
+import { Card } from "@/components/ui/card";
 
+/**
+ * The centered auth card (DESIGN 4.1, 6.2). The CAPTCHA provider stays here:
+ * sign-in and sign-up both send a Turnstile token to Supabase, so the forms
+ * need it. It sits inside the card, so the widget lands at the bottom of the
+ * card rather than below the page. One provider for both pages means moving
+ * between them does not start a new check.
+ */
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-6 p-8">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">Groundwork</h1>
-        <p>
-          Ask questions about documents and see where each answer comes from.
-        </p>
-      </header>
-      <CaptchaProvider>{children}</CaptchaProvider>
-    </main>
+    <>
+      <PlainHeader />
+      <main className="flex flex-1 items-start justify-center px-4 pb-12 pt-8 md:items-center md:px-6">
+        <Card padding="roomy" className="w-full max-w-[26rem] md:p-8">
+          <div className="flex flex-col gap-6">
+            <CaptchaProvider>{children}</CaptchaProvider>
+          </div>
+        </Card>
+      </main>
+    </>
   );
 }

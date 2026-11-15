@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
+import { buttonClasses } from "@/components/ui/button";
 import { safeNextPath } from "@/lib/auth/redirect";
 import { getSessionState } from "@/lib/auth/session";
+import { authHref } from "@/lib/auth/shared-link";
+
+export const metadata: Metadata = { title: "Create an account" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -21,19 +26,22 @@ export default async function SignUpPage({
   // A demo (anonymous) user can reach this page to create a real account.
   if (session.status === "signed_in" && !session.isAnonymous) redirect(next);
 
-  const signInHref =
-    next === "/" ? "/sign-in" : `/sign-in?next=${encodeURIComponent(next)}`;
-
   return (
-    <>
-      <h2 className="text-lg font-medium">Create an account</h2>
-      <AuthForm mode="sign-up" next={next} />
-      <p className="text-sm">
-        Already have an account?{" "}
-        <Link href={signInHref} className="underline">
-          Sign in
-        </Link>
-      </p>
-    </>
+    <AuthForm
+      mode="sign-up"
+      next={next}
+      title="Create an account"
+      footer={
+        <p className="text-sm text-muted">
+          Already have an account?{" "}
+          <Link
+            href={authHref("/sign-in", next)}
+            className={buttonClasses({ variant: "link" })}
+          >
+            Sign in
+          </Link>
+        </p>
+      }
+    />
   );
 }

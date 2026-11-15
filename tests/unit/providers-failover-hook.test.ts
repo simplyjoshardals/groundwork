@@ -21,7 +21,6 @@ function working(model: string): LlmProvider {
 function failing(model: string, error: Error): LlmProvider {
   return {
     model,
-    // eslint-disable-next-line require-yield
     async *stream() {
       throw error;
     },

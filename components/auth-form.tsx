@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import {
   describeAuthError,
   parseCredentials,
@@ -11,6 +10,12 @@ import {
   type FieldErrors,
 } from "@/lib/auth/credentials";
 import { useCaptcha } from "@/components/captcha-provider";
+import { CheckEmailNotice } from "@/components/check-email-notice";
+import { OfflineBanner } from "@/components/offline-banner";
+import { Banner } from "@/components/ui/banner";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { useOnlineStatus } from "@/lib/net/use-online-status";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import {
   CAPTCHA_REJECTED_MESSAGE,
@@ -47,11 +52,18 @@ const COPY: Record<
 export function AuthForm({
   mode,
   next,
+  title,
   notice,
+  footer,
 }: {
   mode: AuthMode;
   next: string;
+  /** The page's `h1`. Replaced by "Check your email" once the link is sent. */
+  title: string;
+  /** A warn banner above the form (for example an expired confirmation link). */
   notice?: string;
+  /** Links and the demo block below the form; hidden with the form on success. */
+  footer?: ReactNode;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<Status>("idle");
@@ -59,6 +71,7 @@ export function AuthForm({
   const [formError, setFormError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const { state: captcha, dispatch: dispatchCaptcha } = useCaptcha();
+  const online = useOnlineStatus();
   const pending = status === "pending";
 
   function enter() {
@@ -152,96 +165,51 @@ export function AuthForm({
   }
 
   if (status === "check_email") {
-    return (
-      <div role="status" className="flex flex-col gap-2 text-sm">
-        <p className="font-medium">Check your email</p>
-        <p>
-          If {sentTo ? <strong>{sentTo}</strong> : "that address"} can be used
-          to sign up, a confirmation link is on its way. Open it to finish
-          creating your account.
-        </p>
-        <Link href="/sign-in" className="underline">
-          Back to sign in
-        </Link>
-      </div>
-    );
+    return <CheckEmailNotice email={sentTo} />;
   }
 
   const copy = COPY[mode];
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-      {notice ? (
-        <p role="alert" className="text-sm text-danger">
-          {notice}
-        </p>
-      ) : null}
-      <fieldset disabled={pending} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <label htmlFor={`${mode}-email`} className="text-sm font-medium">
-            Email
-          </label>
-          <input
+    <>
+      <h1 className="text-h1 font-semibold">{title}</h1>
+      {notice ? <Banner tone="warn">{notice}</Banner> : null}
+      <OfflineBanner>You’re offline.</OfflineBanner>
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+        {formError ? <Banner tone="danger">{formError}</Banner> : null}
+        <fieldset disabled={pending} className="flex min-w-0 flex-col gap-4">
+          <Field
             id={`${mode}-email`}
             name="email"
             type="email"
+            label="Email"
             autoComplete="email"
             required
-            aria-invalid={fieldErrors.email ? true : undefined}
-            aria-describedby={
-              fieldErrors.email ? `${mode}-email-error` : undefined
-            }
-            className="rounded-md border border-control px-3 py-2 text-sm"
+            error={fieldErrors.email}
           />
-          {fieldErrors.email ? (
-            <p id={`${mode}-email-error`} className="text-sm text-danger">
-              {fieldErrors.email}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor={`${mode}-password`} className="text-sm font-medium">
-            Password
-          </label>
-          <input
+          <Field
             id={`${mode}-password`}
             name="password"
             type="password"
+            label="Password"
             autoComplete={copy.autoComplete}
             required
-            aria-invalid={fieldErrors.password ? true : undefined}
-            aria-describedby={
-              fieldErrors.password
-                ? `${mode}-password-error`
-                : mode === "sign-up"
-                  ? `${mode}-password-hint`
-                  : undefined
+            helper={
+              mode === "sign-up"
+                ? `At least ${MIN_PASSWORD_LENGTH} characters.`
+                : undefined
             }
-            className="rounded-md border border-control px-3 py-2 text-sm"
+            error={fieldErrors.password}
           />
-          {mode === "sign-up" ? (
-            <p id={`${mode}-password-hint`} className="text-xs text-muted">
-              At least {MIN_PASSWORD_LENGTH} characters.
-            </p>
-          ) : null}
-          {fieldErrors.password ? (
-            <p id={`${mode}-password-error`} className="text-sm text-danger">
-              {fieldErrors.password}
-            </p>
-          ) : null}
-        </div>
-        <button
-          type="submit"
-          disabled={captcha.status !== "verified"}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg disabled:opacity-60"
-        >
-          {pending ? copy.pending : copy.submit}
-        </button>
-      </fieldset>
-      {formError ? (
-        <p role="alert" className="text-sm text-danger">
-          {formError}
-        </p>
-      ) : null}
-    </form>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={captcha.status !== "verified" || !online}
+          >
+            {pending ? copy.pending : copy.submit}
+          </Button>
+        </fieldset>
+      </form>
+      {footer}
+    </>
   );
 }

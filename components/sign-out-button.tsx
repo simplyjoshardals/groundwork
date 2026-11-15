@@ -20,7 +20,7 @@ export function SignOutButton() {
         setError("Could not sign out. Please try again.");
         return;
       }
-      router.replace("/sign-in");
+      router.replace("/");
       router.refresh();
     } catch (err) {
       console.error("[auth] sign-out failed:", err);

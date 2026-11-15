@@ -2,13 +2,46 @@ import { expect, test } from "@playwright/test";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/supabase/env";
 import { waitForHydration } from "./helpers/hydration";
 
-test("Try demo with the always-pass test key starts an anonymous session", async ({
+// The landing page has a "Try demo" in the header and one in the hero, so the
+// tests scope to the landmark. Only the hero one (inside <main>) is used.
+test("Try demo on the landing page starts an anonymous session", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page).toHaveURL("/");
+  const button = page
+    .getByRole("main")
+    .getByRole("button", { name: "Try demo", exact: true });
+  await waitForHydration(button);
+  // The button is enabled only once the widget has produced a token.
+  await expect(button).toBeEnabled({ timeout: 30_000 });
+  await button.click();
+
+  await expect(page).toHaveURL("/");
+  // The landing headline is gone: this is the workspace now.
+  await expect(
+    page.getByRole("heading", { name: "Answers that show their sources." }),
+  ).toHaveCount(0);
+  const cookies = await page.context().cookies();
+  expect(
+    cookies.some(
+      (c) => c.name.startsWith("sb-") && c.name.includes("auth-token"),
+    ),
+  ).toBe(true);
+  // The session survives a reload instead of bouncing back to the landing page.
+  await page.reload();
+  await expect(page).toHaveURL("/");
+  await expect(
+    page.getByRole("heading", { name: "Answers that show their sources." }),
+  ).toHaveCount(0);
+});
+
+test("Try demo on the sign-in page still starts an anonymous session", async ({
   page,
 }) => {
   await page.goto("/sign-in");
   const button = page.getByRole("button", { name: "Try demo", exact: true });
   await waitForHydration(button);
-  // The button is enabled only once the widget has produced a token.
   await expect(button).toBeEnabled({ timeout: 30_000 });
   await button.click();
 
@@ -19,12 +52,9 @@ test("Try demo with the always-pass test key starts an anonymous session", async
       (c) => c.name.startsWith("sb-") && c.name.includes("auth-token"),
     ),
   ).toBe(true);
-  // The session survives a reload instead of bouncing back to the sign-in page.
-  await page.reload();
-  await expect(page).toHaveURL("/");
 });
 
-// The browser flow above proves a token works. This proves the protection
+// The browser flows above prove a token works. This proves the protection
 // itself: Supabase Auth must reject a request that carries no CAPTCHA token,
 // however the request is made. If CAPTCHA protection is switched off in
 // `supabase/config.toml`, the call succeeds and the test fails. A bad token

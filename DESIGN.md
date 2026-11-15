@@ -72,6 +72,11 @@ Contrast ratios below were computed with the WCAG formula. Text pairs all pass A
   /* skeleton shimmer band (section 5.9): an alias of an existing surface, not a new color */
   --skeleton-band: var(--surface);
 
+  /* paper: the page of a document (landing specimen, viewer). One definition,
+     never redefined for dark mode: a page stays paper-colored there (section 3). */
+  --paper: #FCFAF4;
+  --paper-ink: #1E1B16;
+
   /* elevation (section 1.5) */
   --shadow-card: 0 1px 2px rgba(30, 27, 22, 0.06), 0 4px 12px rgba(30, 27, 22, 0.05);
   --shadow-pop: 0 2px 6px rgba(30, 27, 22, 0.08), 0 12px 28px rgba(30, 27, 22, 0.10);
@@ -175,6 +180,8 @@ Tailwind v4 is CSS-first: there is no `tailwind.config.js`. Verify these directi
   --color-focus: var(--focus);
   --color-toast: var(--toast-bg);
   --color-toast-fg: var(--toast-fg);
+  --color-paper: var(--paper);
+  --color-paper-ink: var(--paper-ink);
 
   --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
   --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
@@ -278,7 +285,7 @@ Paper logic: flat by default, edges instead of shadows.
 
 - **Wordmark:** "Groundwork" in Newsreader 600, 20 px in the header, tracking `-0.01em`. On the landing hero only, a 3 px `bg-accent` rule runs under the whole word.
 - **Favicon / app icon:** a custom Groundwork mark, supplied as a finished raster asset rather than drawn in code (it replaced the earlier serif "G" placeholder). `app/icon.png` is 512 px, square. `app/apple-icon.png` is 180 px, full-bleed with no rounded corners, because iOS applies its own mask and a transparent or pre-rounded icon gets a black or double-rounded edge. Both come from one 1024 px master, and the mark must stay recognisable at 16 px (thick shapes, no fine detail). Next emits the link tags from these file names, so there is no `<link>` to maintain, and `app/icon.svg` is removed: if it stayed, the page would carry two competing favicons. The default `app/favicon.ico` is deleted and replaced with a custom `favicon.ico` as a fallback for desktop tabs and legacy browsers.
-- **Metadata:** title template `%s · Groundwork`, default title "Groundwork: ask your documents, see the source". Per-route titles. Fix the current "Create Next App" title first.
+- **Metadata:** title template `%s | Groundwork`, default title "Groundwork: ask your documents, see the source". Per-route titles. Fix the current "Create Next App" title first.
 - **Social image:** `app/opengraph-image.tsx` with the wordmark, the headline, and a highlighted footnote. Verify the `next/og` font-loading approach for your Next version.
 
 ---
@@ -295,7 +302,7 @@ Dark mode is a "reading lamp" version of the same room. Differences from light t
 | Accent | deep ink green (fill) | lighter sage green (so it keeps 8 plus : 1 on dark) |
 | Highlight | flat yellow at 45% | **a glow**: yellow at 30% alpha over the dark surface, text stays readable |
 | Serif text | 400 | 400, but allow `font-weight: 420` and 0.01em letter-spacing if thin strokes shimmer (check on a real screen) |
-| PDF page | paper on paper | **the page stays paper-colored**; it sits on a dark "desk" (`--sunken`) with `filter: brightness(0.94)` so it isn't a white flashbang. Never CSS-invert a PDF canvas. |
+| PDF page | paper on paper | **the page stays paper-colored** (`--paper` with `--paper-ink`, defined once for both themes); it sits on a dark "desk" (`--sunken`) with `filter: brightness(0.94)` so it isn't a white flashbang. Never CSS-invert a PDF canvas. |
 | Skeleton shimmer | paper to lighter paper | surface to `raised` |
 | Toast | ink slab | `raised` surface with ring |
 
@@ -457,17 +464,18 @@ Legend: **L** loading, **E** empty, **X** error, **S** success, **P** partial, *
 
 ### 6.1 Landing (`/`, signed out) — new
 
-Header (wordmark, ghost "Sign in", primary "Try demo"). Hero: display headline "Answers that show their sources.", sub-line, primary lg "Try demo" plus link "Sign in". Beside or below it: a **static specimen** built from HTML and CSS (a short answer with footnote markers next to a paper page with a highlighted passage). No image, no JS. Below: three guarantees (Cited, Honest refusals, Private by design), an eval-numbers strip (**placeholder until Task 6.5 produces real numbers; never invent them**), a privacy note, footer.
+Header (wordmark with the 3 px accent rule, ghost "Sign in", primary "Try demo"; the header button keeps the fixed label "Try demo" in every state and is only disabled while the check runs or the request is in flight). Hero: display headline "Answers that show their sources.", sub-line, primary lg "Try demo" plus link "Sign in". Beside or below it: a **static specimen** built from HTML and CSS (a short answer with footnote markers next to a paper page with a highlighted passage). No image, no JS. Below: three guarantees (Cited, Honest refusals, Private by design), an eval-numbers strip (**renders nothing until Task 6.5 produces real numbers; never invent them**), a privacy note, footer.
 
 | | Treatment |
 |---|---|
-| L | Server-rendered, nothing to wait for. Only the CTA has a pending state: "Preparing demo…", fixed width, while Turnstile verifies. After 1.5 s add "Verifying you're human…" in `text-xs text-muted` (existing delayed status). Reserve the widget's height. |
+| L | Server-rendered, nothing to wait for. Only the CTAs have a pending state: the hero button swaps to "Preparing demo…" (fixed width) while Turnstile verifies; the header button keeps its label. After 2 s add "Verifying that you're human…" in `text-xs text-muted` (the existing delayed status). The widget sits directly under the hero CTA in a 64 px reserved slot shared by both buttons, so a challenge appears without moving anything. |
 | E | n/a: static content. |
 | X | Demo start failures show as a danger banner under the CTA with existing messages (captcha rejected, auth unavailable, generic). The widget resets quietly. |
 | S | Redirect into the workspace. |
-| P | Turnstile still verifying: CTA disabled with the helper line above. |
-| O | Warn banner above the CTA: "You're offline. The demo needs a connection." CTA disabled. |
-| D | n/a: public. An expired confirmation link (`?error=callback`) shows a warn banner. |
+| P | Turnstile still verifying: CTAs disabled, with the delayed status line above. |
+| O | Warn banner above the CTA: "You’re offline. The demo needs a connection." CTAs disabled. |
+| D | n/a: public. An expired confirmation link lands on Sign in, which shows the warn banner (6.2). |
+| Shared link | A visitor who opens `/?doc=…&page=…&chunk=…` signed out sees an info banner above the CTA: "You opened a shared page. Try the demo or sign in to see it." Try demo and Sign in carry the link as `next` (only `doc`, `page` and `chunk`, each validated). |
 
 ### 6.2 Sign in and Sign up
 
@@ -478,8 +486,8 @@ Centered auth card on `bg-bg`. Serif h1, fields, primary submit, link to the oth
 | L | Submit shows "Signing in…" or "Creating account…" at fixed width, fieldset disabled. |
 | E | Initial form. Password hint under the field. |
 | X | Field errors under fields (`aria-invalid`, `aria-describedby`), form-level danger banner, captcha rejection and auth-unavailable messages as existing. |
-| S | Sign in: redirect. Sign up: the card is replaced by "Check your email" (serif h2, the address in mono, one line of what to do, link back to sign in). |
-| P | Captcha not verified yet: submit disabled with "Verifying…" helper. |
+| S | Sign in: redirect. Sign up: the card is replaced by "Check your email" (an `h1` styled at the h2 size, so the page keeps one h1; the address in mono, one line of what to do, link back to sign in). |
+| P | Captcha not verified yet: submit disabled; the existing delayed status line (after 2 s) reads "Verifying that you're human…". No separate helper under the button. |
 | O | Warn banner "You're offline." Submit disabled. |
 | D | Invalid or expired callback link: warn banner at the top of Sign in. Already signed in with a real account: redirect. |
 
@@ -545,7 +553,7 @@ Centered card with a serif h1 "Groundwork is waking up." and the existing explan
 |---|---|
 | L | Retry shows "Checking…" at fixed width. |
 | E | n/a: it only exists in this state. |
-| X | Same page again, with a line "Still not reachable. Try again in a minute." |
+| X | Same page again, with a line "Still not reachable. Try again in a minute." It appears only when "Try again" was pressed within the last two minutes (a timestamp in `sessionStorage`, so an old episode never looks like a second attempt). |
 | S | Reload lands on the workspace. |
 | P | n/a: a single message. |
 | O | The global offline banner replaces the explanation: "You're offline." |

@@ -1,9 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { TryDemoButton } from "@/components/try-demo-button";
+import { buttonClasses } from "@/components/ui/button";
 import { safeNextPath } from "@/lib/auth/redirect";
 import { getSessionState } from "@/lib/auth/session";
+import { authHref } from "@/lib/auth/shared-link";
+
+export const metadata: Metadata = { title: "Sign in" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -22,39 +27,48 @@ export default async function SignInPage({
   // A demo (anonymous) user may still sign in to a real account.
   if (session.status === "signed_in" && !session.isAnonymous) redirect(next);
 
-  const signUpHref =
-    next === "/" ? "/sign-up" : `/sign-up?next=${encodeURIComponent(next)}`;
   const callbackFailed = first(params.error) === "callback";
 
   return (
-    <>
-      <h2 className="text-lg font-medium">Sign in</h2>
-      <AuthForm
-        mode="sign-in"
-        next={next}
-        notice={
-          callbackFailed
-            ? "That confirmation link is invalid or has expired. Sign in, or sign up again."
-            : undefined
-        }
-      />
-      <p className="text-sm">
-        No account yet?{" "}
-        <Link href={signUpHref} className="underline">
-          Create one
-        </Link>
-      </p>
-      <hr className="border-line" />
-      {session.status === "signed_in" ? (
-        <Link href={next} className="text-sm underline">
-          Continue with the demo session
-        </Link>
-      ) : (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm">Just looking around?</p>
-          <TryDemoButton next={next} />
-        </div>
-      )}
-    </>
+    <AuthForm
+      mode="sign-in"
+      next={next}
+      title="Sign in"
+      notice={
+        callbackFailed
+          ? "That confirmation link is invalid or has expired. Sign in, or sign up again."
+          : undefined
+      }
+      footer={
+        <>
+          <p className="text-sm text-muted">
+            No account yet?{" "}
+            <Link
+              href={authHref("/sign-up", next)}
+              className={buttonClasses({ variant: "link" })}
+            >
+              Create one
+            </Link>
+          </p>
+          <hr className="border-line" />
+          {session.status === "signed_in" ? (
+            <Link
+              href={next}
+              className={buttonClasses({
+                variant: "secondary",
+                className: "w-full",
+              })}
+            >
+              Continue with the demo session
+            </Link>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-muted">Just looking around?</p>
+              <TryDemoButton next={next} />
+            </div>
+          )}
+        </>
+      }
+    />
   );
 }

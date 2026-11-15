@@ -5,6 +5,8 @@ import {
   MissingTurnstileEnvError,
   turnstileSiteKey,
 } from "@/lib/turnstile/env";
+import { Banner } from "@/components/ui/banner";
+import { Button } from "@/components/ui/button";
 import { loadTurnstile } from "@/lib/turnstile/load-script";
 import {
   CAPTCHA_AUTO_RETRY_DELAY_MS,
@@ -102,10 +104,11 @@ function TurnstileWidget({ onEvent }: { onEvent: Dispatch<CaptchaEvent> }) {
 
 /**
  * The CAPTCHA widget (visible only when Turnstile needs the visitor to act), a
- * polite status line for screen readers, and a retry button after a failure.
- * Rendered once by `CaptchaProvider`, which owns the state; forms enable their
- * submit buttons only while `state.status === "verified"`. "Verifying…" appears
- * only if the check runs longer than `CAPTCHA_STATUS_DELAY_MS`.
+ * polite status line for screen readers, and, after a failure, a danger banner
+ * with a retry button. Rendered once by `CaptchaProvider` (or by a
+ * `CaptchaSlot`), which owns the state; forms enable their submit buttons only
+ * while `state.status === "verified"`. "Verifying…" appears only if the check
+ * runs longer than `CAPTCHA_STATUS_DELAY_MS`.
  */
 export function CaptchaField({
   state,
@@ -128,30 +131,32 @@ export function CaptchaField({
     return () => clearTimeout(timer);
   }, [state.status, state.attempt]);
   const message = visibleCaptchaMessage(state, slowAttempt === state.attempt);
+  const failed = state.status === "failed";
   return (
     <div className="flex flex-col gap-2">
       <TurnstileWidget key={state.attempt} onEvent={dispatch} />
       <div role="status" aria-live="polite">
-        {message ? (
-          <p
-            className={
-              state.status === "failed"
-                ? "text-sm text-danger"
-                : "text-sm text-muted"
-            }
-          >
-            {message}
-          </p>
+        {message && !failed ? (
+          <p className="text-xs text-muted">{message}</p>
         ) : null}
       </div>
-      {captchaCanRetry(state) ? (
-        <button
-          type="button"
-          onClick={() => dispatch({ type: "reset" })}
-          className="self-start text-sm underline"
+      {failed && message ? (
+        <Banner
+          tone="danger"
+          action={
+            captchaCanRetry(state) ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => dispatch({ type: "reset" })}
+              >
+                Try the verification again
+              </Button>
+            ) : undefined
+          }
         >
-          Try the verification again
-        </button>
+          {message}
+        </Banner>
       ) : null}
     </div>
   );

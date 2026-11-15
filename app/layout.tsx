@@ -30,7 +30,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: {
     default: "Groundwork: ask your documents, see the source",
-    template: "%s · Groundwork",
+    template: "%s | Groundwork",
   },
   description:
     "Ask your documents a question. Every claim links to the exact page, highlighted. If it isn’t in your documents, it says so.",
