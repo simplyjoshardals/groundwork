@@ -60,3 +60,35 @@ export function describeUsage(
       : `${usage.remaining} of ${usage.dailyLimit} questions left today`;
   return { text: `${left} · resets at ${reset}`, lastQuestion: false };
 }
+
+export interface CounterText {
+  /** Short text in the header, e.g. "14 of 20 left". */
+  label: string;
+  /** Full sentence for screen readers and the tooltip, with the reset time. */
+  description: string;
+  /** True when nothing is left today, so the UI can switch to the warn tone. */
+  empty: boolean;
+}
+
+/**
+ * The header's question counter. Shorter than `describeUsage` (it sits beside
+ * the theme toggle at 360px); the reset time lives in `description`.
+ */
+export function describeCounter(
+  usage: StreamUsage,
+  timeZone?: string,
+): CounterText {
+  const reset = formatResetTime(usage.resetsAt, timeZone);
+  if (usage.remaining === 0) {
+    return {
+      label: "0 left today",
+      description: `No questions left today. Resets at ${reset}.`,
+      empty: true,
+    };
+  }
+  return {
+    label: `${usage.remaining} of ${usage.dailyLimit} left`,
+    description: `${usage.remaining} of ${usage.dailyLimit} questions left today. Resets at ${reset}.`,
+    empty: false,
+  };
+}

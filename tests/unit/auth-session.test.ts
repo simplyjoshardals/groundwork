@@ -53,9 +53,18 @@ describe("getSessionCheck (Task 5.9)", () => {
     });
     expect(await getSessionCheck()).toEqual({
       status: "signed_in",
+      userId: "u1",
       isAnonymous: false,
       email: "a@b.c",
     });
+  });
+
+  it("treats claims without a subject as signed out", async () => {
+    getClaims.mockResolvedValue({
+      data: { claims: { email: "a@b.c", is_anonymous: false } },
+      error: null,
+    });
+    expect(await getSessionCheck()).toEqual({ status: "signed_out" });
   });
 
   it("logs the error name, never a message or token", async () => {

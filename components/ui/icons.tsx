@@ -5,6 +5,9 @@ import {
   CircleHalfIcon,
   ClockIcon,
   InfoIcon as PhInfoIcon,
+  MonitorIcon as PhMonitorIcon,
+  MoonIcon as PhMoonIcon,
+  SunIcon as PhSunIcon,
   WarningCircleIcon,
   WarningIcon as PhWarningIcon,
   WarningOctagonIcon,
@@ -37,6 +40,18 @@ const HIDDEN = { "aria-hidden": true, focusable: "false" } as const;
 
 export function CheckIcon({ size = 16, ...rest }: IconProps) {
   return <PhCheckIcon size={size} weight="regular" {...HIDDEN} {...rest} />;
+}
+
+export function SunIcon({ size = 16, ...rest }: IconProps) {
+  return <PhSunIcon size={size} weight="regular" {...HIDDEN} {...rest} />;
+}
+
+export function MoonIcon({ size = 16, ...rest }: IconProps) {
+  return <PhMoonIcon size={size} weight="regular" {...HIDDEN} {...rest} />;
+}
+
+export function MonitorIcon({ size = 16, ...rest }: IconProps) {
+  return <PhMonitorIcon size={size} weight="regular" {...HIDDEN} {...rest} />;
 }
 
 // --- banner tones (fill): circle-i, triangle, octagon ------------------

@@ -1,0 +1,45 @@
+import Link from "next/link";
+import { HeaderFrame } from "@/components/header-frame";
+import { QuestionCounter } from "@/components/question-counter";
+import { SessionChip } from "@/components/session-chip";
+import { SignOutButton } from "@/components/sign-out-button";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { buttonClasses } from "@/components/ui/button";
+import { Wordmark } from "@/components/wordmark";
+
+/**
+ * The signed-in header (DESIGN 4.2): wordmark, question counter, theme toggle,
+ * and from `md` the session chip and sign out. Below `md` the chip and sign out
+ * live in the Account section under the shelf, so nothing here wraps at 360px.
+ */
+export function AppHeader({
+  isAnonymous,
+  email,
+}: {
+  isAnonymous: boolean;
+  email: string | null;
+}) {
+  return (
+    <HeaderFrame>
+      <Wordmark className="shrink-0" />
+      <div className="ml-auto flex min-w-0 items-center gap-1 md:gap-3">
+        <QuestionCounter />
+        <div className="hidden min-w-0 items-center gap-3 md:flex">
+          <SessionChip isAnonymous={isAnonymous} email={email} />
+          {isAnonymous ? (
+            <Link
+              href="/sign-up"
+              className={buttonClasses({ variant: "secondary", size: "sm" })}
+            >
+              Create an account
+            </Link>
+          ) : null}
+        </div>
+        <ThemeToggle />
+        <div className="hidden md:block">
+          <SignOutButton />
+        </div>
+      </div>
+    </HeaderFrame>
+  );
+}

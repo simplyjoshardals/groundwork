@@ -22,6 +22,15 @@ test("Try demo on the landing page starts an anonymous session", async ({
   await expect(
     page.getByRole("heading", { name: "Answers that show their sources." }),
   ).toHaveCount(0);
+  // The demo shelf is there on first paint (server-rendered): the shared
+  // samples with their badge, and the note that uploading needs an account.
+  await expect(
+    page.getByRole("heading", { name: "Sample documents" }),
+  ).toBeVisible();
+  await expect(page.getByText("Sample", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Uploading needs an account")).toBeVisible();
+  // The header has the counter before any question has been asked.
+  await expect(page.getByText(/\d+ of \d+ left/).first()).toBeVisible();
   const cookies = await page.context().cookies();
   expect(
     cookies.some(

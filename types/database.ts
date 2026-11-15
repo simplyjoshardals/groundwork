@@ -138,6 +138,11 @@ isOneToOne: false
               "char_end": number,"char_start": number,"chunk_id": number,"content": string,"doc_id": string,"doc_title": string,"page_number": number,"similarity": number
             }[]
                            },
+"peek_usage":
+{ Args: { "p_kind": string,"p_user_id": string }; Returns: {
+              "daily_limit": number,"resets_at": string,"used_today": number
+            }[]
+                           },
 "purge_old_records":
 { Args: { "p_keep"?: string }; Returns: number
                            },

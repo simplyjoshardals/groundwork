@@ -1,0 +1,1 @@
+alter table public.documents rename column page_count_x to page_count;

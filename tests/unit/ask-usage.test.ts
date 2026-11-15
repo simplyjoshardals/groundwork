@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { describeUsage, formatResetTime } from "@/lib/ask-client";
+import {
+  describeCounter,
+  describeUsage,
+  formatResetTime,
+} from "@/lib/ask-client";
 import { failureForLimit } from "@/lib/ask-client/failures";
 
 const RESET = "2026-11-11T00:00:00.000Z"; // midnight UTC
@@ -90,5 +94,28 @@ describe("failureForLimit", () => {
     expect(failureForLimit({ type: "limit", scope: "global" }).message).toBe(
       "Demo is resting; back tomorrow.",
     );
+  });
+});
+
+describe("describeCounter", () => {
+  it("is short, with the reset time only in the description", () => {
+    const c = describeCounter(
+      { remaining: 14, dailyLimit: 20, resetsAt: RESET },
+      "UTC",
+    );
+    expect(c.label).toBe("14 of 20 left");
+    expect(c.description).toBe(
+      "14 of 20 questions left today. Resets at 00:00 UTC.",
+    );
+    expect(c.empty).toBe(false);
+  });
+
+  it("switches to the empty state at zero", () => {
+    const c = describeCounter(
+      { remaining: 0, dailyLimit: 20, resetsAt: RESET },
+      "UTC",
+    );
+    expect(c).toMatchObject({ label: "0 left today", empty: true });
+    expect(c.description).toContain("Resets at 00:00 UTC");
   });
 });

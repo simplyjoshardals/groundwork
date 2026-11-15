@@ -4,7 +4,12 @@ import { createServerSupabase } from "@/lib/supabase/server";
 
 export type SessionState =
   | { status: "signed_out" }
-  | { status: "signed_in"; isAnonymous: boolean; email: string | null };
+  | {
+      status: "signed_in";
+      userId: string;
+      isAnonymous: boolean;
+      email: string | null;
+    };
 
 /**
  * `SessionState` plus "the auth service could not be reached" (Task 5.9), so
@@ -32,8 +37,13 @@ export async function getSessionCheck(): Promise<SessionCheck> {
   }
   const claims = data?.claims;
   if (!claims) return { status: "signed_out" };
+  // A validated token always has a subject; without one, treat it as signed out.
+  if (typeof claims.sub !== "string" || claims.sub === "") {
+    return { status: "signed_out" };
+  }
   return {
     status: "signed_in",
+    userId: claims.sub,
     isAnonymous: claims.is_anonymous === true,
     email:
       typeof claims.email === "string" && claims.email ? claims.email : null,

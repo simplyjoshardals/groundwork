@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { listOwnDocuments } from "@/lib/documents/list-own-documents";
+import {
+  listOwnDocuments,
+  listSampleDocuments,
+} from "@/lib/documents/list-own-documents";
 import type { Database } from "@/types/database";
 
 type QueryResult = {
@@ -177,4 +180,24 @@ describe("listOwnDocuments", () => {
       });
     },
   );
+});
+
+describe("listSampleDocuments", () => {
+  it("queries the public documents, not the user's own", async () => {
+    const { client, calls } = fakeClient({ data: [row()], error: null });
+    const result = await listSampleDocuments(client);
+    expect(calls).toContainEqual({ method: "eq", args: ["is_public", true] });
+    expect(result).toMatchObject({ ok: true });
+  });
+
+  it("fails explicitly instead of returning an empty list", async () => {
+    const { client } = fakeClient({
+      data: null,
+      error: { code: "500", message: "boom" },
+    });
+    expect(await listSampleDocuments(client)).toEqual({
+      ok: false,
+      reason: "failed",
+    });
+  });
 });

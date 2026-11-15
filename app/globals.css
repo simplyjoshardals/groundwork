@@ -308,3 +308,12 @@ input:-webkit-autofill:focus {
     background-color 600000s 0s,
     color 600000s 0s;
 }
+/* Shelf-to-viewer swap (DESIGN 5.16): opacity only. Reduced motion is handled
+   by the global rule that shortens every animation. */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@utility animate-fade-in {
+  animation: fade-in var(--dur-base) var(--ease-paper) both;
+}

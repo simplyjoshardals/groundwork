@@ -5,10 +5,10 @@ import type { SubmitEvent } from "react";
 import { AnswerText } from "@/components/answer-text";
 import { NotFoundNotice } from "@/components/not-found-notice";
 import { SourceList } from "@/components/source-list";
+import { useUsage } from "@/components/usage-context";
 import {
   askReducer,
   describeFailure,
-  describeUsage,
   initialAskState,
   requestAnswer,
 } from "@/lib/ask-client";
@@ -28,6 +28,12 @@ export function AskPanel({
   const [state, dispatch] = useReducer(askReducer, initialAskState);
   const [input, setInput] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+  const { publish } = useUsage();
+
+  // The header counter shows the fresh budget that arrives with each answer.
+  useEffect(() => {
+    if (state.usage !== null) publish(state.usage);
+  }, [state.usage, publish]);
 
   // Stop an in-flight request when the panel goes away.
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -64,13 +70,6 @@ export function AskPanel({
     void ask(question);
   }
 
-  // Not shown while a limit notice is up: it already says when to come back,
-  // and the stored count would be one answer old.
-  const usageLine =
-    state.usage !== null && state.status !== "limit"
-      ? describeUsage(state.usage)
-      : null;
-
   const showWaiting =
     state.status === "loading" ||
     (state.status === "streaming" && state.answer === "");
@@ -99,18 +98,6 @@ export function AskPanel({
             {busy ? "Asking…" : "Ask"}
           </button>
         </div>
-        {usageLine ? (
-          <p
-            role="status"
-            className={
-              usageLine.lastQuestion
-                ? "text-xs font-medium text-warn"
-                : "text-xs text-muted"
-            }
-          >
-            {usageLine.text}
-          </p>
-        ) : null}
       </form>
 
       {state.status === "idle" ? null : (

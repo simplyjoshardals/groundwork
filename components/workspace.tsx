@@ -4,15 +4,30 @@ import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { AskPanel } from "@/components/ask-panel";
 import { ViewerPanel } from "@/components/viewer-panel";
+import { cn } from "@/components/ui/cn";
 import { useViewerLocation } from "@/lib/viewer-url/use-viewer-location";
 import type { StreamSource } from "@/types/ask-stream";
 
 /**
- * The signed-in home: the ask UI, plus the document viewer when the URL names
- * one. A citation chip sets `?doc=<id>&page=<n>&chunk=<id>`; the viewer reads
- * it back, so the view survives a refresh and can be shared.
+ * The signed-in home (DESIGN 4.2). From `xl` two columns: the ask column on the
+ * left never moves, and the right column holds the shelf or, when the URL names
+ * a document, the viewer. Below `xl` it is one column (ask, then shelf) and the
+ * viewer is a sheet over it. A citation chip sets `?doc=<id>&page=<n>&chunk=<id>`;
+ * the viewer reads it back, so the view survives a refresh and can be shared.
+ *
+ * The shelf stays mounted while the viewer is open (hidden from `xl` up), so its
+ * polling and state survive.
  */
-export function Workspace({ children }: { children?: ReactNode }) {
+export function Workspace({
+  intro,
+  shelf,
+  account,
+}: {
+  intro: ReactNode;
+  shelf: ReactNode;
+  /** Shown under the shelf, below `md` only. */
+  account?: ReactNode;
+}) {
   const { location, open, setPage, close } = useViewerLocation();
   const triggerRef = useRef<HTMLElement | null>(null);
   const wasOpenRef = useRef(false);
@@ -37,30 +52,29 @@ export function Workspace({ children }: { children?: ReactNode }) {
   }
 
   return (
-    <div
-      className={
-        viewerOpen
-          ? "grid items-start gap-6 lg:grid-cols-[minmax(0,40rem)_minmax(0,1fr)]"
-          : undefined
-      }
-    >
-      <div
-        className={
-          viewerOpen
-            ? "flex min-w-0 flex-col gap-6"
-            : "mx-auto flex w-full max-w-2xl flex-col gap-6"
-        }
-      >
-        {children}
+    <div className="mx-auto grid w-full max-w-2xl items-start gap-8 xl:max-w-none xl:grid-cols-[minmax(0,40rem)_minmax(0,1fr)]">
+      <div className="flex min-w-0 flex-col gap-6">
+        {intro}
         <AskPanel onOpenSource={onOpenSource} />
       </div>
-      {location.status === "closed" ? null : (
-        <ViewerPanel
-          location={location}
-          onPageChange={setPage}
-          onClose={close}
-        />
-      )}
+      <div className="flex min-w-0 flex-col gap-6 xl:sticky xl:top-20">
+        <div
+          className={cn(
+            "flex flex-col gap-6 xl:-mx-1 xl:max-h-[calc(100dvh-6.5rem)] xl:overflow-y-auto xl:px-1",
+            viewerOpen && "xl:hidden",
+          )}
+        >
+          {shelf}
+        </div>
+        {location.status === "closed" ? null : (
+          <ViewerPanel
+            location={location}
+            onPageChange={setPage}
+            onClose={close}
+          />
+        )}
+        {account}
+      </div>
     </div>
   );
 }

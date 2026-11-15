@@ -31,5 +31,7 @@ export async function signUpViaUi(page: Page, user: TestUser): Promise<void> {
     .click();
 
   await expect(page).toHaveURL("/");
-  await expect(page.getByText(user.email)).toBeVisible();
+  await expect(
+    page.getByText(user.email).locator("visible=true"),
+  ).toBeVisible();
 }

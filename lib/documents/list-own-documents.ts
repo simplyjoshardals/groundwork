@@ -63,14 +63,20 @@ function parseRow(row: unknown): OwnDocument | null {
   };
 }
 
-export async function listOwnDocuments(
+/**
+ * Own documents are `is_public = false`; the shared samples are
+ * `is_public = true`. RLS (`documents_select`) already limits both reads, the
+ * filter only picks which group the caller wants.
+ */
+async function listDocuments(
   client: SupabaseClient<Database>,
+  isPublic: boolean,
 ): Promise<ListOwnDocumentsResult> {
   try {
     const { data, error } = await client
       .from("documents")
       .select(COLUMNS)
-      .eq("is_public", false)
+      .eq("is_public", isPublic)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -102,4 +108,22 @@ export async function listOwnDocuments(
     );
     return { ok: false, reason: "failed" };
   }
+}
+
+/** The signed-in user's own documents (never the shared samples). */
+export function listOwnDocuments(
+  client: SupabaseClient<Database>,
+): Promise<ListOwnDocumentsResult> {
+  return listDocuments(client, false);
+}
+
+/**
+ * The shared sample documents, for the demo shelf. Same RLS-scoped client:
+ * `documents_select` allows `is_public` rows for every authenticated session,
+ * anonymous demo sessions included.
+ */
+export function listSampleDocuments(
+  client: SupabaseClient<Database>,
+): Promise<ListOwnDocumentsResult> {
+  return listDocuments(client, true);
 }

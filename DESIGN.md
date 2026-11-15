@@ -335,6 +335,7 @@ Rules: components use token utilities (`bg-surface`, `text-ink`) so they switch 
 - **Below `xl`:** single column. The shelf is a section under the answer. The viewer is a modal sheet:
   - `md` to `xl`: right-anchored sheet, full height, `max-w-[34rem]`.
   - Below `md`: bottom sheet, `top-12` to bottom, `rounded-t-xl`, safe-area padding, with a backdrop.
+- **Single column below `xl`:** centered and capped at `max-w-2xl` so lines and rows stay readable on tablets.
 - **Mobile behavior:** composer stays at the top (this is single-shot Q&A, not a chat). Inputs 48 px tall. Viewer controls 44 px. No horizontal scroll at 320 px.
 
 ### 4.3 Viewer modes
@@ -446,7 +447,6 @@ One region, bottom center, `max-w-sm`, `rounded-lg bg-toast text-toast-fg shadow
 
 Each row: `rounded-lg border border-line bg-surface p-4`, grid: title (`font-medium`, wraps), status badge, meta in mono `text-xs text-muted` ("6 pages · PDF · added 2 days ago"). Row actions (Retry, Delete) are ghost `sm` buttons, visible on hover and focus-within on desktop, always visible on touch. A processing row shows a 2 px indeterminate progress line along its bottom edge (static fill under reduced motion). Status changes update the badge in place with a `--dur-base` crossfade. The row does not change height.
 
----
 
 ### 5.11 Icons
 
@@ -457,6 +457,28 @@ Phosphor is the only icon library (`@phosphor-icons/react`, pinned exactly). Fea
 - **Accessibility:** every icon is `aria-hidden` and `focusable="false"` (set once in `icons.tsx`). The text beside it carries the meaning, and an icon-only control gets its name from `aria-label`.
 - **Shape carries meaning:** statuses and banner tones each have a different glyph, so color is never the only signal.
 - **No raw `<svg>`, no emoji, no text glyphs (`×`, `→`) standing in for icons.**
+
+### 5.12 Theme toggle
+
+A three-state icon button (System, Light, Dark) that cycles in that order on each press. Ghost style, 36 px square on fine pointers and 44 px on coarse ones (`pointer: coarse`). The icon shows the **current choice**: Monitor (System), Sun (Light), Moon (Dark). The `aria-label` names the state and the next one: "Theme: System. Switch to Light." There is no menu. The choice is stored under the existing theme key and applied to `data-theme` (System resolves the OS preference to light or dark, the same as the head script). While on System it follows OS changes live. The first render uses the System icon on the server and swaps after hydration, in a fixed-size box, so nothing shifts.
+
+### 5.13 Question counter
+
+Header text in mono, `text-sm`, `tabular-nums`, `text-muted`: "14 of 20 left" (the full sentence with the reset time is the `aria-label` and `title`, so it is not squeezed into 360 px). Zero state: "0 left today" in `text-warn` with the warn glyph beside it, never red, because running out is a limit, not an error. The value sits in a box with a reserved minimum width (`min-w-[7rem]`, sized for "20 of 20 left") so a change of digits does not shift the header. Unknown (the lookup failed): "– left" in the same box, with the label "Question count unavailable." It is a polite live region (`aria-live="polite"`, `aria-atomic`), so a change after an answer is announced and first paint is not. The value is fetched on the server, so the counter has data before the first answer; the 80 × 16 px skeleton bar (5.9) is only for route loading states.
+
+### 5.14 Header scroll edge
+
+The header always has `border-b border-transparent`. Once the page has scrolled past 0 px, the border becomes `border-line` (color change only, no layout change, `--dur-fast`). A zero-height sentinel at the top of the page drives it through an `IntersectionObserver`, not a scroll listener.
+
+### 5.15 Account section (below `md`)
+
+At the bottom of the documents section on small screens: a quiet `bg-sunken` card with the session chip ("Demo session" or the email, truncated), a ghost "Sign out" button and, for demo sessions, a link "Create an account". It repeats what the header shows from `md` up; only one of the two is ever visible.
+
+### 5.16 Shelf and viewer swap
+
+On `xl`, the shelf and the viewer share the right column. The shelf stays mounted (so polling and state survive) and is hidden while the viewer is open; the viewer fades in with `--dur-base` opacity only. Under reduced motion it appears instantly. The column does not change width.
+
+---
 
 ## 6. Screen inventory and states
 
@@ -566,7 +588,31 @@ Centered card with a serif h1 "Groundwork is waking up.", the line "The database
 | 404 (`not-found.tsx`) | Serif h1 "That page isn't on the shelf." one line, primary "Go to Groundwork". |
 | Error (`error.tsx`, `global-error.tsx`) | Serif h1 "Something broke on our side." one line, "Try again" (calls `reset`) plus a link home. Never a stack trace or a provider message. |
 | Loading (`loading.tsx`) | Header plus skeleton blocks in the shape of the route. |
-| Offline | A shared banner under the header, `role="status"`, appears when `navigator.onLine === false` and when a request fails with a network error. Text: "You're offline. Changes and questions will work again when you're back." Disappears on reconnect. |
+| Offline | A shared banner under the header, `role="status"`, appears when `navigator.onLine === false` and when a request fails with a network error. Text: "You're offline. Questions and uploads will work again when you're back." (same as section 8) Disappears on reconnect. |
+
+### 5.12 Theme toggle
+
+A three-state icon button (System, Light, Dark) that cycles in that order on each press. Ghost style, 36 px square on fine pointers and 44 px on coarse ones (`pointer: coarse`). The icon shows the **current choice**: Monitor (System), Sun (Light), Moon (Dark). The `aria-label` names the state and the next one: "Theme: System. Switch to Light." There is no menu. The choice is stored under the existing theme key and applied to `data-theme` (System removes the attribute). While on System it follows OS changes live. The first render uses the System icon on the server and swaps after hydration, in a fixed-size box, so nothing shifts.
+
+### 5.13 Question counter
+
+Header text in mono, `text-sm`, `tabular-nums`, `text-muted`: "14 of 20 left" (the full sentence with the reset time is the `aria-label`/`title`, so it is not squeezed into 360 px). Zero state: "0 left today" in `text-warn` with the warn glyph beside it, never red, because running out is a limit, not an error. The value sits in a box with a reserved minimum width (`min-w-[7rem]`, sized for "20 of 20 left") so a change of digits does not shift the header. Unknown (the lookup failed): "– left" with the same box, and the full label says "Question count unavailable." Updates are announced politely (`aria-live="polite"`, `aria-atomic`) only after the first answer, never on first paint. Before the data arrives it is the 80 × 16 px skeleton bar (5.9).
+
+### 5.14 Header scroll edge
+
+The header always has `border-b border-transparent`. Once the page has scrolled past 0 px, the border becomes `border-line` (color change only, no layout change, `--dur-fast`). A zero-height sentinel at the top of the page drives it through an `IntersectionObserver`, not a scroll listener.
+
+### 5.15 Account section (below `md`)
+
+At the bottom of the documents section on small screens: a quiet `bg-sunken` card with the session chip ("Demo session" or the email, truncated), a ghost "Sign out" button and, for demo sessions, a link "Create an account". It repeats what the header shows from `md` up; only one of the two is ever visible.
+
+### 5.16 Shelf and viewer swap
+
+On `xl`, the shelf and the viewer share the right column. The shelf stays mounted (so polling and state survive) and is hidden while the viewer is open; the viewer fades in with `--dur-base` opacity only. Under reduced motion it appears instantly. The column does not change width.
+
+
+---
+
 
 ---
 

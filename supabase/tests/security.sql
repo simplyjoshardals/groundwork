@@ -14,7 +14,7 @@
 -- Always pass -v ON_ERROR_STOP=1. Without it psql keeps going after a failed assertion.
 -- This is plain SQL, not pgTAP: do not run it through `supabase test db`.
 --
--- Implemented: T00 (added preflight), T01-T10, T02c-T02f (Task 3.4), T11a-d, T12a-h, T13, T15a-i,
+-- Implemented: T00 (added preflight), T01-T10, T02c-T02f (Task 3.4), T11a-d, T12a-i, T13, T15a-l,
 -- T16a-T16n, T17a-d, T18a-f, T19a-j (Task 4.2 added T12, T13, T16, T18; Task 5.1 added the usage
 -- tests T11a-b, T12a-b, T12f, T15, T18c and the maintenance behaviour tests T19a-f;
 -- Task 5.6 added T19g-j, the purge_old_records row count).
@@ -351,6 +351,9 @@ call pg_temp.expect_denied('T12a',
 call pg_temp.expect_denied('T12b',
   $q$select public.refund_usage('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'question')$q$,
   'permission denied for function refund_usage');
+call pg_temp.expect_denied('T12i',
+  $q$select * from public.peek_usage('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'question')$q$,
+  'permission denied for function peek_usage');
 call pg_temp.expect_denied('T12c',
   $q$select public.claim_document_for_ingest('a1000000-0000-4000-8000-000000000003')$q$,
   'permission denied for function claim_document_for_ingest');
@@ -377,6 +380,7 @@ begin
     'public.fail_ingestion(uuid, text)'::regprocedure,
     'public.consume_usage(uuid, text)'::regprocedure,
     'public.refund_usage(uuid, text)'::regprocedure,
+    'public.peek_usage(uuid, text)'::regprocedure,
     'public.reap_documents(interval, interval)'::regprocedure,
     'public.purge_stale_anonymous_users(interval)'::regprocedure,
     'public.purge_old_records(interval)'::regprocedure
@@ -520,6 +524,25 @@ begin
             and day = (now() at time zone 'utc')::date) = 0,
     'T15i: refund must floor at zero';
   perform public.refund_usage('dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'question');
+
+  -- T15j-l: peek_usage reports the budget without spending it or creating rows.
+  -- Alice is at 20/20 here, the demo user (anonymous) has a row at 0, Bob's counter is at 0.
+  select * into r from public.peek_usage('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'question');
+  assert r.used_today = 20 and r.daily_limit = 20
+    and r.resets_at = (((now() at time zone 'utc')::date + 1)::timestamp at time zone 'utc'),
+    format('T15j: peek must report 20/20 and the next UTC midnight (got %s/%s)', r.used_today, r.daily_limit);
+  assert (select used from public.usage_daily
+          where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and kind = 'question'
+            and day = (now() at time zone 'utc')::date) = 20,
+    'T15j: peek must not change the counter';
+  select * into r from public.peek_usage('cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'ingest');
+  assert r.used_today = 0 and r.daily_limit = 0,
+    format('T15k: anonymous ingest peek must be 0/0 with no row (got %s/%s)', r.used_today, r.daily_limit);
+  assert not exists (select 1 from public.usage_daily
+                     where user_id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' and kind = 'ingest'),
+    'T15k: peek must not create a usage row';
+  assert not exists (select 1 from public.peek_usage('dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'question')),
+    'T15l: an unknown user must return no row';
 end $$;
 
 -- ===== T16: Immutability and state-machine guards (as postgres) ===============
@@ -785,6 +808,6 @@ begin
   assert public.purge_old_records() = 0, 'T19j: a second call has nothing left to remove';
 end $$;
 
-do $$ begin raise notice 'security.sql: all assertions passed (T00-T10 incl. T02c-f, T11a-d, T12a-h, T13, T15a-i, T16a-n, T17a-d, T18a-f, T19a-j)'; end $$;
+do $$ begin raise notice 'security.sql: all assertions passed (T00-T10 incl. T02c-f, T11a-d, T12a-i, T13, T15a-l, T16a-n, T17a-d, T18a-f, T19a-j)'; end $$;
 
 rollback;   -- leaves the database exactly as seeded

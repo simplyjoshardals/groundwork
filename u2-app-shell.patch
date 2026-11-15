@@ -1,0 +1,2219 @@
+diff --git a/DESIGN.md b/DESIGN.md
+index 960b55f..54b978e 100644
+--- a/DESIGN.md
++++ b/DESIGN.md
+@@ -335,6 +335,7 @@ Rules: components use token utilities (`bg-surface`, `text-ink`) so they switch
+ - **Below `xl`:** single column. The shelf is a section under the answer. The viewer is a modal sheet:
+   - `md` to `xl`: right-anchored sheet, full height, `max-w-[34rem]`.
+   - Below `md`: bottom sheet, `top-12` to bottom, `rounded-t-xl`, safe-area padding, with a backdrop.
++- **Single column below `xl`:** centered and capped at `max-w-2xl` so lines and rows stay readable on tablets.
+ - **Mobile behavior:** composer stays at the top (this is single-shot Q&A, not a chat). Inputs 48 px tall. Viewer controls 44 px. No horizontal scroll at 320 px.
+ 
+ ### 4.3 Viewer modes
+@@ -446,7 +447,6 @@ One region, bottom center, `max-w-sm`, `rounded-lg bg-toast text-toast-fg shadow
+ 
+ Each row: `rounded-lg border border-line bg-surface p-4`, grid: title (`font-medium`, wraps), status badge, meta in mono `text-xs text-muted` ("6 pages · PDF · added 2 days ago"). Row actions (Retry, Delete) are ghost `sm` buttons, visible on hover and focus-within on desktop, always visible on touch. A processing row shows a 2 px indeterminate progress line along its bottom edge (static fill under reduced motion). Status changes update the badge in place with a `--dur-base` crossfade. The row does not change height.
+ 
+----
+ 
+ ### 5.11 Icons
+ 
+@@ -458,6 +458,28 @@ Phosphor is the only icon library (`@phosphor-icons/react`, pinned exactly). Fea
+ - **Shape carries meaning:** statuses and banner tones each have a different glyph, so color is never the only signal.
+ - **No raw `<svg>`, no emoji, no text glyphs (`×`, `→`) standing in for icons.**
+ 
++### 5.12 Theme toggle
++
++A three-state icon button (System, Light, Dark) that cycles in that order on each press. Ghost style, 36 px square on fine pointers and 44 px on coarse ones (`pointer: coarse`). The icon shows the **current choice**: Monitor (System), Sun (Light), Moon (Dark). The `aria-label` names the state and the next one: "Theme: System. Switch to Light." There is no menu. The choice is stored under the existing theme key and applied to `data-theme` (System resolves the OS preference to light or dark, the same as the head script). While on System it follows OS changes live. The first render uses the System icon on the server and swaps after hydration, in a fixed-size box, so nothing shifts.
++
++### 5.13 Question counter
++
++Header text in mono, `text-sm`, `tabular-nums`, `text-muted`: "14 of 20 left" (the full sentence with the reset time is the `aria-label` and `title`, so it is not squeezed into 360 px). Zero state: "0 left today" in `text-warn` with the warn glyph beside it, never red, because running out is a limit, not an error. The value sits in a box with a reserved minimum width (`min-w-[7rem]`, sized for "20 of 20 left") so a change of digits does not shift the header. Unknown (the lookup failed): "– left" in the same box, with the label "Question count unavailable." It is a polite live region (`aria-live="polite"`, `aria-atomic`), so a change after an answer is announced and first paint is not. The value is fetched on the server, so the counter has data before the first answer; the 80 × 16 px skeleton bar (5.9) is only for route loading states.
++
++### 5.14 Header scroll edge
++
++The header always has `border-b border-transparent`. Once the page has scrolled past 0 px, the border becomes `border-line` (color change only, no layout change, `--dur-fast`). A zero-height sentinel at the top of the page drives it through an `IntersectionObserver`, not a scroll listener.
++
++### 5.15 Account section (below `md`)
++
++At the bottom of the documents section on small screens: a quiet `bg-sunken` card with the session chip ("Demo session" or the email, truncated), a ghost "Sign out" button and, for demo sessions, a link "Create an account". It repeats what the header shows from `md` up; only one of the two is ever visible.
++
++### 5.16 Shelf and viewer swap
++
++On `xl`, the shelf and the viewer share the right column. The shelf stays mounted (so polling and state survive) and is hidden while the viewer is open; the viewer fades in with `--dur-base` opacity only. Under reduced motion it appears instantly. The column does not change width.
++
++---
++
+ ## 6. Screen inventory and states
+ 
+ Legend: **L** loading, **E** empty, **X** error, **S** success, **P** partial, **O** offline, **D** permission-denied. "n/a" always carries its reason. Existing user-facing strings in `lib/**` are kept unless a row says otherwise.
+@@ -566,7 +588,31 @@ Centered card with a serif h1 "Groundwork is waking up.", the line "The database
+ | 404 (`not-found.tsx`) | Serif h1 "That page isn't on the shelf." one line, primary "Go to Groundwork". |
+ | Error (`error.tsx`, `global-error.tsx`) | Serif h1 "Something broke on our side." one line, "Try again" (calls `reset`) plus a link home. Never a stack trace or a provider message. |
+ | Loading (`loading.tsx`) | Header plus skeleton blocks in the shape of the route. |
+-| Offline | A shared banner under the header, `role="status"`, appears when `navigator.onLine === false` and when a request fails with a network error. Text: "You're offline. Changes and questions will work again when you're back." Disappears on reconnect. |
++| Offline | A shared banner under the header, `role="status"`, appears when `navigator.onLine === false` and when a request fails with a network error. Text: "You're offline. Questions and uploads will work again when you're back." (same as section 8) Disappears on reconnect. |
++
++### 5.12 Theme toggle
++
++A three-state icon button (System, Light, Dark) that cycles in that order on each press. Ghost style, 36 px square on fine pointers and 44 px on coarse ones (`pointer: coarse`). The icon shows the **current choice**: Monitor (System), Sun (Light), Moon (Dark). The `aria-label` names the state and the next one: "Theme: System. Switch to Light." There is no menu. The choice is stored under the existing theme key and applied to `data-theme` (System removes the attribute). While on System it follows OS changes live. The first render uses the System icon on the server and swaps after hydration, in a fixed-size box, so nothing shifts.
++
++### 5.13 Question counter
++
++Header text in mono, `text-sm`, `tabular-nums`, `text-muted`: "14 of 20 left" (the full sentence with the reset time is the `aria-label`/`title`, so it is not squeezed into 360 px). Zero state: "0 left today" in `text-warn` with the warn glyph beside it, never red, because running out is a limit, not an error. The value sits in a box with a reserved minimum width (`min-w-[7rem]`, sized for "20 of 20 left") so a change of digits does not shift the header. Unknown (the lookup failed): "– left" with the same box, and the full label says "Question count unavailable." Updates are announced politely (`aria-live="polite"`, `aria-atomic`) only after the first answer, never on first paint. Before the data arrives it is the 80 × 16 px skeleton bar (5.9).
++
++### 5.14 Header scroll edge
++
++The header always has `border-b border-transparent`. Once the page has scrolled past 0 px, the border becomes `border-line` (color change only, no layout change, `--dur-fast`). A zero-height sentinel at the top of the page drives it through an `IntersectionObserver`, not a scroll listener.
++
++### 5.15 Account section (below `md`)
++
++At the bottom of the documents section on small screens: a quiet `bg-sunken` card with the session chip ("Demo session" or the email, truncated), a ghost "Sign out" button and, for demo sessions, a link "Create an account". It repeats what the header shows from `md` up; only one of the two is ever visible.
++
++### 5.16 Shelf and viewer swap
++
++On `xl`, the shelf and the viewer share the right column. The shelf stays mounted (so polling and state survive) and is hidden while the viewer is open; the viewer fades in with `--dur-base` opacity only. Under reduced motion it appears instantly. The column does not change width.
++
++
++---
++
+ 
+ ---
+ 
+diff --git a/app/globals.css b/app/globals.css
+index 3dbad5f..947aeb2 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -308,3 +308,13 @@ input:-webkit-autofill:focus {
+     background-color 600000s 0s,
+     color 600000s 0s;
+ }
++
++/* Shelf-to-viewer swap (DESIGN 5.16): opacity only. Reduced motion is handled
++   by the global rule that shortens every animation. */
++@keyframes fade-in {
++  from { opacity: 0; }
++  to { opacity: 1; }
++}
++@utility animate-fade-in {
++  animation: fade-in var(--dur-base) var(--ease-paper) both;
++}
+diff --git a/app/page.tsx b/app/page.tsx
+index 9a0b491..d0dc676 100644
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -1,23 +1,38 @@
+-import Link from "next/link";
+ import { Suspense } from "react";
+-import { SignOutButton } from "@/components/sign-out-button";
++import { AccountSection } from "@/components/account-section";
++import { AppHeader } from "@/components/app-header";
++import type { InitialDocuments } from "@/components/document-list";
+ import { DocumentsPanel } from "@/components/documents-panel";
+ import { LandingPage } from "@/components/landing/landing-page";
++import { OfflineBanner } from "@/components/offline-banner";
++import { SampleShelf } from "@/components/sample-shelf";
++import { UsageProvider } from "@/components/usage-context";
+ import { WaitingPage } from "@/components/waiting-page";
+ import { Workspace } from "@/components/workspace";
++import { WorkspaceSkeleton } from "@/components/workspace-skeleton";
++import { peekUsage } from "@/features/limits/peek-usage";
+ import { nextFromSearchParams } from "@/lib/auth/shared-link";
+ import { getSessionCheck } from "@/lib/auth/session";
++import {
++  listOwnDocuments,
++  listSampleDocuments,
++} from "@/lib/documents/list-own-documents";
++import { createServerSupabase } from "@/lib/supabase/server";
+ 
+ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+ 
+ /**
+  * The app. Signed out, it shows the landing page (U1; a shared `?doc=` link is
+  * carried through Try demo and Sign in). With a session (demo or regular), it
+- * shows the ask UI and, when the URL names a document, the viewer. This guard
+- * is a UI convenience: `/api/ask` re-checks the session on every request and
+- * RLS decides what data is visible. If the auth service cannot be reached (for
+- * example a paused project) it shows the waiting page instead of sending a
+- * signed-in user to the landing page (Task 5.9).
++ * shows the header, the ask UI, the shelf and, when the URL names a document,
++ * the viewer. This guard is a UI convenience: `/api/ask` re-checks the session
++ * on every request and RLS decides what data is visible. If the auth service
++ * cannot be reached (for example a paused project) it shows the waiting page
++ * instead of sending a signed-in user to the landing page (Task 5.9).
++ *
++ * The first documents read and the question budget happen here, on the server,
++ * so the shelf and the counter have data on first paint. The read uses the
++ * caller's RLS-scoped client, never the admin client.
+  */
+ export default async function Home({
+   searchParams,
+@@ -30,36 +45,56 @@ export default async function Home({
+   }
+   if (session.status === "unavailable") return <WaitingPage />;
+ 
++  const supabase = await createServerSupabase();
++  const [documents, usage] = await Promise.all([
++    session.isAnonymous
++      ? listSampleDocuments(supabase)
++      : listOwnDocuments(supabase),
++    peekUsage(session.userId),
++  ]);
++  // Captured once on the server: the clock the "stuck" rules start from.
++  const fetchedAt = Date.now();
++  const initial: InitialDocuments = documents.ok
++    ? { ok: true, documents: documents.documents, fetchedAt }
++    : { ok: false };
++
+   const intro = (
+-    <>
+-      <h1 className="text-2xl font-semibold">Groundwork</h1>
+-      <p>Ask questions about documents and see where each answer comes from.</p>
+-    </>
++    <p className="text-pretty text-muted">
++      Ask questions about the documents on the shelf. Every claim comes with a
++      source you can open.
++    </p>
++  );
++  const shelf = session.isAnonymous ? (
++    <SampleShelf documents={documents.ok ? documents.documents : null} />
++  ) : (
++    <DocumentsPanel initial={initial} />
+   );
+-  const introColumn = "mx-auto flex w-full max-w-2xl flex-col gap-6";
+ 
+   return (
+-    <main className="mx-auto w-full max-w-6xl p-8">
+-      <div className="mb-6 flex flex-wrap items-center justify-end gap-3 text-sm">
+-        <span>
+-          {session.isAnonymous
+-            ? "Demo session"
+-            : (session.email ?? "Signed in")}
+-        </span>
+-        {session.isAnonymous ? (
+-          <Link href="/sign-up" className="underline">
+-            Create an account
+-          </Link>
+-        ) : null}
+-        <SignOutButton />
+-      </div>
+-      {/* `useSearchParams` (in Workspace) needs a Suspense boundary. */}
+-      <Suspense fallback={<div className={introColumn}>{intro}</div>}>
+-        <Workspace>
+-          {intro}
+-          <DocumentsPanel canUpload={!session.isAnonymous} />
+-        </Workspace>
+-      </Suspense>
+-    </main>
++    <UsageProvider initial={usage}>
++      <AppHeader isAnonymous={session.isAnonymous} email={session.email} />
++      <main className="mx-auto w-full max-w-[84rem] flex-1 px-4 pt-6 pb-12 md:px-6 md:pt-8 xl:px-8">
++        <h1 className="sr-only">Groundwork</h1>
++        <div className="mb-6 empty:hidden">
++          <OfflineBanner>
++            You’re offline. Questions and uploads will work again when you’re
++            back.
++          </OfflineBanner>
++        </div>
++        {/* `useSearchParams` (in Workspace) needs a Suspense boundary. */}
++        <Suspense fallback={<WorkspaceSkeleton />}>
++          <Workspace
++            intro={intro}
++            shelf={shelf}
++            account={
++              <AccountSection
++                isAnonymous={session.isAnonymous}
++                email={session.email}
++              />
++            }
++          />
++        </Suspense>
++      </main>
++    </UsageProvider>
+   );
+ }
+diff --git a/components/account-section.tsx b/components/account-section.tsx
+new file mode 100644
+index 0000000..97c026f
+--- /dev/null
++++ b/components/account-section.tsx
+@@ -0,0 +1,45 @@
++import Link from "next/link";
++import { SessionChip } from "@/components/session-chip";
++import { SignOutButton } from "@/components/sign-out-button";
++import { buttonClasses } from "@/components/ui/button";
++import { cardClasses } from "@/components/ui/card";
++import { cn } from "@/components/ui/cn";
++
++/**
++ * Session details for screens below `md`, where the header has no room for
++ * them (DESIGN 5.15). From `md` the header shows the same things.
++ */
++export function AccountSection({
++  isAnonymous,
++  email,
++}: {
++  isAnonymous: boolean;
++  email: string | null;
++}) {
++  return (
++    <section
++      aria-labelledby="account-heading"
++      className={cn(cardClasses(), "flex flex-col gap-3 bg-sunken md:hidden")}
++    >
++      <h2 id="account-heading" className="text-sm font-medium">
++        Account
++      </h2>
++      <SessionChip
++        isAnonymous={isAnonymous}
++        email={email}
++        className="max-w-full self-start"
++      />
++      <div className="flex flex-wrap items-center gap-2">
++        {isAnonymous ? (
++          <Link
++            href="/sign-up"
++            className={buttonClasses({ variant: "secondary", size: "sm" })}
++          >
++            Create an account
++          </Link>
++        ) : null}
++        <SignOutButton />
++      </div>
++    </section>
++  );
++}
+diff --git a/components/app-header.tsx b/components/app-header.tsx
+new file mode 100644
+index 0000000..045e158
+--- /dev/null
++++ b/components/app-header.tsx
+@@ -0,0 +1,45 @@
++import Link from "next/link";
++import { HeaderFrame } from "@/components/header-frame";
++import { QuestionCounter } from "@/components/question-counter";
++import { SessionChip } from "@/components/session-chip";
++import { SignOutButton } from "@/components/sign-out-button";
++import { ThemeToggle } from "@/components/theme-toggle";
++import { buttonClasses } from "@/components/ui/button";
++import { Wordmark } from "@/components/wordmark";
++
++/**
++ * The signed-in header (DESIGN 4.2): wordmark, question counter, theme toggle,
++ * and from `md` the session chip and sign out. Below `md` the chip and sign out
++ * live in the Account section under the shelf, so nothing here wraps at 360px.
++ */
++export function AppHeader({
++  isAnonymous,
++  email,
++}: {
++  isAnonymous: boolean;
++  email: string | null;
++}) {
++  return (
++    <HeaderFrame>
++      <Wordmark className="shrink-0" />
++      <div className="ml-auto flex min-w-0 items-center gap-1 md:gap-3">
++        <QuestionCounter />
++        <div className="hidden min-w-0 items-center gap-3 md:flex">
++          <SessionChip isAnonymous={isAnonymous} email={email} />
++          {isAnonymous ? (
++            <Link
++              href="/sign-up"
++              className={buttonClasses({ variant: "secondary", size: "sm" })}
++            >
++              Create an account
++            </Link>
++          ) : null}
++        </div>
++        <ThemeToggle />
++        <div className="hidden md:block">
++          <SignOutButton />
++        </div>
++      </div>
++    </HeaderFrame>
++  );
++}
+diff --git a/components/ask-panel.tsx b/components/ask-panel.tsx
+index 2dc45c1..6939568 100644
+--- a/components/ask-panel.tsx
++++ b/components/ask-panel.tsx
+@@ -5,10 +5,10 @@ import type { SubmitEvent } from "react";
+ import { AnswerText } from "@/components/answer-text";
+ import { NotFoundNotice } from "@/components/not-found-notice";
+ import { SourceList } from "@/components/source-list";
++import { useUsage } from "@/components/usage-context";
+ import {
+   askReducer,
+   describeFailure,
+-  describeUsage,
+   initialAskState,
+   requestAnswer,
+ } from "@/lib/ask-client";
+@@ -28,6 +28,12 @@ export function AskPanel({
+   const [state, dispatch] = useReducer(askReducer, initialAskState);
+   const [input, setInput] = useState("");
+   const abortRef = useRef<AbortController | null>(null);
++  const { publish } = useUsage();
++
++  // The header counter shows the fresh budget that arrives with each answer.
++  useEffect(() => {
++    if (state.usage !== null) publish(state.usage);
++  }, [state.usage, publish]);
+ 
+   // Stop an in-flight request when the panel goes away.
+   useEffect(() => () => abortRef.current?.abort(), []);
+@@ -64,13 +70,6 @@ export function AskPanel({
+     void ask(question);
+   }
+ 
+-  // Not shown while a limit notice is up: it already says when to come back,
+-  // and the stored count would be one answer old.
+-  const usageLine =
+-    state.usage !== null && state.status !== "limit"
+-      ? describeUsage(state.usage)
+-      : null;
+-
+   const showWaiting =
+     state.status === "loading" ||
+     (state.status === "streaming" && state.answer === "");
+@@ -99,18 +98,6 @@ export function AskPanel({
+             {busy ? "Asking…" : "Ask"}
+           </button>
+         </div>
+-        {usageLine ? (
+-          <p
+-            role="status"
+-            className={
+-              usageLine.lastQuestion
+-                ? "text-xs font-medium text-warn"
+-                : "text-xs text-muted"
+-            }
+-          >
+-            {usageLine.text}
+-          </p>
+-        ) : null}
+       </form>
+ 
+       {state.status === "idle" ? null : (
+diff --git a/components/document-list.tsx b/components/document-list.tsx
+index d165d1e..c406a1b 100644
+--- a/components/document-list.tsx
++++ b/components/document-list.tsx
+@@ -2,6 +2,10 @@
+ 
+ import { useEffect, useRef, useState } from "react";
+ import { DeleteDocumentButton } from "@/components/delete-document-button";
++import { Banner } from "@/components/ui/banner";
++import { Button } from "@/components/ui/button";
++import { cardClasses } from "@/components/ui/card";
++import { Skeleton } from "@/components/ui/skeleton";
+ import {
+   canRetry,
+   isInFlight,
+@@ -34,6 +38,11 @@ const BADGE_CLASS: Record<DocumentStatus, string> = {
+   failed: "border-danger text-danger",
+ };
+ 
++/** What the server read before the page was sent (U2). */
++export type InitialDocuments =
++  | { ok: true; documents: OwnDocument[]; fetchedAt: number }
++  | { ok: false };
++
+ /** Never throws: a missing public env var is reported like any other failed read. */
+ async function load(): Promise<ListOwnDocumentsResult> {
+   try {
+@@ -60,21 +69,33 @@ async function load(): Promise<ListOwnDocumentsResult> {
+ export function DocumentList({
+   refreshKey,
+   onCountChange,
++  initial,
+ }: {
+   refreshKey: number;
+   /** Called with the number of documents after each successful load (Task 4.8). */
+   onCountChange?: (count: number) => void;
++  /**
++   * The server's first read (U2), so the shelf has no loading flash. `ok`
++   * documents seed the list and the first client read waits for the poll
++   * schedule; a failed server read shows the error state until Try again.
++   * Omit it to load on mount, as before.
++   */
++  initial?: InitialDocuments;
+ }) {
+-  const [documents, setDocuments] = useState<OwnDocument[] | null>(null);
++  const [documents, setDocuments] = useState<OwnDocument[] | null>(
++    initial?.ok ? initial.documents : null,
++  );
+   /** Time of the last successful read: the clock the stuck rules use. */
+-  const [now, setNow] = useState(0);
+-  const [loadFailed, setLoadFailed] = useState(false);
++  const [now, setNow] = useState(initial?.ok ? initial.fetchedAt : 0);
++  const [loadFailed, setLoadFailed] = useState(initial?.ok === false);
+   const [retryToken, setRetryToken] = useState(0);
+   const [retrying, setRetrying] = useState<ReadonlySet<string>>(new Set());
+   const [notes, setNotes] = useState<Readonly<Record<string, string>>>({});
+   // Read by the polling loop, which must not restart when a retry starts.
+   const retryingRef = useRef<ReadonlySet<string>>(new Set());
+-  const hasLoadedRef = useRef(false);
++  const hasLoadedRef = useRef(initial?.ok === true);
++  // The server's read stands in for the first client read, once.
++  const initialRef = useRef(initial);
+ 
+   useEffect(() => {
+     let cancelled = false;
+@@ -112,7 +133,19 @@ export function DocumentList({
+       attempt += 1;
+     }
+ 
+-    void tick();
++    const seed = initialRef.current;
++    initialRef.current = undefined;
++    if (seed !== undefined) {
++      if (!seed.ok) return; // The error state is showing; Try again reloads.
++      lastSignature = statusSignature(seed.documents);
++      const moving = seed.documents.some((d) => isInFlight(d, seed.fetchedAt));
++      if (moving) {
++        timer = setTimeout(() => void tick(), pollDelayMs(attempt));
++        attempt += 1;
++      }
++    } else {
++      void tick();
++    }
+     return () => {
+       cancelled = true;
+       if (timer !== undefined) clearTimeout(timer);
+@@ -172,51 +205,79 @@ export function DocumentList({
+   }
+ 
+   return (
+-    <section aria-labelledby="documents-heading" className="text-sm">
+-      <h2 id="documents-heading" className="font-medium">
++    <section
++      aria-labelledby="documents-heading"
++      aria-busy={documents === null && !loadFailed}
++      className="flex flex-col gap-4 text-sm"
++    >
++      <h2 id="documents-heading" className="font-serif text-h3">
+         Your documents
+       </h2>
+ 
+       {documents === null && !loadFailed ? (
+-        <p role="status" className="mt-2 text-muted">
+-          Loading your documents…
+-        </p>
++        <div role="status">
++          <span className="sr-only">Loading your documents</span>
++          <ul aria-hidden="true" className="flex flex-col gap-2">
++            {[0, 1, 2].map((n) => (
++              <li
++                key={n}
++                className={cardClasses({
++                  className: "flex h-14 items-center gap-3 py-0",
++                })}
++              >
++                <Skeleton className="h-4 w-2/5" />
++                <Skeleton shape="pill" className="h-5 w-16" />
++              </li>
++            ))}
++          </ul>
++        </div>
+       ) : null}
+ 
+       {documents === null && loadFailed ? (
+-        <div role="alert" className="mt-2 text-danger">
+-          <p>We could not load your documents.</p>
+-          <button
+-            type="button"
+-            onClick={() => setRetryToken((n) => n + 1)}
+-            className="mt-1 underline"
+-          >
+-            Try again
+-          </button>
+-        </div>
++        <Banner
++          tone="danger"
++          action={
++            <Button
++              variant="secondary"
++              size="sm"
++              onClick={() => setRetryToken((n) => n + 1)}
++            >
++              Try again
++            </Button>
++          }
++        >
++          We couldn&apos;t load your documents.
++        </Banner>
+       ) : null}
+ 
+       {documents !== null && loadFailed ? (
+-        <p role="status" className="mt-2 text-warn">
+-          Could not refresh. Showing the last list we have.{" "}
+-          <button
+-            type="button"
+-            onClick={() => setRetryToken((n) => n + 1)}
+-            className="underline"
+-          >
+-            Try again
+-          </button>
+-        </p>
++        <Banner
++          tone="warn"
++          action={
++            <Button
++              variant="secondary"
++              size="sm"
++              onClick={() => setRetryToken((n) => n + 1)}
++            >
++              Try again
++            </Button>
++          }
++        >
++          Couldn&apos;t refresh. Showing the last list we have.
++        </Banner>
+       ) : null}
+ 
+       {documents !== null && documents.length === 0 ? (
+-        <p className="mt-2 text-muted">
+-          No documents yet. Upload a PDF, TXT or Markdown file to get started.
+-        </p>
++        <div className={cardClasses({ padding: "roomy" })}>
++          <p className="font-serif text-h3">Nothing on the shelf yet.</p>
++          <p className="mt-1 text-muted">
++            Upload a PDF, TXT or Markdown file to get started.
++          </p>
++        </div>
+       ) : null}
+ 
+       {documents !== null && documents.length > 0 ? (
+-        <ul className="mt-2 flex flex-col gap-2">
++        <ul className="flex flex-col gap-2">
+           {documents.map((doc) => {
+             const isRetrying = retrying.has(doc.id);
+             const stuck = isStuck(doc, now);
+diff --git a/components/documents-panel.tsx b/components/documents-panel.tsx
+index 5b28a96..c22e3ab 100644
+--- a/components/documents-panel.tsx
++++ b/components/documents-panel.tsx
+@@ -1,7 +1,10 @@
+ "use client";
+ 
+ import { useCallback, useState } from "react";
+-import { DocumentList } from "@/components/document-list";
++import {
++  DocumentList,
++  type InitialDocuments,
++} from "@/components/document-list";
+ import { UploadPanel } from "@/components/upload-panel";
+ import { isAtDocumentCap } from "@/lib/upload/limits";
+ 
+@@ -15,10 +18,10 @@ import { isAtDocumentCap } from "@/lib/upload/limits";
+  * control is disabled (Task 4.8). The count is `null` until the first load, so
+  * nothing is disabled on a guess and the insert trigger stays the real cap.
+  *
+- * Demo (anonymous) sessions get the upload panel's "needs an account" message
+- * and no list: they own no documents, and the shared samples are not theirs.
++ * Signed-in (non-demo) sessions only: demo sessions get `SampleShelf` instead
++ * (U2). `initial` is the server's first read of the list.
+  */
+-export function DocumentsPanel({ canUpload }: { canUpload: boolean }) {
++export function DocumentsPanel({ initial }: { initial: InitialDocuments }) {
+   const [refreshKey, setRefreshKey] = useState(0);
+   const refresh = useCallback(() => setRefreshKey((n) => n + 1), []);
+   const [documentCount, setDocumentCount] = useState<number | null>(null);
+@@ -26,17 +29,16 @@ export function DocumentsPanel({ canUpload }: { canUpload: boolean }) {
+   return (
+     <div className="flex flex-col gap-6">
+       <UploadPanel
+-        canUpload={canUpload}
++        canUpload
+         atCap={isAtDocumentCap(documentCount)}
+         onUploaded={refresh}
+         onIngestSettled={refresh}
+       />
+-      {canUpload ? (
+-        <DocumentList
+-          refreshKey={refreshKey}
+-          onCountChange={setDocumentCount}
+-        />
+-      ) : null}
++      <DocumentList
++        refreshKey={refreshKey}
++        onCountChange={setDocumentCount}
++        initial={initial}
++      />
+     </div>
+   );
+ }
+diff --git a/components/header-frame.tsx b/components/header-frame.tsx
+new file mode 100644
+index 0000000..6150d38
+--- /dev/null
++++ b/components/header-frame.tsx
+@@ -0,0 +1,43 @@
++"use client";
++
++import { useEffect, useRef, useState, type ReactNode } from "react";
++import { cn } from "@/components/ui/cn";
++
++/**
++ * The sticky 56 px header bar (DESIGN 4.2, 5.14). Its bottom edge is always
++ * there but transparent until the page scrolls, so nothing shifts. A
++ * zero-height sentinel at the top of the page tells us when we have left it
++ * (an IntersectionObserver, not a scroll listener).
++ */
++export function HeaderFrame({ children }: { children: ReactNode }) {
++  const sentinelRef = useRef<HTMLDivElement>(null);
++  const [scrolled, setScrolled] = useState(false);
++
++  useEffect(() => {
++    const sentinel = sentinelRef.current;
++    if (sentinel === null || typeof IntersectionObserver === "undefined") {
++      return;
++    }
++    const observer = new IntersectionObserver(([entry]) => {
++      if (entry) setScrolled(!entry.isIntersecting);
++    });
++    observer.observe(sentinel);
++    return () => observer.disconnect();
++  }, []);
++
++  return (
++    <>
++      <div ref={sentinelRef} aria-hidden="true" className="h-px -mb-px" />
++      <header
++        className={cn(
++          "sticky top-0 z-30 border-b bg-bg transition-colors duration-(--dur-fast) ease-(--ease-settle)",
++          scrolled ? "border-line" : "border-transparent",
++        )}
++      >
++        <div className="mx-auto flex h-14 w-full max-w-[84rem] items-center gap-2 px-4 md:gap-3 md:px-6 xl:px-8">
++          {children}
++        </div>
++      </header>
++    </>
++  );
++}
+diff --git a/components/question-counter.tsx b/components/question-counter.tsx
+new file mode 100644
+index 0000000..ab4423f
+--- /dev/null
++++ b/components/question-counter.tsx
+@@ -0,0 +1,49 @@
++"use client";
++
++import { useSyncExternalStore } from "react";
++import { WarningIcon } from "@/components/ui/icons";
++import { cn } from "@/components/ui/cn";
++import { useUsage } from "@/components/usage-context";
++import { describeCounter } from "@/lib/ask-client";
++
++const noopSubscribe = () => () => undefined;
++
++/**
++ * The header's question counter (DESIGN 5.13). A polite live region: it is
++ * announced when an answer changes it, not on first paint. Its box has a fixed
++ * minimum width so a change of digits never moves the header.
++ */
++export function QuestionCounter() {
++  const { usage } = useUsage();
++  // The reset time shows in the reader's zone. The server (and hydration)
++  // use UTC, so the HTML matches, and the local time appears right after.
++  const timeZone = useSyncExternalStore<string | undefined>(
++    noopSubscribe,
++    () => undefined,
++    () => "UTC",
++  );
++  const text =
++    usage === null
++      ? {
++          label: "– left",
++          description: "Question count unavailable.",
++          empty: false,
++        }
++      : describeCounter(usage, timeZone);
++
++  return (
++    <p
++      aria-live="polite"
++      aria-atomic="true"
++      title={text.description}
++      className={cn(
++        "flex min-w-[7rem] items-center justify-end gap-1.5 whitespace-nowrap font-mono text-sm tabular-nums",
++        text.empty ? "text-warn" : "text-muted",
++      )}
++    >
++      {text.empty ? <WarningIcon /> : null}
++      <span aria-hidden="true">{text.label}</span>
++      <span className="sr-only">{text.description}</span>
++    </p>
++  );
++}
+diff --git a/components/refresh-button.tsx b/components/refresh-button.tsx
+new file mode 100644
+index 0000000..e3e3b62
+--- /dev/null
++++ b/components/refresh-button.tsx
+@@ -0,0 +1,22 @@
++"use client";
++
++import { useRouter } from "next/navigation";
++import { useTransition } from "react";
++import { Button } from "@/components/ui/button";
++
++/** Re-runs the server render of the page: "Try again" for server-fetched data. */
++export function RefreshButton({ label = "Try again" }: { label?: string }) {
++  const router = useRouter();
++  const [pending, startTransition] = useTransition();
++  return (
++    <Button
++      variant="secondary"
++      size="sm"
++      disabled={pending}
++      onClick={() => startTransition(() => router.refresh())}
++      className="min-w-24"
++    >
++      {pending ? "Trying…" : label}
++    </Button>
++  );
++}
+diff --git a/components/sample-shelf.tsx b/components/sample-shelf.tsx
+new file mode 100644
+index 0000000..2b92713
+--- /dev/null
++++ b/components/sample-shelf.tsx
+@@ -0,0 +1,76 @@
++import Link from "next/link";
++import { RefreshButton } from "@/components/refresh-button";
++import { Badge } from "@/components/ui/badge";
++import { Banner } from "@/components/ui/banner";
++import { buttonClasses } from "@/components/ui/button";
++import { cardClasses } from "@/components/ui/card";
++import type { OwnDocument } from "@/lib/documents/list-own-documents";
++
++/**
++ * The demo shelf (DESIGN 6.5): the shared sample documents with the Sample
++ * badge, plus a quiet card that says uploading needs an account. Rendered on
++ * the server from `listSampleDocuments`; `documents` is `null` when that read
++ * failed, which shows an error with Try again (never an empty shelf).
++ *
++ * Row restyling (meta, actions) belongs to U5; the rows here only need a title,
++ * the badge and the page count.
++ */
++export function SampleShelf({
++  documents,
++}: {
++  documents: readonly OwnDocument[] | null;
++}) {
++  return (
++    <section aria-labelledby="documents-heading" className="flex flex-col gap-4">
++      <h2 id="documents-heading" className="font-serif text-h3">
++        Sample documents
++      </h2>
++
++      {documents === null ? (
++        <Banner tone="danger" action={<RefreshButton />}>
++          We couldn&apos;t load the sample documents.
++        </Banner>
++      ) : documents.length === 0 ? (
++        <Banner tone="info">No sample documents are available right now.</Banner>
++      ) : (
++        <ul className="flex flex-col gap-2">
++          {documents.map((doc) => (
++            <li
++              key={doc.id}
++              className={cardClasses({ className: "flex flex-col gap-2" })}
++            >
++              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
++                <span className="min-w-0 wrap-break-word font-medium">
++                  {doc.title}
++                </span>
++                <Badge status="sample" />
++              </div>
++              {doc.pageCount !== null ? (
++                <p className="font-mono text-xs text-muted">
++                  {doc.pageCount} {doc.pageCount === 1 ? "page" : "pages"}
++                </p>
++              ) : null}
++            </li>
++          ))}
++        </ul>
++      )}
++
++      <div className={cardClasses({ className: "bg-sunken" })}>
++        <p className="font-medium">Uploading needs an account</p>
++        <p className="mt-1 text-sm text-muted">
++          Create one to ask questions about your own documents.
++        </p>
++        <Link
++          href="/sign-up"
++          className={buttonClasses({
++            variant: "secondary",
++            size: "sm",
++            className: "mt-3",
++          })}
++        >
++          Create an account
++        </Link>
++      </div>
++    </section>
++  );
++}
+diff --git a/components/session-chip.tsx b/components/session-chip.tsx
+new file mode 100644
+index 0000000..f30e558
+--- /dev/null
++++ b/components/session-chip.tsx
+@@ -0,0 +1,25 @@
++import { cn } from "@/components/ui/cn";
++
++/** "Demo session" or the email, truncated so a long address never wraps. */
++export function SessionChip({
++  isAnonymous,
++  email,
++  className,
++}: {
++  isAnonymous: boolean;
++  email: string | null;
++  className?: string;
++}) {
++  const label = isAnonymous ? "Demo session" : (email ?? "Signed in");
++  return (
++    <span
++      title={label}
++      className={cn(
++        "inline-block max-w-[14rem] truncate rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted",
++        className,
++      )}
++    >
++      {label}
++    </span>
++  );
++}
+diff --git a/components/sign-out-button.tsx b/components/sign-out-button.tsx
+index 6012510..cb42ef7 100644
+--- a/components/sign-out-button.tsx
++++ b/components/sign-out-button.tsx
+@@ -2,8 +2,14 @@
+ 
+ import { useRouter } from "next/navigation";
+ import { useState } from "react";
++import { Button } from "@/components/ui/button";
+ import { createBrowserSupabase } from "@/lib/supabase/browser";
+ 
++/**
++ * Ghost button with a fixed width, so "Signing out…" does not move the header.
++ * The error floats under the button (absolutely positioned) so it cannot push
++ * the header's layout either.
++ */
+ export function SignOutButton() {
+   const router = useRouter();
+   const [pending, setPending] = useState(false);
+@@ -31,17 +37,21 @@ export function SignOutButton() {
+   }
+ 
+   return (
+-    <div className="flex items-center gap-2">
+-      <button
+-        type="button"
++    <div className="relative">
++      <Button
++        variant="ghost"
++        size="sm"
+         onClick={signOut}
+         disabled={pending}
+-        className="rounded-md border border-control px-3 py-1 text-sm disabled:opacity-60"
++        className="min-w-28"
+       >
+         {pending ? "Signing out…" : "Sign out"}
+-      </button>
++      </Button>
+       {error ? (
+-        <p role="alert" className="text-sm text-danger">
++        <p
++          role="alert"
++          className="absolute top-full right-0 z-40 mt-1 rounded-md border border-danger/60 bg-danger-soft px-2 py-1 text-xs whitespace-nowrap text-danger"
++        >
+           {error}
+         </p>
+       ) : null}
+diff --git a/components/theme-toggle.tsx b/components/theme-toggle.tsx
+new file mode 100644
+index 0000000..da6c607
+--- /dev/null
++++ b/components/theme-toggle.tsx
+@@ -0,0 +1,41 @@
++"use client";
++
++import { useSyncExternalStore } from "react";
++import { Button } from "@/components/ui/button";
++import { MonitorIcon, MoonIcon, SunIcon } from "@/components/ui/icons";
++import {
++  nextThemeChoice,
++  readThemeChoice,
++  setThemeChoice,
++  subscribeToTheme,
++  THEME_LABEL,
++} from "@/lib/theme/apply-theme";
++import type { ThemeChoice } from "@/lib/theme/theme-script";
++
++const ICONS = { system: MonitorIcon, light: SunIcon, dark: MoonIcon };
++
++/**
++ * Three-state theme button (DESIGN 5.12). The server and the first client
++ * render both show System (the server cannot read storage); the real choice
++ * appears right after hydration, in a box of the same size.
++ */
++export function ThemeToggle() {
++  const choice = useSyncExternalStore<ThemeChoice>(
++    subscribeToTheme,
++    readThemeChoice,
++    () => "system",
++  );
++  const next = nextThemeChoice(choice);
++  const Icon = ICONS[choice];
++  return (
++    <Button
++      variant="ghost"
++      aria-label={`Theme: ${THEME_LABEL[choice]}. Switch to ${THEME_LABEL[next]}.`}
++      title={`Theme: ${THEME_LABEL[choice]}`}
++      onClick={() => setThemeChoice(next)}
++      className="size-9 shrink-0 px-0 pointer-coarse:size-11"
++    >
++      <Icon />
++    </Button>
++  );
++}
+diff --git a/components/ui/icons.tsx b/components/ui/icons.tsx
+index 78c8e2c..f8046d2 100644
+--- a/components/ui/icons.tsx
++++ b/components/ui/icons.tsx
+@@ -5,6 +5,9 @@ import {
+   CircleHalfIcon,
+   ClockIcon,
+   InfoIcon as PhInfoIcon,
++  MonitorIcon as PhMonitorIcon,
++  MoonIcon as PhMoonIcon,
++  SunIcon as PhSunIcon,
+   WarningCircleIcon,
+   WarningIcon as PhWarningIcon,
+   WarningOctagonIcon,
+@@ -39,6 +42,18 @@ export function CheckIcon({ size = 16, ...rest }: IconProps) {
+   return <PhCheckIcon size={size} weight="regular" {...HIDDEN} {...rest} />;
+ }
+ 
++export function SunIcon({ size = 16, ...rest }: IconProps) {
++  return <PhSunIcon size={size} weight="regular" {...HIDDEN} {...rest} />;
++}
++
++export function MoonIcon({ size = 16, ...rest }: IconProps) {
++  return <PhMoonIcon size={size} weight="regular" {...HIDDEN} {...rest} />;
++}
++
++export function MonitorIcon({ size = 16, ...rest }: IconProps) {
++  return <PhMonitorIcon size={size} weight="regular" {...HIDDEN} {...rest} />;
++}
++
+ // --- banner tones (fill): circle-i, triangle, octagon ------------------
+ 
+ export function InfoIcon({ size = 16, ...rest }: IconProps) {
+diff --git a/components/usage-context.tsx b/components/usage-context.tsx
+new file mode 100644
+index 0000000..9774afd
+--- /dev/null
++++ b/components/usage-context.tsx
+@@ -0,0 +1,45 @@
++"use client";
++
++import {
++  createContext,
++  useContext,
++  useMemo,
++  useState,
++  type ReactNode,
++} from "react";
++import type { StreamUsage } from "@/types/ask-stream";
++
++interface UsageValue {
++  /** Today's question budget, or null when the server lookup failed. */
++  usage: StreamUsage | null;
++  /** The ask panel calls this with the usage that arrives on each answer. */
++  publish: (usage: StreamUsage) => void;
++}
++
++const UsageContext = createContext<UsageValue | null>(null);
++
++/**
++ * Holds the question budget for the header counter. It starts from the
++ * server's lookup (so there is a number before the first answer) and is
++ * replaced by the fresher value on every answer.
++ */
++export function UsageProvider({
++  initial,
++  children,
++}: {
++  initial: StreamUsage | null;
++  children: ReactNode;
++}) {
++  const [usage, setUsage] = useState<StreamUsage | null>(initial);
++  const value = useMemo<UsageValue>(
++    () => ({ usage, publish: setUsage }),
++    [usage],
++  );
++  return <UsageContext value={value}>{children}</UsageContext>;
++}
++
++export function useUsage(): UsageValue {
++  const value = useContext(UsageContext);
++  if (value === null) throw new Error("useUsage needs a UsageProvider");
++  return value;
++}
+diff --git a/components/viewer-panel.tsx b/components/viewer-panel.tsx
+index 33b51a2..bfc1075 100644
+--- a/components/viewer-panel.tsx
++++ b/components/viewer-panel.tsx
+@@ -234,7 +234,7 @@ export function ViewerPanel({
+       tabIndex={-1}
+       aria-label="Document viewer"
+       onKeyDown={onKeyDown}
+-      className="fixed inset-x-0 bottom-0 top-12 z-20 flex flex-col gap-3 overflow-y-auto rounded-t-xl border border-line bg-surface p-4 shadow-sheet outline-none lg:sticky lg:top-6 lg:z-auto lg:max-h-[calc(100vh-3rem)] lg:rounded-xl lg:shadow-none"
++      className="fixed inset-x-0 bottom-0 top-14 z-20 flex flex-col gap-3 overflow-y-auto rounded-t-xl border border-line bg-surface p-4 shadow-sheet outline-none animate-fade-in xl:static xl:z-auto xl:max-h-[calc(100dvh-6.5rem)] xl:rounded-xl xl:shadow-none"
+     >
+       <div className="flex items-start justify-between gap-3">
+         <h2 className="min-w-0 wrap-break-word text-sm font-semibold">
+diff --git a/components/workspace-skeleton.tsx b/components/workspace-skeleton.tsx
+new file mode 100644
+index 0000000..8207526
+--- /dev/null
++++ b/components/workspace-skeleton.tsx
+@@ -0,0 +1,26 @@
++import { Skeleton } from "@/components/ui/skeleton";
++
++/**
++ * Suspense fallback shaped like the workspace (DESIGN 6.3): the intro, the
++ * composer and the shelf's first rows, in the same grid, so the page does not
++ * jump when the real thing replaces it.
++ */
++export function WorkspaceSkeleton() {
++  return (
++    <div
++      aria-busy="true"
++      className="mx-auto grid w-full max-w-2xl items-start gap-8 xl:max-w-none xl:grid-cols-[minmax(0,40rem)_minmax(0,1fr)]"
++    >
++      <div className="flex min-w-0 flex-col gap-6">
++        <Skeleton className="h-5 w-4/5" />
++        <Skeleton className="h-12 w-full" />
++      </div>
++      <div className="flex min-w-0 flex-col gap-2">
++        <Skeleton className="mb-2 h-7 w-40" />
++        {[0, 1, 2].map((n) => (
++          <Skeleton key={n} className="h-14 w-full" />
++        ))}
++      </div>
++    </div>
++  );
++}
+diff --git a/components/workspace.tsx b/components/workspace.tsx
+index 56664d9..ee93f40 100644
+--- a/components/workspace.tsx
++++ b/components/workspace.tsx
+@@ -4,15 +4,30 @@ import { useEffect, useRef } from "react";
+ import type { ReactNode } from "react";
+ import { AskPanel } from "@/components/ask-panel";
+ import { ViewerPanel } from "@/components/viewer-panel";
++import { cn } from "@/components/ui/cn";
+ import { useViewerLocation } from "@/lib/viewer-url/use-viewer-location";
+ import type { StreamSource } from "@/types/ask-stream";
+ 
+ /**
+- * The signed-in home: the ask UI, plus the document viewer when the URL names
+- * one. A citation chip sets `?doc=<id>&page=<n>&chunk=<id>`; the viewer reads
+- * it back, so the view survives a refresh and can be shared.
++ * The signed-in home (DESIGN 4.2). From `xl` two columns: the ask column on the
++ * left never moves, and the right column holds the shelf or, when the URL names
++ * a document, the viewer. Below `xl` it is one column (ask, then shelf) and the
++ * viewer is a sheet over it. A citation chip sets `?doc=<id>&page=<n>&chunk=<id>`;
++ * the viewer reads it back, so the view survives a refresh and can be shared.
++ *
++ * The shelf stays mounted while the viewer is open (hidden from `xl` up), so its
++ * polling and state survive.
+  */
+-export function Workspace({ children }: { children?: ReactNode }) {
++export function Workspace({
++  intro,
++  shelf,
++  account,
++}: {
++  intro: ReactNode;
++  shelf: ReactNode;
++  /** Shown under the shelf, below `md` only. */
++  account?: ReactNode;
++}) {
+   const { location, open, setPage, close } = useViewerLocation();
+   const triggerRef = useRef<HTMLElement | null>(null);
+   const wasOpenRef = useRef(false);
+@@ -37,30 +52,29 @@ export function Workspace({ children }: { children?: ReactNode }) {
+   }
+ 
+   return (
+-    <div
+-      className={
+-        viewerOpen
+-          ? "grid items-start gap-6 lg:grid-cols-[minmax(0,40rem)_minmax(0,1fr)]"
+-          : undefined
+-      }
+-    >
+-      <div
+-        className={
+-          viewerOpen
+-            ? "flex min-w-0 flex-col gap-6"
+-            : "mx-auto flex w-full max-w-2xl flex-col gap-6"
+-        }
+-      >
+-        {children}
++    <div className="mx-auto grid w-full max-w-2xl items-start gap-8 xl:max-w-none xl:grid-cols-[minmax(0,40rem)_minmax(0,1fr)]">
++      <div className="flex min-w-0 flex-col gap-6">
++        {intro}
+         <AskPanel onOpenSource={onOpenSource} />
+       </div>
+-      {location.status === "closed" ? null : (
+-        <ViewerPanel
+-          location={location}
+-          onPageChange={setPage}
+-          onClose={close}
+-        />
+-      )}
++      <div className="flex min-w-0 flex-col gap-6 xl:sticky xl:top-20">
++        <div
++          className={cn(
++            "flex flex-col gap-6 xl:-mx-1 xl:max-h-[calc(100dvh-6.5rem)] xl:overflow-y-auto xl:px-1",
++            viewerOpen && "xl:hidden",
++          )}
++        >
++          {shelf}
++        </div>
++        {location.status === "closed" ? null : (
++          <ViewerPanel
++            location={location}
++            onPageChange={setPage}
++            onClose={close}
++          />
++        )}
++        {account}
++      </div>
+     </div>
+   );
+ }
+diff --git a/docs/decisions.md b/docs/decisions.md
+index 47ba71f..a04c6a1 100644
+--- a/docs/decisions.md
++++ b/docs/decisions.md
+@@ -74,3 +74,4 @@ One dated line per decision that changes the design. Newest at the bottom.
+ - 2026-11-15: Sign out returns to `/` (the landing page), not `/sign-in` (DESIGN §6.3).
+ - 2026-11-15: Chrome's autofill background is neutralised in `globals.css` with a delayed transition (not a box-shadow, which would remove the focus ring).
+ - 2026-11-15: The landing specimen uses real text from the sample handbook, page 3, with the F08 quote highlighted; the answer paraphrases F08, F11 and F12. Update it if the handbook text changes.
++- 2026-11-15: U2 (app shell). The header's question counter needs data before the first answer, but the stream only sends usage on `done`/`not_found` and the usage tables are unreadable to clients. Decision: added a read-only, service-role-only `public.peek_usage(uuid, text)` (migration `20261112120000_peek_usage.sql`) with the same grants as `consume_usage`. It returns used/limit/next-UTC-midnight, writes no row, and ignores cooldown and the global cap (the counter shows the user's own budget). `features/limits/peek-usage.ts` wraps it, never throws (failure returns `null`, so the header shows an unknown counter instead of breaking the page), and the page reads it on the server. `getSessionCheck` now also returns `userId` for this. Tests: T12i, T15j-l in `supabase/tests/security.sql`. RLS needed no change: `documents_select` already allows `is_public` rows for every authenticated session (demo included), so `listSampleDocuments` is a read with the same RLS-scoped client.
+diff --git a/features/limits/peek-usage.ts b/features/limits/peek-usage.ts
+new file mode 100644
+index 0000000..d3db9e7
+--- /dev/null
++++ b/features/limits/peek-usage.ts
+@@ -0,0 +1,70 @@
++import "server-only";
++import { createAdminSupabase } from "@/lib/supabase/admin";
++import type { UsageDeps } from "./consume-usage";
++import type { UsageKind } from "./types";
++
++/** Today's question budget as the header counter shows it. */
++export interface UsageSnapshot {
++  remaining: number;
++  dailyLimit: number;
++  /** Next UTC midnight, ISO 8601. */
++  resetsAt: string;
++}
++
++function isCount(value: unknown): value is number {
++  return typeof value === "number" && Number.isInteger(value) && value >= 0;
++}
++
++/** Checks the RPC's answer; anything unexpected becomes `null`. */
++function parseSnapshot(data: unknown): UsageSnapshot | null {
++  const row: unknown = Array.isArray(data) ? data[0] : null;
++  if (typeof row !== "object" || row === null) return null;
++  const r = row as Record<string, unknown>;
++  if (
++    !isCount(r.used_today) ||
++    !isCount(r.daily_limit) ||
++    typeof r.resets_at !== "string"
++  ) {
++    return null;
++  }
++  const time = Date.parse(r.resets_at);
++  if (Number.isNaN(time)) return null;
++  return {
++    remaining: Math.max(r.daily_limit - r.used_today, 0),
++    dailyLimit: r.daily_limit,
++    resetsAt: new Date(time).toISOString(),
++  };
++}
++
++/**
++ * Reads how much of today's budget a user has left, without spending a unit
++ * (`peek_usage`, service role only, so it lives in `features/`). For display
++ * only: the real gate is still `consumeUsage`.
++ *
++ * Never throws. A failure returns `null` (logged without ids) and the header
++ * shows the counter as unknown instead of the whole page failing.
++ */
++export async function peekUsage(
++  userId: string,
++  kind: UsageKind = "question",
++  deps: UsageDeps = {},
++): Promise<UsageSnapshot | null> {
++  try {
++    const client = deps.client ?? createAdminSupabase();
++    const { data, error } = await client.rpc("peek_usage", {
++      p_user_id: userId,
++      p_kind: kind,
++    });
++    if (error) {
++      console.error(`[limits] peek_usage failed: ${error.message}`);
++      return null;
++    }
++    return parseSnapshot(data);
++  } catch (error) {
++    console.error(
++      "[limits] peek_usage failed:",
++      error instanceof Error ? `${error.name}: ${error.message}` : "non-Error",
++    );
++    return null;
++  }
++}
+diff --git a/lib/ask-client/index.ts b/lib/ask-client/index.ts
+index 7f14be9..e108aee 100644
+--- a/lib/ask-client/index.ts
++++ b/lib/ask-client/index.ts
+@@ -17,7 +17,13 @@ export {
+   isAbortError,
+   type AskFailure,
+ } from "./failures";
+-export { describeUsage, formatResetTime, type UsageLine } from "./usage";
++export {
++  describeCounter,
++  describeUsage,
++  formatResetTime,
++  type CounterText,
++  type UsageLine,
++} from "./usage";
+ export {
+   IDLE_TIMEOUT_MS,
+   requestAnswer,
+diff --git a/lib/ask-client/usage.ts b/lib/ask-client/usage.ts
+index 32a44b6..59fb7ab 100644
+--- a/lib/ask-client/usage.ts
++++ b/lib/ask-client/usage.ts
+@@ -60,3 +60,35 @@ export function describeUsage(
+       : `${usage.remaining} of ${usage.dailyLimit} questions left today`;
+   return { text: `${left} · resets at ${reset}`, lastQuestion: false };
+ }
++
++export interface CounterText {
++  /** Short text in the header, e.g. "14 of 20 left". */
++  label: string;
++  /** Full sentence for screen readers and the tooltip, with the reset time. */
++  description: string;
++  /** True when nothing is left today, so the UI can switch to the warn tone. */
++  empty: boolean;
++}
++
++/**
++ * The header's question counter. Shorter than `describeUsage` (it sits beside
++ * the theme toggle at 360px); the reset time lives in `description`.
++ */
++export function describeCounter(
++  usage: StreamUsage,
++  timeZone?: string,
++): CounterText {
++  const reset = formatResetTime(usage.resetsAt, timeZone);
++  if (usage.remaining === 0) {
++    return {
++      label: "0 left today",
++      description: `No questions left today. Resets at ${reset}.`,
++      empty: true,
++    };
++  }
++  return {
++    label: `${usage.remaining} of ${usage.dailyLimit} left`,
++    description: `${usage.remaining} of ${usage.dailyLimit} questions left today. Resets at ${reset}.`,
++    empty: false,
++  };
++}
+diff --git a/lib/auth/session.ts b/lib/auth/session.ts
+index 39fbe7e..1dae602 100644
+--- a/lib/auth/session.ts
++++ b/lib/auth/session.ts
+@@ -4,7 +4,12 @@ import { createServerSupabase } from "@/lib/supabase/server";
+ 
+ export type SessionState =
+   | { status: "signed_out" }
+-  | { status: "signed_in"; isAnonymous: boolean; email: string | null };
++  | {
++      status: "signed_in";
++      userId: string;
++      isAnonymous: boolean;
++      email: string | null;
++    };
+ 
+ /**
+  * `SessionState` plus "the auth service could not be reached" (Task 5.9), so
+@@ -32,8 +37,13 @@ export async function getSessionCheck(): Promise<SessionCheck> {
+   }
+   const claims = data?.claims;
+   if (!claims) return { status: "signed_out" };
++  // A validated token always has a subject; without one, treat it as signed out.
++  if (typeof claims.sub !== "string" || claims.sub === "") {
++    return { status: "signed_out" };
++  }
+   return {
+     status: "signed_in",
++    userId: claims.sub,
+     isAnonymous: claims.is_anonymous === true,
+     email:
+       typeof claims.email === "string" && claims.email ? claims.email : null,
+diff --git a/lib/documents/list-own-documents.ts b/lib/documents/list-own-documents.ts
+index da2491b..98242bc 100644
+--- a/lib/documents/list-own-documents.ts
++++ b/lib/documents/list-own-documents.ts
+@@ -63,14 +63,20 @@ function parseRow(row: unknown): OwnDocument | null {
+   };
+ }
+ 
+-export async function listOwnDocuments(
++/**
++ * Own documents are `is_public = false`; the shared samples are
++ * `is_public = true`. RLS (`documents_select`) already limits both reads, the
++ * filter only picks which group the caller wants.
++ */
++async function listDocuments(
+   client: SupabaseClient<Database>,
++  isPublic: boolean,
+ ): Promise<ListOwnDocumentsResult> {
+   try {
+     const { data, error } = await client
+       .from("documents")
+       .select(COLUMNS)
+-      .eq("is_public", false)
++      .eq("is_public", isPublic)
+       .order("created_at", { ascending: false });
+ 
+     if (error) {
+@@ -103,3 +109,21 @@ export async function listOwnDocuments(
+     return { ok: false, reason: "failed" };
+   }
+ }
++
++/** The signed-in user's own documents (never the shared samples). */
++export function listOwnDocuments(
++  client: SupabaseClient<Database>,
++): Promise<ListOwnDocumentsResult> {
++  return listDocuments(client, false);
++}
++
++/**
++ * The shared sample documents, for the demo shelf. Same RLS-scoped client:
++ * `documents_select` allows `is_public` rows for every authenticated session,
++ * anonymous demo sessions included.
++ */
++export function listSampleDocuments(
++  client: SupabaseClient<Database>,
++): Promise<ListOwnDocumentsResult> {
++  return listDocuments(client, true);
++}
+diff --git a/lib/theme/apply-theme.ts b/lib/theme/apply-theme.ts
+new file mode 100644
+index 0000000..6547316
+--- /dev/null
++++ b/lib/theme/apply-theme.ts
+@@ -0,0 +1,90 @@
++import {
++  THEME_CHOICES,
++  THEME_STORAGE_KEY,
++  type ThemeChoice,
++} from "./theme-script";
++
++/** Same-tab change signal (the `storage` event only fires in other tabs). */
++const CHANGE_EVENT = "groundwork-theme-change";
++const DARK_QUERY = "(prefers-color-scheme: dark)";
++
++function isThemeChoice(value: unknown): value is ThemeChoice {
++  return THEME_CHOICES.some((c) => c === value);
++}
++
++/** The stored choice; `system` when nothing usable is stored or storage is blocked. */
++export function readThemeChoice(): ThemeChoice {
++  try {
++    const stored = localStorage.getItem(THEME_STORAGE_KEY);
++    return isThemeChoice(stored) ? stored : "system";
++  } catch {
++    return "system";
++  }
++}
++
++/** Sets `data-theme` the way the head script does: always light or dark. */
++export function applyThemeChoice(choice: ThemeChoice): void {
++  let dark = choice === "dark";
++  if (choice === "system") {
++    try {
++      dark = matchMedia(DARK_QUERY).matches;
++    } catch {
++      dark = false;
++    }
++  }
++  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
++}
++
++/** Stores and applies a choice, and tells subscribers in this tab. */
++export function setThemeChoice(choice: ThemeChoice): void {
++  try {
++    localStorage.setItem(THEME_STORAGE_KEY, choice);
++  } catch {
++    // Storage blocked: the change still applies for this page view.
++  }
++  applyThemeChoice(choice);
++  window.dispatchEvent(new Event(CHANGE_EVENT));
++}
++
++/** System, then Light, then Dark, then back to System. */
++export function nextThemeChoice(choice: ThemeChoice): ThemeChoice {
++  if (choice === "system") return "light";
++  if (choice === "light") return "dark";
++  return "system";
++}
++
++/**
++ * For `useSyncExternalStore`. Notifies on a change in this tab or another, and
++ * re-applies the theme when the OS preference flips while the choice is
++ * `system` (the head script only runs once, at load).
++ */
++export function subscribeToTheme(onChange: () => void): () => void {
++  let media: MediaQueryList | null = null;
++  try {
++    media = matchMedia(DARK_QUERY);
++  } catch {
++    media = null;
++  }
++  const onOsChange = () => {
++    if (readThemeChoice() === "system") applyThemeChoice("system");
++  };
++  const onStorage = (event: StorageEvent) => {
++    if (event.key !== null && event.key !== THEME_STORAGE_KEY) return;
++    applyThemeChoice(readThemeChoice());
++    onChange();
++  };
++  media?.addEventListener("change", onOsChange);
++  window.addEventListener("storage", onStorage);
++  window.addEventListener(CHANGE_EVENT, onChange);
++  return () => {
++    media?.removeEventListener("change", onOsChange);
++    window.removeEventListener("storage", onStorage);
++    window.removeEventListener(CHANGE_EVENT, onChange);
++  };
++}
++
++export const THEME_LABEL: Record<ThemeChoice, string> = {
++  system: "System",
++  light: "Light",
++  dark: "Dark",
++};
+diff --git a/supabase/migrations/20261112120000_peek_usage.sql b/supabase/migrations/20261112120000_peek_usage.sql
+new file mode 100644
+index 0000000..9f00c70
+--- /dev/null
++++ b/supabase/migrations/20261112120000_peek_usage.sql
+@@ -0,0 +1,46 @@
++-- Read-only counterpart of consume_usage, for the app header's question counter (U2).
++-- Reports how much of today's allowance a user has spent WITHOUT spending a unit and without
++-- writing any row. Service-role only, like consume_usage: the usage tables stay unreadable to clients.
++-- It ignores the cooldown and the global cap on purpose: the counter shows the user's own budget.
++-- Returns no row for an unknown user.
++create or replace function public.peek_usage(p_user_id uuid, p_kind text)
++returns table (used_today integer, daily_limit integer, resets_at timestamptz)
++language plpgsql
++stable
++security definer
++set search_path = ''
++as $$
++declare
++  v_day     date        := (now() at time zone 'utc')::date;
++  v_reset   timestamptz := ((v_day + 1)::timestamp at time zone 'utc');
++  v_is_anon boolean;
++  v_limit   integer;
++  v_used    integer;
++begin
++  if p_kind not in ('question', 'ingest') then
++    raise exception 'unknown usage kind: %', p_kind;
++  end if;
++
++  select coalesce(u.is_anonymous, false) into v_is_anon from auth.users u where u.id = p_user_id;
++  if not found then
++    return;
++  end if;
++
++  if v_is_anon then
++    v_limit := private.cfg('limit_anon_' || p_kind)::integer;
++  else
++    v_limit := private.cfg('limit_user_' || p_kind)::integer;
++  end if;
++
++  select coalesce(
++           (select ud.used from public.usage_daily ud
++             where ud.user_id = p_user_id and ud.day = v_day and ud.kind = p_kind),
++           0)
++    into v_used;
++
++  return query select v_used, greatest(v_limit, 0), v_reset;
++end;
++$$;
++
++revoke all on function public.peek_usage(uuid, text) from public, anon, authenticated;
++grant execute on function public.peek_usage(uuid, text) to service_role;
+diff --git a/supabase/tests/security.sql b/supabase/tests/security.sql
+index 467e8ff..70a11cd 100644
+--- a/supabase/tests/security.sql
++++ b/supabase/tests/security.sql
+@@ -14,7 +14,7 @@
+ -- Always pass -v ON_ERROR_STOP=1. Without it psql keeps going after a failed assertion.
+ -- This is plain SQL, not pgTAP: do not run it through `supabase test db`.
+ --
+--- Implemented: T00 (added preflight), T01-T10, T02c-T02f (Task 3.4), T11a-d, T12a-h, T13, T15a-i,
++-- Implemented: T00 (added preflight), T01-T10, T02c-T02f (Task 3.4), T11a-d, T12a-i, T13, T15a-l,
+ -- T16a-T16n, T17a-d, T18a-f, T19a-j (Task 4.2 added T12, T13, T16, T18; Task 5.1 added the usage
+ -- tests T11a-b, T12a-b, T12f, T15, T18c and the maintenance behaviour tests T19a-f;
+ -- Task 5.6 added T19g-j, the purge_old_records row count).
+@@ -351,6 +351,9 @@ call pg_temp.expect_denied('T12a',
+ call pg_temp.expect_denied('T12b',
+   $q$select public.refund_usage('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'question')$q$,
+   'permission denied for function refund_usage');
++call pg_temp.expect_denied('T12i',
++  $q$select * from public.peek_usage('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'question')$q$,
++  'permission denied for function peek_usage');
+ call pg_temp.expect_denied('T12c',
+   $q$select public.claim_document_for_ingest('a1000000-0000-4000-8000-000000000003')$q$,
+   'permission denied for function claim_document_for_ingest');
+@@ -377,6 +380,7 @@ begin
+     'public.fail_ingestion(uuid, text)'::regprocedure,
+     'public.consume_usage(uuid, text)'::regprocedure,
+     'public.refund_usage(uuid, text)'::regprocedure,
++    'public.peek_usage(uuid, text)'::regprocedure,
+     'public.reap_documents(interval, interval)'::regprocedure,
+     'public.purge_stale_anonymous_users(interval)'::regprocedure,
+     'public.purge_old_records(interval)'::regprocedure
+@@ -520,6 +524,25 @@ begin
+             and day = (now() at time zone 'utc')::date) = 0,
+     'T15i: refund must floor at zero';
+   perform public.refund_usage('dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'question');
++
++  -- T15j-l: peek_usage reports the budget without spending it or creating rows.
++  -- Alice is at 20/20 here, the demo user (anonymous) has a row at 0, Bob's counter is at 0.
++  select * into r from public.peek_usage('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'question');
++  assert r.used_today = 20 and r.daily_limit = 20
++    and r.resets_at = (((now() at time zone 'utc')::date + 1)::timestamp at time zone 'utc'),
++    format('T15j: peek must report 20/20 and the next UTC midnight (got %s/%s)', r.used_today, r.daily_limit);
++  assert (select used from public.usage_daily
++          where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and kind = 'question'
++            and day = (now() at time zone 'utc')::date) = 20,
++    'T15j: peek must not change the counter';
++  select * into r from public.peek_usage('cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'ingest');
++  assert r.used_today = 0 and r.daily_limit = 0,
++    format('T15k: anonymous ingest peek must be 0/0 with no row (got %s/%s)', r.used_today, r.daily_limit);
++  assert not exists (select 1 from public.usage_daily
++                     where user_id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' and kind = 'ingest'),
++    'T15k: peek must not create a usage row';
++  assert not exists (select 1 from public.peek_usage('dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'question')),
++    'T15l: an unknown user must return no row';
+ end $$;
+ 
+ -- ===== T16: Immutability and state-machine guards (as postgres) ===============
+@@ -785,6 +808,6 @@ begin
+   assert public.purge_old_records() = 0, 'T19j: a second call has nothing left to remove';
+ end $$;
+ 
+-do $$ begin raise notice 'security.sql: all assertions passed (T00-T10 incl. T02c-f, T11a-d, T12a-h, T13, T15a-i, T16a-n, T17a-d, T18a-f, T19a-j)'; end $$;
++do $$ begin raise notice 'security.sql: all assertions passed (T00-T10 incl. T02c-f, T11a-d, T12a-i, T13, T15a-l, T16a-n, T17a-d, T18a-f, T19a-j)'; end $$;
+ 
+ rollback;   -- leaves the database exactly as seeded
+diff --git a/tests/e2e/cross-user-isolation.e2e.ts b/tests/e2e/cross-user-isolation.e2e.ts
+index ebff3da..8bbf578 100644
+--- a/tests/e2e/cross-user-isolation.e2e.ts
++++ b/tests/e2e/cross-user-isolation.e2e.ts
+@@ -66,7 +66,7 @@ test("user B cannot see, open, fetch or ask about user A's document", async ({
+     const clientB = await signInAsApi(userB);
+ 
+     // 1. List documents. The UI shows B's empty state, never A's title.
+-    await expect(pageB.getByText(/No documents yet/)).toBeVisible();
++    await expect(pageB.getByText("Nothing on the shelf yet.")).toBeVisible();
+     await expect(pageB.getByText(title)).toHaveCount(0);
+     // Through the API: B sees public samples, but never A's row.
+     const visible = await clientB.from("documents").select("id, title");
+diff --git a/tests/e2e/demo-sign-in.e2e.ts b/tests/e2e/demo-sign-in.e2e.ts
+index 37c2656..5d7f1e8 100644
+--- a/tests/e2e/demo-sign-in.e2e.ts
++++ b/tests/e2e/demo-sign-in.e2e.ts
+@@ -22,6 +22,15 @@ test("Try demo on the landing page starts an anonymous session", async ({
+   await expect(
+     page.getByRole("heading", { name: "Answers that show their sources." }),
+   ).toHaveCount(0);
++  // The demo shelf is there on first paint (server-rendered): the shared
++  // samples with their badge, and the note that uploading needs an account.
++  await expect(
++    page.getByRole("heading", { name: "Sample documents" }),
++  ).toBeVisible();
++  await expect(page.getByText("Sample", { exact: true }).first()).toBeVisible();
++  await expect(page.getByText("Uploading needs an account")).toBeVisible();
++  // The header has the counter before any question has been asked.
++  await expect(page.getByText(/\d+ of \d+ left/).first()).toBeVisible();
+   const cookies = await page.context().cookies();
+   expect(
+     cookies.some(
+diff --git a/tests/unit/ask-usage.test.ts b/tests/unit/ask-usage.test.ts
+index ad6b6e3..583ed0b 100644
+--- a/tests/unit/ask-usage.test.ts
++++ b/tests/unit/ask-usage.test.ts
+@@ -1,5 +1,9 @@
+ import { describe, expect, it } from "vitest";
+-import { describeUsage, formatResetTime } from "@/lib/ask-client";
++import {
++  describeCounter,
++  describeUsage,
++  formatResetTime,
++} from "@/lib/ask-client";
+ import { failureForLimit } from "@/lib/ask-client/failures";
+ 
+ const RESET = "2026-11-11T00:00:00.000Z"; // midnight UTC
+@@ -92,3 +96,26 @@ describe("failureForLimit", () => {
+     );
+   });
+ });
++
++describe("describeCounter", () => {
++  it("is short, with the reset time only in the description", () => {
++    const c = describeCounter(
++      { remaining: 14, dailyLimit: 20, resetsAt: RESET },
++      "UTC",
++    );
++    expect(c.label).toBe("14 of 20 left");
++    expect(c.description).toBe(
++      "14 of 20 questions left today. Resets at 00:00 UTC.",
++    );
++    expect(c.empty).toBe(false);
++  });
++
++  it("switches to the empty state at zero", () => {
++    const c = describeCounter(
++      { remaining: 0, dailyLimit: 20, resetsAt: RESET },
++      "UTC",
++    );
++    expect(c).toMatchObject({ label: "0 left today", empty: true });
++    expect(c.description).toContain("Resets at 00:00 UTC");
++  });
++});
+diff --git a/tests/unit/document-list-states.test.tsx b/tests/unit/document-list-states.test.tsx
+new file mode 100644
+index 0000000..a578d89
+--- /dev/null
++++ b/tests/unit/document-list-states.test.tsx
+@@ -0,0 +1,125 @@
++// @vitest-environment jsdom
++import {
++  act,
++  cleanup,
++  fireEvent,
++  render,
++  screen,
++} from "@testing-library/react";
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++import type {
++  ListOwnDocumentsResult,
++  OwnDocument,
++} from "@/lib/documents/list-own-documents";
++
++const listOwnDocuments = vi.fn<() => Promise<ListOwnDocumentsResult>>();
++
++vi.mock("@/lib/documents/list-own-documents", () => ({
++  listOwnDocuments: () => listOwnDocuments(),
++}));
++vi.mock("@/lib/supabase/browser", () => ({ createBrowserSupabase: () => ({}) }));
++vi.mock("@/lib/upload/request-ingest", () => ({ requestIngest: vi.fn() }));
++vi.mock("@/components/delete-document-button", () => ({
++  DeleteDocumentButton: () => null,
++}));
++
++import { DocumentList } from "@/components/document-list";
++
++const doc = (overrides: Partial<OwnDocument> = {}): OwnDocument => ({
++  id: "d1",
++  title: "Lease agreement",
++  originalFilename: "lease.pdf",
++  status: "ready",
++  errorReason: null,
++  pageCount: 4,
++  chunkCount: 8,
++  createdAt: "2026-11-15T08:00:00.000Z",
++  processingStartedAt: null,
++  ...overrides,
++});
++
++beforeEach(() => {
++  listOwnDocuments.mockReset();
++  vi.spyOn(console, "warn").mockImplementation(() => undefined);
++});
++afterEach(() => {
++  cleanup();
++  vi.useRealTimers();
++  vi.restoreAllMocks();
++});
++
++describe("DocumentList states", () => {
++  it("renders the server's documents at once, with no loading state and no extra read", () => {
++    render(
++      <DocumentList
++        refreshKey={0}
++        initial={{ ok: true, documents: [doc()], fetchedAt: Date.now() }}
++      />,
++    );
++    expect(screen.getByText("Lease agreement")).toBeTruthy();
++    expect(screen.queryByText("Loading your documents")).toBeNull();
++    expect(listOwnDocuments).not.toHaveBeenCalled();
++  });
++
++  it("shows the empty state", () => {
++    render(
++      <DocumentList
++        refreshKey={0}
++        initial={{ ok: true, documents: [], fetchedAt: Date.now() }}
++      />,
++    );
++    expect(screen.getByText("Nothing on the shelf yet.")).toBeTruthy();
++  });
++
++  it("shows a loading state while the first client read is pending (no server data)", () => {
++    listOwnDocuments.mockReturnValue(new Promise(() => undefined));
++    render(<DocumentList refreshKey={0} />);
++    expect(screen.getByRole("status").textContent).toContain(
++      "Loading your documents",
++    );
++  });
++
++  it("shows an error when the server read failed, and Try again loads the list", async () => {
++    listOwnDocuments.mockResolvedValue({ ok: true, documents: [doc()] });
++    render(<DocumentList refreshKey={0} initial={{ ok: false }} />);
++    expect(screen.getByRole("alert").textContent).toContain(
++      "We couldn't load your documents.",
++    );
++    expect(listOwnDocuments).not.toHaveBeenCalled();
++
++    await act(async () => {
++      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
++    });
++    expect(screen.getByText("Lease agreement")).toBeTruthy();
++    expect(screen.queryByRole("alert")).toBeNull();
++  });
++
++  it("keeps the last list and says so when a refresh fails", async () => {
++    vi.useFakeTimers();
++    listOwnDocuments.mockResolvedValue({ ok: false, reason: "failed" });
++    render(
++      <DocumentList
++        refreshKey={0}
++        initial={{
++          ok: true,
++          documents: [
++            doc({
++              status: "processing",
++              processingStartedAt: new Date().toISOString(),
++            }),
++          ],
++          fetchedAt: Date.now(),
++        }}
++      />,
++    );
++    await act(async () => {
++      await vi.advanceTimersByTimeAsync(60_000);
++    });
++    expect(listOwnDocuments).toHaveBeenCalled();
++    expect(screen.getByText("Lease agreement")).toBeTruthy();
++    expect(
++      screen.getByText("Couldn't refresh. Showing the last list we have."),
++    ).toBeTruthy();
++    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
++  });
++});
+diff --git a/tests/unit/list-own-documents.test.ts b/tests/unit/list-own-documents.test.ts
+index 6aa338f..bd88148 100644
+--- a/tests/unit/list-own-documents.test.ts
++++ b/tests/unit/list-own-documents.test.ts
+@@ -1,6 +1,9 @@
+ import type { SupabaseClient } from "@supabase/supabase-js";
+ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+-import { listOwnDocuments } from "@/lib/documents/list-own-documents";
++import {
++  listOwnDocuments,
++  listSampleDocuments,
++} from "@/lib/documents/list-own-documents";
+ import type { Database } from "@/types/database";
+ 
+ type QueryResult = {
+@@ -178,3 +181,23 @@ describe("listOwnDocuments", () => {
+     },
+   );
+ });
++
++describe("listSampleDocuments", () => {
++  it("queries the public documents, not the user's own", async () => {
++    const { client, calls } = fakeClient({ data: [row()], error: null });
++    const result = await listSampleDocuments(client);
++    expect(calls).toContainEqual({ method: "eq", args: ["is_public", true] });
++    expect(result).toMatchObject({ ok: true });
++  });
++
++  it("fails explicitly instead of returning an empty list", async () => {
++    const { client } = fakeClient({
++      data: null,
++      error: { code: "500", message: "boom" },
++    });
++    expect(await listSampleDocuments(client)).toEqual({
++      ok: false,
++      reason: "failed",
++    });
++  });
++});
+diff --git a/tests/unit/peek-usage.test.ts b/tests/unit/peek-usage.test.ts
+new file mode 100644
+index 0000000..cdd5bf4
+--- /dev/null
++++ b/tests/unit/peek-usage.test.ts
+@@ -0,0 +1,80 @@
++import type { SupabaseClient } from "@supabase/supabase-js";
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++import type { Database } from "@/types/database";
++
++vi.mock("server-only", () => ({}));
++vi.mock("@/lib/supabase/admin", () => ({ createAdminSupabase: vi.fn() }));
++
++import { peekUsage } from "@/features/limits/peek-usage";
++
++function fakeClient(result: {
++  data: unknown;
++  error: { message: string } | null;
++}) {
++  const rpc = vi.fn(async () => result);
++  return {
++    client: { rpc } as unknown as SupabaseClient<Database>,
++    rpc,
++  };
++}
++
++beforeEach(() => {
++  vi.spyOn(console, "error").mockImplementation(() => undefined);
++});
++afterEach(() => vi.restoreAllMocks());
++
++describe("peekUsage", () => {
++  it("returns what is left today and calls the read-only function", async () => {
++    const { client, rpc } = fakeClient({
++      data: [
++        {
++          used_today: 6,
++          daily_limit: 20,
++          resets_at: "2026-11-16T00:00:00+00:00",
++        },
++      ],
++      error: null,
++    });
++    const result = await peekUsage("u1", "question", { client });
++    expect(rpc).toHaveBeenCalledWith("peek_usage", {
++      p_user_id: "u1",
++      p_kind: "question",
++    });
++    expect(result).toEqual({
++      remaining: 14,
++      dailyLimit: 20,
++      resetsAt: "2026-11-16T00:00:00.000Z",
++    });
++  });
++
++  it("never reports a negative remainder", async () => {
++    const { client } = fakeClient({
++      data: [
++        { used_today: 25, daily_limit: 20, resets_at: "2026-11-16T00:00:00Z" },
++      ],
++      error: null,
++    });
++    expect((await peekUsage("u1", "question", { client }))?.remaining).toBe(0);
++  });
++
++  it.each([
++    ["an rpc error", { data: null, error: { message: "boom" } }],
++    ["no row (unknown user)", { data: [], error: null }],
++    [
++      "a malformed row",
++      { data: [{ used_today: "x", daily_limit: 20, resets_at: "z" }], error: null },
++    ],
++  ])("returns null for %s instead of throwing", async (_name, result) => {
++    const { client } = fakeClient(result);
++    expect(await peekUsage("u1", "question", { client })).toBeNull();
++  });
++
++  it("returns null when the call itself throws", async () => {
++    const client = {
++      rpc: vi.fn(async () => {
++        throw new Error("network");
++      }),
++    } as unknown as SupabaseClient<Database>;
++    expect(await peekUsage("u1", "question", { client })).toBeNull();
++  });
++});
+diff --git a/tests/unit/question-counter.test.tsx b/tests/unit/question-counter.test.tsx
+new file mode 100644
+index 0000000..49aeb79
+--- /dev/null
++++ b/tests/unit/question-counter.test.tsx
+@@ -0,0 +1,71 @@
++// @vitest-environment jsdom
++import { act, cleanup, render, screen } from "@testing-library/react";
++import { afterEach, describe, expect, it } from "vitest";
++import { QuestionCounter } from "@/components/question-counter";
++import { UsageProvider, useUsage } from "@/components/usage-context";
++import type { StreamUsage } from "@/types/ask-stream";
++
++afterEach(cleanup);
++
++const RESET = "2026-11-16T00:00:00.000Z";
++const usage = (remaining: number): StreamUsage => ({
++  remaining,
++  dailyLimit: 20,
++  resetsAt: RESET,
++});
++
++describe("QuestionCounter", () => {
++  it("shows the server's number before any answer, with the reset time for screen readers", () => {
++    render(
++      <UsageProvider initial={usage(14)}>
++        <QuestionCounter />
++      </UsageProvider>,
++    );
++    expect(screen.getByText("14 of 20 left")).toBeTruthy();
++    expect(screen.getByText(/14 of 20 questions left today\. Resets at/)).toBeTruthy();
++  });
++
++  it("is a polite live region", () => {
++    const { container } = render(
++      <UsageProvider initial={usage(14)}>
++        <QuestionCounter />
++      </UsageProvider>,
++    );
++    expect(container.querySelector("[aria-live='polite']")).not.toBeNull();
++  });
++
++  it("says so when the count is unavailable, instead of guessing", () => {
++    render(
++      <UsageProvider initial={null}>
++        <QuestionCounter />
++      </UsageProvider>,
++    );
++    expect(screen.getByText("Question count unavailable.")).toBeTruthy();
++  });
++
++  it("shows the zero state", () => {
++    render(
++      <UsageProvider initial={usage(0)}>
++        <QuestionCounter />
++      </UsageProvider>,
++    );
++    expect(screen.getByText("0 left today")).toBeTruthy();
++    expect(screen.getByText(/No questions left today\. Resets at/)).toBeTruthy();
++  });
++
++  it("updates when an answer publishes fresher usage", () => {
++    let publish: (u: StreamUsage) => void = () => undefined;
++    function Capture() {
++      publish = useUsage().publish;
++      return null;
++    }
++    render(
++      <UsageProvider initial={usage(14)}>
++        <Capture />
++        <QuestionCounter />
++      </UsageProvider>,
++    );
++    act(() => publish(usage(13)));
++    expect(screen.getByText("13 of 20 left")).toBeTruthy();
++  });
++});
+diff --git a/tests/unit/sample-shelf.test.tsx b/tests/unit/sample-shelf.test.tsx
+new file mode 100644
+index 0000000..8abc8e4
+--- /dev/null
++++ b/tests/unit/sample-shelf.test.tsx
+@@ -0,0 +1,50 @@
++// @vitest-environment jsdom
++import { cleanup, render, screen } from "@testing-library/react";
++import { afterEach, describe, expect, it, vi } from "vitest";
++import type { OwnDocument } from "@/lib/documents/list-own-documents";
++
++vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
++
++import { SampleShelf } from "@/components/sample-shelf";
++
++afterEach(cleanup);
++
++const sample = (id: string, title: string): OwnDocument => ({
++  id,
++  title,
++  originalFilename: `${id}.pdf`,
++  status: "ready",
++  errorReason: null,
++  pageCount: 4,
++  chunkCount: 6,
++  createdAt: "2026-11-01T00:00:00.000Z",
++  processingStartedAt: null,
++});
++
++describe("SampleShelf", () => {
++  it("lists the samples with a Sample badge and the account explainer", () => {
++    render(
++      <SampleShelf documents={[sample("a", "Remote work policy"), sample("b", "Router FAQ")]} />,
++    );
++    expect(screen.getByRole("heading", { name: "Sample documents" })).toBeTruthy();
++    expect(screen.getByText("Remote work policy")).toBeTruthy();
++    expect(screen.getAllByText("Sample")).toHaveLength(2);
++    expect(screen.getByText("Uploading needs an account")).toBeTruthy();
++    expect(
++      screen.getAllByRole("link", { name: "Create an account" })[0]?.getAttribute("href"),
++    ).toBe("/sign-up");
++  });
++
++  it("says so when the read failed, with Try again, never an empty shelf", () => {
++    render(<SampleShelf documents={null} />);
++    expect(screen.getByRole("alert").textContent).toContain(
++      "We couldn't load the sample documents.",
++    );
++    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
++  });
++
++  it("says when there are no samples", () => {
++    render(<SampleShelf documents={[]} />);
++    expect(screen.getByText("No sample documents are available right now.")).toBeTruthy();
++  });
++});
+diff --git a/tests/unit/theme-toggle.test.tsx b/tests/unit/theme-toggle.test.tsx
+new file mode 100644
+index 0000000..2ae3a34
+--- /dev/null
++++ b/tests/unit/theme-toggle.test.tsx
+@@ -0,0 +1,89 @@
++// @vitest-environment jsdom
++import { cleanup, fireEvent, render, screen } from "@testing-library/react";
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++import { ThemeToggle } from "@/components/theme-toggle";
++import { THEME_STORAGE_KEY } from "@/lib/theme/theme-script";
++
++type Listener = () => void;
++let osDark = false;
++const listeners = new Set<Listener>();
++
++beforeEach(() => {
++  localStorage.clear();
++  document.documentElement.removeAttribute("data-theme");
++  osDark = false;
++  listeners.clear();
++  vi.stubGlobal("matchMedia", () => ({
++    get matches() {
++      return osDark;
++    },
++    addEventListener: (_: string, l: Listener) => listeners.add(l),
++    removeEventListener: (_: string, l: Listener) => listeners.delete(l),
++  }));
++});
++afterEach(() => {
++  cleanup();
++  vi.unstubAllGlobals();
++});
++
++describe("ThemeToggle", () => {
++  it("starts on System and names the next state in its label", () => {
++    render(<ThemeToggle />);
++    expect(
++      screen.getByRole("button", { name: "Theme: System. Switch to Light." }),
++    ).toBeTruthy();
++  });
++
++  it("cycles System, Light, Dark, System and stores each choice", () => {
++    render(<ThemeToggle />);
++    const press = (name: string) =>
++      fireEvent.click(screen.getByRole("button", { name }));
++
++    press("Theme: System. Switch to Light.");
++    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
++    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
++
++    press("Theme: Light. Switch to Dark.");
++    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark");
++    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
++
++    press("Theme: Dark. Switch to System.");
++    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("system");
++    expect(
++      screen.getByRole("button", { name: "Theme: System. Switch to Light." }),
++    ).toBeTruthy();
++  });
++
++  it("shows the stored choice after hydration", () => {
++    localStorage.setItem(THEME_STORAGE_KEY, "dark");
++    render(<ThemeToggle />);
++    expect(
++      screen.getByRole("button", { name: "Theme: Dark. Switch to System." }),
++    ).toBeTruthy();
++  });
++
++  it("follows the OS while on System, and stops following once a choice is made", () => {
++    render(<ThemeToggle />);
++    osDark = true;
++    listeners.forEach((l) => l());
++    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
++
++    fireEvent.click(
++      screen.getByRole("button", { name: "Theme: System. Switch to Light." }),
++    );
++    osDark = true;
++    listeners.forEach((l) => l());
++    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
++  });
++
++  it("still switches the page when storage is blocked", () => {
++    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
++      throw new Error("blocked");
++    });
++    render(<ThemeToggle />);
++    fireEvent.click(
++      screen.getByRole("button", { name: "Theme: System. Switch to Light." }),
++    );
++    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
++  });
++});
+diff --git a/types/database.ts b/types/database.ts
+index c11f8bb..35e1f05 100644
+--- a/types/database.ts
++++ b/types/database.ts
+@@ -137,6 +137,11 @@ isOneToOne: false
+               "char_end": number,"char_start": number,"chunk_id": number,"content": string,"doc_id": string,"doc_title": string,"page_number": number,"similarity": number
+             }[]
+                            },
++"peek_usage":
++{ Args: { "p_kind": string,"p_user_id": string }; Returns: {
++              "daily_limit": number,"resets_at": string,"used_today": number
++            }[]
++                           },
+ "purge_old_records":
+ { Args: { "p_keep"?: string }; Returns: number
+                            },

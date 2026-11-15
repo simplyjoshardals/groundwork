@@ -66,7 +66,7 @@ test("user B cannot see, open, fetch or ask about user A's document", async ({
     const clientB = await signInAsApi(userB);
 
     // 1. List documents. The UI shows B's empty state, never A's title.
-    await expect(pageB.getByText(/No documents yet/)).toBeVisible();
+    await expect(pageB.getByText("Nothing on the shelf yet.")).toBeVisible();
     await expect(pageB.getByText(title)).toHaveCount(0);
     // Through the API: B sees public samples, but never A's row.
     const visible = await clientB.from("documents").select("id, title");

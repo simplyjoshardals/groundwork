@@ -234,7 +234,7 @@ export function ViewerPanel({
       tabIndex={-1}
       aria-label="Document viewer"
       onKeyDown={onKeyDown}
-      className="fixed inset-x-0 bottom-0 top-12 z-20 flex flex-col gap-3 overflow-y-auto rounded-t-xl border border-line bg-surface p-4 shadow-sheet outline-none lg:sticky lg:top-6 lg:z-auto lg:max-h-[calc(100vh-3rem)] lg:rounded-xl lg:shadow-none"
+      className="fixed inset-x-0 bottom-0 top-14 z-20 flex flex-col gap-3 overflow-y-auto rounded-t-xl border border-line bg-surface p-4 shadow-sheet outline-none animate-fade-in xl:static xl:z-auto xl:max-h-[calc(100dvh-6.5rem)] xl:rounded-xl xl:shadow-none"
     >
       <div className="flex items-start justify-between gap-3">
         <h2 className="min-w-0 wrap-break-word text-sm font-semibold">

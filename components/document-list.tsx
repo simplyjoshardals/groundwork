@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DeleteDocumentButton } from "@/components/delete-document-button";
+import { Banner } from "@/components/ui/banner";
+import { Button } from "@/components/ui/button";
+import { cardClasses } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   canRetry,
   isInFlight,
@@ -34,6 +38,11 @@ const BADGE_CLASS: Record<DocumentStatus, string> = {
   failed: "border-danger text-danger",
 };
 
+/** What the server read before the page was sent (U2). */
+export type InitialDocuments =
+  | { ok: true; documents: OwnDocument[]; fetchedAt: number }
+  | { ok: false };
+
 /** Never throws: a missing public env var is reported like any other failed read. */
 async function load(): Promise<ListOwnDocumentsResult> {
   try {
@@ -60,21 +69,35 @@ async function load(): Promise<ListOwnDocumentsResult> {
 export function DocumentList({
   refreshKey,
   onCountChange,
+  initial,
 }: {
   refreshKey: number;
   /** Called with the number of documents after each successful load (Task 4.8). */
   onCountChange?: (count: number) => void;
+  /**
+   * The server's first read (U2), so the shelf has no loading flash. `ok`
+   * documents seed the list and the first client read waits for the poll
+   * schedule; a failed server read shows the error state until Try again.
+   * Omit it to load on mount, as before.
+   */
+  initial?: InitialDocuments;
 }) {
-  const [documents, setDocuments] = useState<OwnDocument[] | null>(null);
+  const [documents, setDocuments] = useState<OwnDocument[] | null>(
+    initial?.ok ? initial.documents : null,
+  );
   /** Time of the last successful read: the clock the stuck rules use. */
-  const [now, setNow] = useState(0);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const [now, setNow] = useState(initial?.ok ? initial.fetchedAt : 0);
+  const [loadFailed, setLoadFailed] = useState(initial?.ok === false);
   const [retryToken, setRetryToken] = useState(0);
+  /** True from a click on "Try again" until that read finishes. */
+  const [reloading, setReloading] = useState(false);
   const [retrying, setRetrying] = useState<ReadonlySet<string>>(new Set());
   const [notes, setNotes] = useState<Readonly<Record<string, string>>>({});
   // Read by the polling loop, which must not restart when a retry starts.
   const retryingRef = useRef<ReadonlySet<string>>(new Set());
-  const hasLoadedRef = useRef(false);
+  const hasLoadedRef = useRef(initial?.ok === true);
+  // The server's read stands in for the first client read, once.
+  const initialRef = useRef(initial);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,6 +108,7 @@ export function DocumentList({
     async function tick() {
       const result = await load();
       if (cancelled) return;
+      setReloading(false);
 
       if (result.ok) {
         const readAt = Date.now();
@@ -112,7 +136,19 @@ export function DocumentList({
       attempt += 1;
     }
 
-    void tick();
+    const seed = initialRef.current;
+    initialRef.current = undefined;
+    if (seed !== undefined) {
+      if (!seed.ok) return; // The error state is showing; Try again reloads.
+      lastSignature = statusSignature(seed.documents);
+      const moving = seed.documents.some((d) => isInFlight(d, seed.fetchedAt));
+      if (moving) {
+        timer = setTimeout(() => void tick(), pollDelayMs(attempt));
+        attempt += 1;
+      }
+    } else {
+      void tick();
+    }
     return () => {
       cancelled = true;
       if (timer !== undefined) clearTimeout(timer);
@@ -122,6 +158,11 @@ export function DocumentList({
   useEffect(() => {
     if (documents !== null) onCountChange?.(documents.length);
   }, [documents, onCountChange]);
+
+  function reload() {
+    setReloading(true);
+    setRetryToken((n) => n + 1);
+  }
 
   function setRetryingIds(next: ReadonlySet<string>) {
     retryingRef.current = next;
@@ -172,51 +213,83 @@ export function DocumentList({
   }
 
   return (
-    <section aria-labelledby="documents-heading" className="text-sm">
-      <h2 id="documents-heading" className="font-medium">
+    <section
+      aria-labelledby="documents-heading"
+      aria-busy={documents === null && !loadFailed}
+      className="flex flex-col gap-4 text-sm"
+    >
+      <h2 id="documents-heading" className="font-serif text-h3">
         Your documents
       </h2>
 
       {documents === null && !loadFailed ? (
-        <p role="status" className="mt-2 text-muted">
-          Loading your documents…
-        </p>
-      ) : null}
-
-      {documents === null && loadFailed ? (
-        <div role="alert" className="mt-2 text-danger">
-          <p>We could not load your documents.</p>
-          <button
-            type="button"
-            onClick={() => setRetryToken((n) => n + 1)}
-            className="mt-1 underline"
-          >
-            Try again
-          </button>
+        <div role="status">
+          <span className="sr-only">Loading your documents</span>
+          <ul aria-hidden="true" className="flex flex-col gap-2">
+            {[0, 1, 2].map((n) => (
+              <li
+                key={n}
+                className={cardClasses({
+                  className: "flex h-14 items-center gap-3 py-0",
+                })}
+              >
+                <Skeleton className="h-4 w-2/5" />
+                <Skeleton shape="pill" className="h-5 w-16" />
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
 
+      {documents === null && loadFailed ? (
+        <Banner
+          tone="danger"
+          action={
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={reloading}
+              onClick={reload}
+              className="min-w-24"
+            >
+              {reloading ? "Trying…" : "Try again"}
+            </Button>
+          }
+        >
+          We couldn&apos;t load your documents.
+        </Banner>
+      ) : null}
+
       {documents !== null && loadFailed ? (
-        <p role="status" className="mt-2 text-warn">
-          Could not refresh. Showing the last list we have.{" "}
-          <button
-            type="button"
-            onClick={() => setRetryToken((n) => n + 1)}
-            className="underline"
-          >
-            Try again
-          </button>
-        </p>
+        <Banner
+          tone="warn"
+          action={
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={reloading}
+              onClick={reload}
+              className="min-w-24"
+            >
+              {reloading ? "Trying…" : "Try again"}
+            </Button>
+          }
+        >
+          Couldn&apos;t refresh. Showing the last list we have.
+        </Banner>
       ) : null}
 
       {documents !== null && documents.length === 0 ? (
-        <p className="mt-2 text-muted">
-          No documents yet. Upload a PDF, TXT or Markdown file to get started.
-        </p>
+        <div className={cardClasses({ padding: "roomy" })}>
+          <p className="font-serif text-h3">Nothing on the shelf yet.</p>
+          <p className="mt-1 text-muted">
+            Upload a PDF, TXT or Markdown file to get started.
+          </p>
+        </div>
       ) : null}
 
       {documents !== null && documents.length > 0 ? (
-        <ul className="mt-2 flex flex-col gap-2">
+        <ul className="flex flex-col gap-2">
           {documents.map((doc) => {
             const isRetrying = retrying.has(doc.id);
             const stuck = isStuck(doc, now);
