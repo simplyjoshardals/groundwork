@@ -1,10 +1,8 @@
-import Link from "next/link";
 import { HeaderFrame } from "@/components/header-frame";
 import { QuestionCounter } from "@/components/question-counter";
 import { SessionChip } from "@/components/session-chip";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { buttonClasses } from "@/components/ui/button";
 import { Wordmark } from "@/components/wordmark";
 
 /**
@@ -24,20 +22,14 @@ export function AppHeader({
       <Wordmark className="shrink-0" />
       <div className="ml-auto flex min-w-0 items-center gap-1 md:gap-3">
         <QuestionCounter />
-        <div className="hidden min-w-0 items-center gap-3 md:flex">
+        {/* A wrapper, not a class on the chip: the chip sets its own `display`
+            and the two utilities would fight (the chip won on phones). */}
+        <div className="hidden items-center md:flex">
           <SessionChip isAnonymous={isAnonymous} email={email} />
-          {isAnonymous ? (
-            <Link
-              href="/sign-up"
-              className={buttonClasses({ variant: "secondary", size: "sm" })}
-            >
-              Create an account
-            </Link>
-          ) : null}
         </div>
         <ThemeToggle />
-        <div className="hidden md:block">
-          <SignOutButton />
+        <div className="hidden items-center md:flex">
+          <SignOutButton className="-mr-3" />
         </div>
       </div>
     </HeaderFrame>

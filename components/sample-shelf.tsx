@@ -39,17 +39,17 @@ export function SampleShelf({
               key={doc.id}
               className={cardClasses({ className: "flex flex-col gap-2" })}
             >
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <span className="min-w-0 wrap-break-word font-medium">
-                  {doc.title}
-                </span>
+              <span className="min-w-0 wrap-break-word font-medium">
+                {doc.title}
+              </span>
+              <div className="flex items-center gap-3">
                 <Badge status="sample" />
+                {doc.pageCount !== null ? (
+                  <span className="font-mono text-xs text-muted">
+                    {doc.pageCount} {doc.pageCount === 1 ? "page" : "pages"}
+                  </span>
+                ) : null}
               </div>
-              {doc.pageCount !== null ? (
-                <p className="font-mono text-xs text-muted">
-                  {doc.pageCount} {doc.pageCount === 1 ? "page" : "pages"}
-                </p>
-              ) : null}
             </li>
           ))}
         </ul>

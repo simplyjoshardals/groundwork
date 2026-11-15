@@ -8,10 +8,10 @@ export type ButtonVariant =
   | "danger"
   | "danger-solid"
   | "link";
-export type ButtonSize = "sm" | "md" | "lg";
+export type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 rounded-md font-sans font-medium transition-colors duration-(--dur-fast) ease-(--ease-settle) disabled:cursor-not-allowed pointer-coarse:min-h-11";
+  "inline-flex items-center justify-center gap-2 rounded-md font-sans font-medium transition-colors duration-(--dur-fast) ease-(--ease-settle) disabled:cursor-not-allowed pointer-coarse:min-h-11 [&>svg]:shrink-0";
 
 // `enabled:hover:` (not bare `hover:`) so a disabled button can never show a
 // hover color, whatever order the generated CSS is in.
@@ -29,6 +29,8 @@ const SIZES: Record<ButtonSize, string> = {
   sm: "h-8 px-3 text-sm",
   md: "h-10 px-4 text-sm",
   lg: "h-12 px-6 text-base",
+  // Square, icon only: no horizontal padding, so the icon cannot be squeezed.
+  icon: "size-9 shrink-0 p-0 pointer-coarse:size-11",
 };
 
 // Inline text only: no height, padding or touch-target floor, so it never

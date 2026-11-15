@@ -6,11 +6,19 @@ import { Button } from "@/components/ui/button";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 
 /**
- * Ghost button with a fixed width, so "Signing out…" does not move the header.
- * The error floats under the button (absolutely positioned) so it cannot push
- * the header's layout either.
+ * The label never changes while signing out (the button just disables), so its
+ * width, and the header around it, stays put. The error floats under the button
+ * (absolutely positioned) so it cannot push the layout either. `ghost` in the
+ * header, where `-mr-3` lines its text up with the page edge; `secondary` in
+ * the Account section.
  */
-export function SignOutButton() {
+export function SignOutButton({
+  variant = "ghost",
+  className,
+}: {
+  variant?: "ghost" | "secondary";
+  className?: string;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,13 +47,14 @@ export function SignOutButton() {
   return (
     <div className="relative">
       <Button
-        variant="ghost"
+        variant={variant}
         size="sm"
         onClick={signOut}
         disabled={pending}
-        className="min-w-28"
+        aria-busy={pending}
+        className={className}
       >
-        {pending ? "Signing out…" : "Sign out"}
+        Sign out
       </Button>
       {error ? (
         <p

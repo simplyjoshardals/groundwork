@@ -30,10 +30,10 @@ export function ThemeToggle() {
   return (
     <Button
       variant="ghost"
+      size="icon"
       aria-label={`Theme: ${THEME_LABEL[choice]}. Switch to ${THEME_LABEL[next]}.`}
       title={`Theme: ${THEME_LABEL[choice]}`}
       onClick={() => setThemeChoice(next)}
-      className="size-9 shrink-0 px-0 pointer-coarse:size-11"
     >
       <Icon />
     </Button>

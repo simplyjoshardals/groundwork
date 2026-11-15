@@ -34,8 +34,12 @@ export function HeaderFrame({ children }: { children: ReactNode }) {
           scrolled ? "border-line" : "border-transparent",
         )}
       >
-        <div className="mx-auto flex h-14 w-full max-w-[84rem] items-center gap-2 px-4 md:gap-3 md:px-6 xl:px-8">
-          {children}
+        <div className="mx-auto w-full max-w-[84rem] px-4 md:px-6 xl:px-8">
+          {/* Below xl the page is one centered column (max-w-2xl); the header
+              uses the same width so the wordmark lines up with the content. */}
+          <div className="mx-auto flex h-14 w-full max-w-2xl items-center gap-2 md:gap-3 xl:max-w-none">
+            {children}
+          </div>
         </div>
       </header>
     </>

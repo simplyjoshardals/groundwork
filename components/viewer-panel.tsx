@@ -234,9 +234,13 @@ export function ViewerPanel({
       tabIndex={-1}
       aria-label="Document viewer"
       onKeyDown={onKeyDown}
-      className="fixed inset-x-0 bottom-0 top-14 z-20 flex flex-col gap-3 overflow-y-auto rounded-t-xl border border-line bg-surface p-4 shadow-sheet outline-none animate-fade-in xl:static xl:z-auto xl:max-h-[calc(100dvh-6.5rem)] xl:rounded-xl xl:shadow-none"
+      className="fixed inset-x-0 bottom-0 top-14 z-20 flex flex-col gap-3 scroll-pt-20 overflow-y-auto rounded-t-xl border border-line bg-surface p-4 shadow-sheet outline-none animate-fade-in xl:static xl:z-auto xl:max-h-[calc(100dvh-6.5rem)] xl:rounded-xl xl:shadow-none"
     >
-      <div className="flex items-start justify-between gap-3">
+      {/* Pinned: the card scrolls to the cited passage, and Close must stay
+          reachable while it does. A sticky box pins to the padding edge, so `-top-4`
+          (with `-mt-4`/`pt-4`) pins it to the card's outer edge and hides content
+          scrolling under the padding. */}
+      <div className="sticky -top-4 z-10 -mx-4 -mt-4 flex items-start justify-between gap-3 border-b border-line bg-surface px-4 pt-4 pb-3">
         <h2 className="min-w-0 wrap-break-word text-sm font-semibold">
           {title}
         </h2>

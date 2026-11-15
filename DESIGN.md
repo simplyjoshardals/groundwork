@@ -327,6 +327,7 @@ Rules: components use token utilities (`bg-surface`, `text-ink`) so they switch 
 
 - **Header:** 56 px (`h-14`), sticky, solid `bg-bg` (no blur), a 1 px `border-line` bottom edge that appears once the page has scrolled.
   - Left: wordmark.
+  - The header content uses the same width as the page below it (`max-w-2xl` centered below `xl`), so the wordmark lines up with the content.
   - Right: question counter (mono, "14 of 20 left today"), session chip ("Demo session" or the email, truncated), theme toggle (three-state icon button with a text label in its `aria-label`), sign out (ghost).
   - On mobile: wordmark plus counter plus theme toggle. Session chip and sign out move to an "Account" section at the bottom of the documents section. **No dropdown menus anywhere in this app.**
 - **Workspace at `xl` and up:** two columns, `grid-cols-[minmax(0,40rem)_minmax(0,1fr)]`, `gap-8`.
@@ -460,7 +461,7 @@ Phosphor is the only icon library (`@phosphor-icons/react`, pinned exactly). Fea
 
 ### 5.12 Theme toggle
 
-A three-state icon button (System, Light, Dark) that cycles in that order on each press. Ghost style, 36 px square on fine pointers and 44 px on coarse ones (`pointer: coarse`). The icon shows the **current choice**: Monitor (System), Sun (Light), Moon (Dark). The `aria-label` names the state and the next one: "Theme: System. Switch to Light." There is no menu. The choice is stored under the existing theme key and applied to `data-theme` (System resolves the OS preference to light or dark, the same as the head script). While on System it follows OS changes live. The first render uses the System icon on the server and swaps after hydration, in a fixed-size box, so nothing shifts.
+A three-state icon button (System, Light, Dark) that cycles in that order on each press. Ghost style, the Button `icon` size: a 36 px square on fine pointers and 44 px on coarse ones (`pointer: coarse`), no horizontal padding, so the 16 px icon can never be squeezed. The icon shows the **current choice**: Monitor (System), Sun (Light), Moon (Dark). The `aria-label` names the state and the next one: "Theme: System. Switch to Light." There is no menu. The choice is stored under the existing theme key and applied to `data-theme` (System resolves the OS preference to light or dark, the same as the head script). While on System it follows OS changes live. The first render uses the System icon on the server and swaps after hydration, in a fixed-size box, so nothing shifts.
 
 ### 5.13 Question counter
 
@@ -472,7 +473,7 @@ The header always has `border-b border-transparent`. Once the page has scrolled 
 
 ### 5.15 Account section (below `md`)
 
-At the bottom of the documents section on small screens: a quiet `bg-sunken` card with the session chip ("Demo session" or the email, truncated), a ghost "Sign out" button and, for demo sessions, a link "Create an account". It repeats what the header shows from `md` up; only one of the two is ever visible.
+At the bottom of the documents section on small screens: a quiet `bg-sunken` card with the session chip ("Demo session" or the email, truncated) and a secondary "Sign out" button. A demo session's "Create an account" is not repeated: it is the card in the shelf right above. It repeats what the header shows from `md` up; only one of the two is ever visible.
 
 ### 5.16 Shelf and viewer swap
 
@@ -589,30 +590,6 @@ Centered card with a serif h1 "Groundwork is waking up.", the line "The database
 | Error (`error.tsx`, `global-error.tsx`) | Serif h1 "Something broke on our side." one line, "Try again" (calls `reset`) plus a link home. Never a stack trace or a provider message. |
 | Loading (`loading.tsx`) | Header plus skeleton blocks in the shape of the route. |
 | Offline | A shared banner under the header, `role="status"`, appears when `navigator.onLine === false` and when a request fails with a network error. Text: "You're offline. Questions and uploads will work again when you're back." (same as section 8) Disappears on reconnect. |
-
-### 5.12 Theme toggle
-
-A three-state icon button (System, Light, Dark) that cycles in that order on each press. Ghost style, 36 px square on fine pointers and 44 px on coarse ones (`pointer: coarse`). The icon shows the **current choice**: Monitor (System), Sun (Light), Moon (Dark). The `aria-label` names the state and the next one: "Theme: System. Switch to Light." There is no menu. The choice is stored under the existing theme key and applied to `data-theme` (System removes the attribute). While on System it follows OS changes live. The first render uses the System icon on the server and swaps after hydration, in a fixed-size box, so nothing shifts.
-
-### 5.13 Question counter
-
-Header text in mono, `text-sm`, `tabular-nums`, `text-muted`: "14 of 20 left" (the full sentence with the reset time is the `aria-label`/`title`, so it is not squeezed into 360 px). Zero state: "0 left today" in `text-warn` with the warn glyph beside it, never red, because running out is a limit, not an error. The value sits in a box with a reserved minimum width (`min-w-[7rem]`, sized for "20 of 20 left") so a change of digits does not shift the header. Unknown (the lookup failed): "– left" with the same box, and the full label says "Question count unavailable." Updates are announced politely (`aria-live="polite"`, `aria-atomic`) only after the first answer, never on first paint. Before the data arrives it is the 80 × 16 px skeleton bar (5.9).
-
-### 5.14 Header scroll edge
-
-The header always has `border-b border-transparent`. Once the page has scrolled past 0 px, the border becomes `border-line` (color change only, no layout change, `--dur-fast`). A zero-height sentinel at the top of the page drives it through an `IntersectionObserver`, not a scroll listener.
-
-### 5.15 Account section (below `md`)
-
-At the bottom of the documents section on small screens: a quiet `bg-sunken` card with the session chip ("Demo session" or the email, truncated), a ghost "Sign out" button and, for demo sessions, a link "Create an account". It repeats what the header shows from `md` up; only one of the two is ever visible.
-
-### 5.16 Shelf and viewer swap
-
-On `xl`, the shelf and the viewer share the right column. The shelf stays mounted (so polling and state survive) and is hidden while the viewer is open; the viewer fades in with `--dur-base` opacity only. Under reduced motion it appears instantly. The column does not change width.
-
-
----
-
 
 ---
 
