@@ -57,13 +57,13 @@ export function LandingPage({ next }: { next: string }) {
         >
           <section
             aria-labelledby="landing-heading"
-            className="grid gap-8 xl:grid-cols-2 xl:items-center xl:gap-12"
+            className="grid gap-8 xl:grid-cols-2 xl:items-start xl:gap-12"
           >
-            <div className="flex max-w-152 flex-col gap-6">
+            <div className="flex max-w-[38rem] flex-col gap-6">
               <h1 id="landing-heading" className="text-display font-semibold">
                 Answers that show their sources.
               </h1>
-              <p className="text-lg text-muted">
+              <p className="text-pretty text-lg text-muted">
                 Ask your documents a question. Every claim links to the exact
                 page, highlighted. If it isn’t in your documents, it says so.
               </p>
@@ -98,7 +98,7 @@ export function LandingPage({ next }: { next: string }) {
           <Guarantees />
           <EvalStrip metrics={null} />
           <section className="border-t border-line pt-6">
-            <p className="max-w-152 text-sm text-muted">
+            <p className="max-w-[38rem] text-sm text-muted">
               Don’t upload sensitive documents. Their text is sent to AI
               providers to answer questions.
             </p>

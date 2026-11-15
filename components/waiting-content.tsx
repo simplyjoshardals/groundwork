@@ -13,9 +13,10 @@ const subscribeNever = () => () => undefined;
 
 /**
  * The body of the waiting page (DESIGN 6.7). Offline replaces the
- * explanation; a recent retry adds "Still not reachable". The status line is
- * always in the DOM with its height reserved, so it appears without moving
- * the button.
+ * explanation. The second line is always in the DOM and always one line tall:
+ * it says how long this usually takes, and after a recent retry it says
+ * "Still not reachable" instead. Because it is never empty it leaves no hole,
+ * and because it never changes height the button never moves.
  */
 export function WaitingContent() {
   const online = useOnlineStatus();
@@ -27,19 +28,22 @@ export function WaitingContent() {
 
   return (
     <div className="flex flex-col gap-4">
-      {online ? (
-        <p className="text-base text-ink">
-          The database is starting after a quiet spell. This usually takes under
-          a minute.
+      <div className="flex flex-col gap-1">
+        {online ? (
+          <p className="text-base text-ink">
+            The database is starting after a quiet spell.
+          </p>
+        ) : (
+          <OfflineBanner>You’re offline.</OfflineBanner>
+        )}
+        <p role="status" className="min-h-5 text-sm text-muted">
+          {online
+            ? retried
+              ? "Still not reachable. Try again in a minute."
+              : "This usually takes under a minute."
+            : null}
         </p>
-      ) : (
-        <OfflineBanner>You’re offline.</OfflineBanner>
-      )}
-      <p role="status" className="min-h-5 text-sm text-muted">
-        {online && retried
-          ? "Still not reachable. Try again in a minute."
-          : null}
-      </p>
+      </div>
       <ReloadButton />
     </div>
   );

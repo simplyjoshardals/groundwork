@@ -14,9 +14,27 @@ function Marker({ n }: { n: number }) {
   return (
     <span
       aria-hidden="true"
-      className="relative -top-[0.3em] mx-0.5 inline-block rounded-sm bg-accent-soft px-1 font-mono text-[0.7em] font-medium leading-none text-accent"
+      className="relative -top-[0.3em] ml-0.5 inline-block rounded-sm bg-accent-soft px-1 font-mono text-[0.7em] font-medium leading-none text-accent"
     >
       {n}
+    </span>
+  );
+}
+
+/** Keeps a hyphenated word on one line, so "Part-" never ends a line. */
+function Word({ children }: { children: string }) {
+  return <span className="whitespace-nowrap">{children}</span>;
+}
+
+/**
+ * A last word with its footnote marker, kept together so a marker never starts
+ * a line on its own.
+ */
+function Cite({ text, n }: { text: string; n: number }) {
+  return (
+    <span className="whitespace-nowrap">
+      {text}
+      <Marker n={n} />
     </span>
   );
 }
@@ -25,43 +43,38 @@ export function Specimen() {
   return (
     <figure aria-labelledby="specimen-caption" className="flex flex-col gap-3">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6">
+        <div className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-4 sm:p-6">
           <p className="font-serif text-base text-muted">
             How much annual leave do I get, and can I carry any over?
           </p>
           <p className="font-serif text-read text-ink">
-            Full-time employees get 26 days of paid annual leave in each leave
-            year
-            <Marker n={1} />. Up to 5 unused days can be carried over, and they
-            must be used by 30 June
-            <Marker n={2} />.
+            <Word>Full-time</Word> employees get 26 days of paid annual leave in
+            each leave <Cite text="year." n={1} /> Up to 5 unused days can be
+            carried over, and they must be used by{" "}
+            <Cite text="30 June." n={2} />
           </p>
-          <ul className="flex flex-col gap-1 border-t border-line pt-3 font-mono text-xs text-muted">
-            <li>
-              <span className="mr-2">1</span>Employee handbook, p. 3
-            </li>
-            <li>
-              <span className="mr-2">2</span>Employee handbook, p. 3
-            </li>
-          </ul>
+          <p className="border-t border-line pt-3 font-mono text-xs text-muted">
+            <span className="mr-2">1, 2</span>Employee handbook, p. 3
+          </p>
         </div>
-        <div className="rounded-lg bg-sunken p-4 md:p-6">
-          <div className="flex flex-col gap-3 rounded-sm border border-line bg-paper p-6 text-paper-ink shadow-card dark:brightness-[0.94]">
+        <div className="rounded-lg bg-sunken p-3 sm:p-6">
+          <div className="flex flex-col gap-3 rounded-sm border border-line bg-paper p-4 text-paper-ink shadow-card sm:p-6 dark:brightness-[0.94]">
             <p className="font-mono text-xs">Employee handbook, p. 3</p>
             <p className="font-serif text-sm font-semibold">3. Annual leave</p>
             <p className="font-serif text-sm leading-6">
-              Full-time employees receive{" "}
+              <Word>Full-time</Word> employees receive{" "}
               <mark data-hl>26 days of paid annual leave</mark> in each leave
-              year. The leave year runs from 1 April to 31 March. Part-time
-              employees receive a pro-rata entitlement.
+              year. The leave year runs from 1 April to 31 March.{" "}
+              <Word>Part-time</Word> employees receive a <Word>pro-rata</Word>{" "}
+              entitlement.
             </p>
-            <p aria-hidden="true" className="font-mono text-xs">
+            <p aria-hidden="true" className="text-center font-serif text-sm">
               …
             </p>
             <p className="font-serif text-sm leading-6">
               Up to 5 days of unused leave can be carried over into the next
-              leave year. Carried-over days must be used by 30 June, after which
-              they are lost.
+              leave year. <Word>Carried-over</Word> days must be used by 30
+              June, after which they are lost.
             </p>
           </div>
         </div>

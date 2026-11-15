@@ -296,3 +296,15 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Chrome paints autofilled fields blue or yellow, which fights the paper
+   palette (and is worse in dark mode). Delaying the autofill background and
+   text transition indefinitely keeps the field's own colors. A transition
+   rather than a box-shadow, so the focus ring is untouched. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  transition:
+    background-color 600000s 0s,
+    color 600000s 0s;
+}

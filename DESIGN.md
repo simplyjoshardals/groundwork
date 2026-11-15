@@ -285,7 +285,7 @@ Paper logic: flat by default, edges instead of shadows.
 
 - **Wordmark:** "Groundwork" in Newsreader 600, 20 px in the header, tracking `-0.01em`. On the landing hero only, a 3 px `bg-accent` rule runs under the whole word.
 - **Favicon / app icon:** a custom Groundwork mark, supplied as a finished raster asset rather than drawn in code (it replaced the earlier serif "G" placeholder). `app/icon.png` is 512 px, square. `app/apple-icon.png` is 180 px, full-bleed with no rounded corners, because iOS applies its own mask and a transparent or pre-rounded icon gets a black or double-rounded edge. Both come from one 1024 px master, and the mark must stay recognisable at 16 px (thick shapes, no fine detail). Next emits the link tags from these file names, so there is no `<link>` to maintain, and `app/icon.svg` is removed: if it stayed, the page would carry two competing favicons. The default `app/favicon.ico` is deleted and replaced with a custom `favicon.ico` as a fallback for desktop tabs and legacy browsers.
-- **Metadata:** title template `%s | Groundwork`, default title "Groundwork: ask your documents, see the source". Per-route titles. Fix the current "Create Next App" title first.
+- **Metadata:** title template `%s · Groundwork`, default title "Groundwork: ask your documents, see the source". Per-route titles. Fix the current "Create Next App" title first.
 - **Social image:** `app/opengraph-image.tsx` with the wordmark, the headline, and a highlighted footnote. Verify the `next/og` font-loading approach for your Next version.
 
 ---
@@ -468,7 +468,7 @@ Header (wordmark with the 3 px accent rule, ghost "Sign in", primary "Try demo";
 
 | | Treatment |
 |---|---|
-| L | Server-rendered, nothing to wait for. Only the CTAs have a pending state: the hero button swaps to "Preparing demo…" (fixed width) while Turnstile verifies; the header button keeps its label. After 2 s add "Verifying that you're human…" in `text-xs text-muted` (the existing delayed status). The widget sits directly under the hero CTA in a 64 px reserved slot shared by both buttons, so a challenge appears without moving anything. |
+| L | Server-rendered, nothing to wait for. Only the CTAs have a pending state: the hero button swaps to "Preparing demo…" (fixed width) while Turnstile verifies; the header button keeps its label. After 2 s add "Verifying that you're human…" in `text-xs text-muted` (the existing delayed status). The widget sits directly under the hero CTA in a slot shared by both buttons. The slot reserves the status line (20 px); at `xl`, where the hero sits beside the specimen and the space is invisible, it reserves Turnstile's full 64 px. On narrower screens a rare interactive challenge pushes the content below it down rather than leaving a visible hole for every visitor (the widget is `interaction-only`). |
 | E | n/a: static content. |
 | X | Demo start failures show as a danger banner under the CTA with existing messages (captcha rejected, auth unavailable, generic). The widget resets quietly. |
 | S | Redirect into the workspace. |
@@ -547,13 +547,13 @@ Header row: serif `text-h3` document title (wraps), a "Close" secondary button. 
 
 ### 6.7 Waiting page (auth service unreachable)
 
-Centered card with a serif h1 "Groundwork is waking up." and the existing explanation (rewritten in the voice if it is blunt). A secondary "Try again" button (full reload). Optional later: quiet auto-retry every 15 s.
+Centered card with a serif h1 "Groundwork is waking up.", the line "The database is starting after a quiet spell." and, under it, one reserved line that reads "This usually takes under a minute." (replaced by the "Still not reachable" line after a retry, so it is never empty and never changes height). A secondary "Try again" button (full reload). Optional later: quiet auto-retry every 15 s.
 
 | | Treatment |
 |---|---|
 | L | Retry shows "Checking…" at fixed width. |
 | E | n/a: it only exists in this state. |
-| X | Same page again, with a line "Still not reachable. Try again in a minute." It appears only when "Try again" was pressed within the last two minutes (a timestamp in `sessionStorage`, so an old episode never looks like a second attempt). |
+| X | Same page again; the reserved second line reads "Still not reachable. Try again in a minute." It appears only when "Try again" was pressed within the last two minutes (a timestamp in `sessionStorage`, so an old episode never looks like a second attempt). |
 | S | Reload lands on the workspace. |
 | P | n/a: a single message. |
 | O | The global offline banner replaces the explanation: "You're offline." |

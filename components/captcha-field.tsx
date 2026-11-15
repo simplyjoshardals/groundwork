@@ -133,16 +133,17 @@ export function CaptchaField({
   const message = visibleCaptchaMessage(state, slowAttempt === state.attempt);
   const failed = state.status === "failed";
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col">
       <TurnstileWidget key={state.attempt} onEvent={dispatch} />
       <div role="status" aria-live="polite">
         {message && !failed ? (
-          <p className="text-xs text-muted">{message}</p>
+          <p className="mt-2 text-xs text-muted">{message}</p>
         ) : null}
       </div>
       {failed && message ? (
         <Banner
           tone="danger"
+          className="mt-3"
           action={
             captchaCanRetry(state) ? (
               <Button

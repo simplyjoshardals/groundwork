@@ -44,10 +44,12 @@ describe("ReloadButton", () => {
 });
 
 describe("WaitingContent", () => {
-  it("explains the wait and has no retry note on a first visit", () => {
+  it("explains the wait and says how long it usually takes on a first visit", () => {
     render(<WaitingContent />);
     expect(screen.getByText(/starting after a quiet spell/)).toBeTruthy();
-    expect(screen.getByRole("status").textContent).toBe("");
+    expect(screen.getByRole("status").textContent).toBe(
+      "This usually takes under a minute.",
+    );
   });
 
   it("says it is still not reachable after a recent retry", () => {
@@ -63,5 +65,6 @@ describe("WaitingContent", () => {
     render(<WaitingContent />);
     expect(screen.getByText("You’re offline.")).toBeTruthy();
     expect(screen.queryByText(/starting after a quiet spell/)).toBeNull();
+    expect(screen.queryByText("This usually takes under a minute.")).toBeNull();
   });
 });

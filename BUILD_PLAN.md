@@ -498,14 +498,32 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] App icon: the generic G is replaced by the supplied Groundwork asset as `app/icon.png` and `app/apple-icon.png` (DESIGN §2).
     - [x] Hydration warning: caused by a browser extension (ColorZilla's `cz-shortcut-listen` on `<body>`), not the app. Reproduced in a clean extension-free Chromium only by injecting the attribute; production builds log nothing. No code change, and the root `suppressHydrationWarning` for the theme script stays.
 
-- [ ] **U1 Landing, sign-in, sign-up and global pages** · 5 h · deps: U0
+- [x] **U1 Landing, sign-in, sign-up and global pages** · 5 h · deps: U0
   - **Build:** The landing page at `/` for signed-out visitors instead of the redirect, sign-in and sign-up pages, the global 404, error and loading pages, and the waiting page for an unreachable auth service (DESIGN §6.1, §6.2, §6.7, §6.8). Move the Turnstile provider from the `(auth)` layout to the landing page and reserve the widget's height. Update the Playwright flows that assumed the redirect. The eval-numbers strip stays empty until 6.5 produces real numbers.
-  - **Done when:**
-    - [ ] A signed-out visitor sees the landing page at `/`, and Try demo still works end to end with the CAPTCHA.
-    - [ ] Shared `?doc=...` links still work.
-    - [ ] The page does not shift when the Turnstile widget loads.
-    - [ ] The 404, error, loading and waiting pages are each reached by hand and look designed.
-    - [ ] The updated Playwright tests pass on a preview deployment.
+  - **Built (code complete, reviewed against screenshots at 360, 768 and 1280 px in light and dark):**
+    - [x] Landing page at `/` (server component): header, hero with a static specimen (real text from handbook page 3, highlight is the F08 quote), three guarantees, privacy note, footer. The eval strip renders nothing until 6.5.
+    - [x] A shared `?doc=&page=&chunk=` link survives: only those three keys, each shape-checked, are carried as `next` through Try demo and Sign in (`lib/auth/shared-link.ts`), with an info banner on the landing page.
+    - [x] One `DemoStartProvider` serves the header and hero Try demo buttons (one request, one error place); `CaptchaProvider` gained `slot="manual"` and a `CaptchaSlot`.
+    - [x] Sign in and sign up on the primitives: field errors, danger banner, offline state, "Check your email" state, per-route titles, expired-link warn banner.
+    - [x] 404, error, `global-error` (own `<html>`, imports `globals.css`, fallback fonts), root and `(auth)` loading shells, and the waiting page with "Still not reachable" memory (`sessionStorage` timestamp, two minutes).
+    - [x] Sign out now returns to `/`. `proxy.ts` needed no change: the redirect was only in `app/page.tsx`.
+    - [x] New dev-only drill `/dev-states/[state]` (`waiting`, `error`, `loading`, `check-email`); it is a 404 outside `next dev`.
+  - **Decisions (see `docs/decisions.md`, 2026-11-15):** the landing page gets its own Turnstile provider and the `(auth)` layout **keeps** one, because sign-in and sign-up also send a token (a pure move would break them), and the signed-in workspace still loads no Turnstile; component tests now exist (jsdom and Testing Library added, replacing the 2026-11-06 "no component tests" decision); new `--paper` and `--paper-ink` tokens (DESIGN §1.1); the captcha slot reserves 20 px below `xl` and 64 px at `xl` (DESIGN §6.1).
+  - **Done when (all confirmed by the project owner):**
+    - [x] A signed-out visitor sees the landing page at `/`, and Try demo still works end to end with the CAPTCHA. (Landing also reviewed from screenshots at 360, 768 and 1280 px, light and dark.)
+    - [x] Shared `?doc=...` links still work. (Link-building logic unit-tested; the `landing` e2e case covers Try demo carrying the link.)
+    - [x] The page does not shift when the Turnstile widget loads. (The e2e layout-shift case was fixed after it hung on `networkidle`; the reserved slot was resized after the first screenshot review.)
+    - [x] The 404, error, loading and waiting pages are each reached by hand and look designed. (404, error, waiting with and without the retry line, check-email, offline and shared-link states were also reviewed from screenshots.)
+    - [x] The updated Playwright tests pass on a preview deployment.
+  - **Refinements after the screenshot review (done; confirmed working by the project owner locally):**
+    - [x] CTA-to-specimen gap on mobile and tablet cut from about 108 px to about 64 px (slot resized as above).
+    - [x] Auth card bottom padding now matches the top (the invisible widget no longer adds spacing).
+    - [x] Waiting page: the reserved line now says "This usually takes under a minute." until a retry, so there is no hole and no shift.
+    - [x] Wordmark rule is absolutely positioned (the word sits on the header buttons' centre line); the plain header shares the landing container so the wordmark does not move between pages.
+    - [x] Specimen: marker after the period, merged source row, hyphenated words kept whole, centered ellipsis; desktop hero top-aligned.
+    - [x] Chrome autofill background neutralised in `globals.css` (a transition rule, so the focus ring is untouched).
+    - [x] Footnote markers kept with their period so one cannot start a line (mobile).
+  - **Tests added:** unit: `shared-link`, `demo-cta-state`, `waiting-retry`. Component (jsdom): `demo-start`, `auth-form`, `waiting`, `eval-strip`. Playwright: `demo-sign-in` updated to start from `/`; new `landing` spec (no redirect, shared link, layout shift, offline, 404). Unit, component and Playwright tests pass, as reported by the project owner. Requires `vitest.config.ts` to include `*.test.tsx`.
 
 - [ ] **U2 App shell and workspace layout** · 5 h · deps: U1
   - **Build:** The header with question counter, session chip and theme toggle; the two-column workspace where the shelf and the viewer swap in the right column (DESIGN §4, §6.3); the initial documents fetch on the server through the RLS-scoped client; the demo sample shelf. First verify that your RLS select policy exposes `is_public` rows to anonymous users, then add a visible-documents query (`listOwnDocuments` is own-only today).
@@ -652,7 +670,7 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
 | **1.2 / 4.10** RLS and isolation                  | A policy gap leaks data                                  | Column grants, restrictive policies, storage policies, and RPC grants are easy to get subtly wrong            | SQL tests from day one; deliberately break a policy once to see the test catch it |
 | **5.4 / 5.7** CAPTCHA and abuse                   | Public link drains free quota                            | Free tiers have hard caps and no spending cushion                                                             | Load test with 50 anonymous sessions before sharing                               |
 | **4.1** Email confirmation                        | Default email sending is rate-limited                    | A real signup could silently fail                                                                             | Decide the approach in Slice 4, not at launch                                     |
-| **U1** Landing and Turnstile move | The CAPTCHA or the entry flow regresses | The Turnstile provider moves from the `(auth)` layout to the landing page, `/` stops redirecting, and e2e assumed the redirect | Reserve the widget height; run the demo flow and Playwright on a preview before merging |
+| **U1** Landing and Turnstile move | The CAPTCHA or the entry flow regresses | The landing page gets its own Turnstile provider (the `(auth)` layout keeps one for sign-in and sign-up), `/` stops redirecting, and e2e assumed the redirect | Reserve the widget height; run the demo flow and Playwright on a preview before merging |
 | **U3** Streaming ask UI | Layout shifts or noisy screen-reader output while text streams | The core interaction; layout stability and `aria-live` are easy to get subtly wrong | Test with a long streamed answer and the accessibility tree before moving on |
 | **U4** Viewer | Docked and sheet modes, dark-mode PDF, text-layer styling | One component serves two modes (focus, scroll lock, Escape); PDF.js text-layer and `mark[data-hl]` CSS; dark mode without inversion | Keyboard-only test; check a real PDF in light and dark. The riskiest UI slice |
 

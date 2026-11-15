@@ -68,15 +68,18 @@ export function CaptchaProvider({
 }
 
 /**
- * Where the widget goes with `slot="manual"`. It reserves 64 px (the height of
- * Turnstile's widget, DESIGN 6.1) so a challenge or the "Verifying…" line
- * appears without moving anything. The widget is `interaction-only`, so most
- * visitors never see more than that empty space.
+ * Where the widget goes with `slot="manual"`. The widget is `interaction-only`,
+ * so most visitors never see more than the delayed "Verifying…" line. It
+ * reserves that line's height (20 px) so the line appears without moving
+ * anything. At `xl`, where the hero sits beside the specimen and the empty
+ * space is invisible, it reserves Turnstile's full 64 px so a challenge also
+ * appears without moving anything; on narrow screens a rare challenge pushes
+ * the content below it down instead of leaving a visible hole for everyone.
  */
 export function CaptchaSlot({ className }: { className?: string }) {
   const { state, dispatch } = useCaptcha();
   return (
-    <div className={cn("min-h-16", className)}>
+    <div className={cn("min-h-5 xl:min-h-16", className)}>
       <CaptchaField state={state} dispatch={dispatch} />
     </div>
   );

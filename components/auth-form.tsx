@@ -170,7 +170,7 @@ export function AuthForm({
 
   const copy = COPY[mode];
   return (
-    <>
+    <div className="flex flex-col gap-6">
       <h1 className="text-h1 font-semibold">{title}</h1>
       {notice ? <Banner tone="warn">{notice}</Banner> : null}
       <OfflineBanner>You’re offline.</OfflineBanner>
@@ -210,6 +210,6 @@ export function AuthForm({
         </fieldset>
       </form>
       {footer}
-    </>
+    </div>
   );
 }
