@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import type { ChunkPassage, ChunkResult } from "@/lib/documents/get-chunk";
 import { loadChunkPassage } from "@/lib/viewer-prefetch";
 
+export type ChunkLoader = (chunkId: string) => Promise<ChunkResult>;
+
 export type ChunkPassageState =
   /** The link names no chunk. */
   | { state: "none" }
@@ -14,10 +16,13 @@ export type ChunkPassageState =
   /** Network or database error; worth a retry. */
   | { state: "error" };
 
-/** Loads the chunk with the browser (user) session; never throws. */
-async function loadChunk(chunkId: string): Promise<ChunkResult> {
+/** Loads the chunk (by default with the browser session); never throws. */
+async function loadChunk(
+  load: ChunkLoader,
+  chunkId: string,
+): Promise<ChunkResult> {
   try {
-    return await loadChunkPassage(chunkId);
+    return await load(chunkId);
   } catch (error) {
     // Name only: messages could carry configuration details.
     console.error(
@@ -34,7 +39,10 @@ async function loadChunk(chunkId: string): Promise<ChunkResult> {
  * be shown for the current one. Pass `null` for no lookup (no chunk in the
  * link, or a document that is not a PDF).
  */
-export function useChunkPassage(chunkId: string | null): {
+export function useChunkPassage(
+  chunkId: string | null,
+  load: ChunkLoader = loadChunkPassage,
+): {
   state: ChunkPassageState;
   retry: () => void;
 } {
@@ -48,13 +56,13 @@ export function useChunkPassage(chunkId: string | null): {
   useEffect(() => {
     if (key === null || chunkId === null) return;
     let cancelled = false;
-    void loadChunk(chunkId).then((result) => {
+    void loadChunk(load, chunkId).then((result) => {
       if (!cancelled) setSettled({ key, result });
     });
     return () => {
       cancelled = true;
     };
-  }, [key, chunkId]);
+  }, [key, chunkId, load]);
 
   let state: ChunkPassageState;
   if (key === null) {

@@ -57,6 +57,10 @@
      mode: a page stays paper-colored there (DESIGN 3). */
   --paper: #fcfaf4;
   --paper-ink: #1e1b16;
+  /* The citation highlight where it sits on paper (PDF text layer, text
+     viewer). Defined once, like paper: --highlight-soft in dark mode is a
+     glow for dark surfaces and would almost vanish on a paper page. */
+  --highlight-on-paper: rgba(243, 213, 104, 0.45);
 
   /* elevation */
   --shadow-card:
@@ -205,6 +209,8 @@
 
 @layer base {
   html {
+    /* Reserve the scrollbar so locking body scroll (viewer sheet) never shifts the page. */
+    scrollbar-gutter: stable;
     background: var(--bg);
     color: var(--text);
   }
@@ -316,4 +322,153 @@ input:-webkit-autofill:focus {
 }
 @utility animate-fade-in {
   animation: fade-in var(--dur-base) var(--ease-paper) both;
+}
+
+/* ------------------------------------------------------------------ */
+/* Viewer (DESIGN 4.3, 5.9, 6.6, 7)                                    */
+/* ------------------------------------------------------------------ */
+
+@layer components {
+  /* A page of a document: paper in both themes (DESIGN 3). Redefining
+     --highlight-soft here gives `mark[data-hl]` the paper strength. */
+  .paper {
+    --highlight-soft: var(--highlight-on-paper);
+    background-color: var(--paper);
+    color: var(--paper-ink);
+  }
+
+  /* The skeleton utility, re-based on paper so the bars stay faint in dark
+     mode (they would be near-black on a paper rectangle otherwise). */
+  .paper-skeleton {
+    --sunken: color-mix(in srgb, var(--paper-ink) 8%, var(--paper));
+    --skeleton-band: var(--paper);
+  }
+}
+
+/* The highlight wipe (DESIGN 7). `data-wipe` is set by useHighlightReveal:
+   `pending` hides the highlight until the page has scrolled and settled,
+   `play` grows it once, left to right. No attribute: just shown (the base
+   `mark[data-hl]` rule). The flat gradient layer is only the thing
+   `background-size` can animate; it paints one colour (DESIGN rule 9). */
+.paper[data-wipe] mark[data-hl] {
+  background-color: transparent;
+  background-image: linear-gradient(
+    var(--highlight-soft),
+    var(--highlight-soft)
+  );
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+}
+.paper[data-wipe="play"] mark[data-hl] {
+  animation: wipe var(--dur-highlight) var(--ease-paper) both;
+  animation-delay: var(--wipe-delay, 0ms);
+}
+@keyframes wipe {
+  from {
+    background-size: 0% 100%;
+  }
+  to {
+    background-size: 100% 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .paper[data-wipe] mark[data-hl] {
+    animation: none;
+    background-size: 100% 100%;
+  }
+}
+
+/* The viewer as a sheet below xl: a native modal <dialog>. Bottom sheet below
+   md (rises 24 px and fades), right-hand sheet from md (slides in 24 px).
+   Open uses --dur-sheet / --ease-paper, close reverses with --dur-slow /
+   --ease-settle. `display` and `overlay` transition discretely so the exit can
+   play; the shell also waits on a timer where that is unsupported. */
+dialog.viewer-sheet {
+  position: fixed;
+  inset: 3rem 0 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1rem 1rem 0 0;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sheet);
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity var(--dur-slow) var(--ease-settle),
+    transform var(--dur-slow) var(--ease-settle),
+    overlay var(--dur-slow) var(--ease-settle) allow-discrete,
+    display var(--dur-slow) var(--ease-settle) allow-discrete;
+}
+dialog.viewer-sheet[open] {
+  display: flex;
+  opacity: 1;
+  transform: none;
+  transition-duration: var(--dur-sheet);
+  transition-timing-function: var(--ease-paper);
+}
+@starting-style {
+  dialog.viewer-sheet[open] {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+@media (min-width: 48rem) {
+  dialog.viewer-sheet {
+    inset: 0 0 0 auto;
+    width: min(34rem, 100%);
+    border-radius: 1rem 0 0 1rem;
+    transform: translateX(24px);
+  }
+  @starting-style {
+    dialog.viewer-sheet[open] {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+  }
+}
+/* The backdrop is ink at 40% (light) or black at 55% (dark); written as
+   literals because ::backdrop does not inherit custom properties everywhere. */
+dialog.viewer-sheet::backdrop {
+  background-color: rgb(30 27 22 / 0);
+  transition:
+    background-color var(--dur-slow) var(--ease-settle),
+    overlay var(--dur-slow) var(--ease-settle) allow-discrete,
+    display var(--dur-slow) var(--ease-settle) allow-discrete;
+}
+dialog.viewer-sheet[open]::backdrop {
+  background-color: rgb(30 27 22 / 0.4);
+  transition-duration: var(--dur-sheet);
+}
+:root[data-theme="dark"] dialog.viewer-sheet[open]::backdrop {
+  background-color: rgb(0 0 0 / 0.55);
+}
+@starting-style {
+  dialog.viewer-sheet[open]::backdrop {
+    background-color: rgb(30 27 22 / 0);
+  }
+}
+/* Reduced motion: fade only, no travel. */
+@media (prefers-reduced-motion: reduce) {
+  dialog.viewer-sheet,
+  dialog.viewer-sheet[open] {
+    transform: none;
+  }
+  @starting-style {
+    dialog.viewer-sheet[open] {
+      transform: none;
+    }
+  }
+}
+/* Lock the page behind the modal sheet; it unlocks when the dialog closes or
+   unmounts. */
+body:has(dialog.viewer-sheet:modal) {
+  overflow: hidden;
 }

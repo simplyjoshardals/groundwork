@@ -18,7 +18,7 @@ Paste this whole file into every UI prompt. It is the single source of truth for
 6. Every interactive element has a visible focus ring, an accessible name, and a 44 px touch target on coarse pointers.
 7. Dark mode is its own palette (section 3), not inverted. The PDF page stays paper-colored in dark mode.
 8. Animate only `opacity`, `transform`, color, and background-position. Respect reduced motion (section 7).
-9. No gradients (the one exception is the skeleton shimmer band, section 5.9), glass, glow effects (except the dark highlight), emoji, pulsing or spinning status indicators, a second icon library (Phosphor only, section 5.11), or icon-only buttons without a label or `aria-label`.
+9. No gradients (the two exceptions are the skeleton shimmer band, section 5.9, and the flat single-colour layer that the highlight wipe animates, section 7, which paints one colour and never a blend), glass, glow effects (except the dark highlight), emoji, pulsing or spinning status indicators, a second icon library (Phosphor only, section 5.11), or icon-only buttons without a label or `aria-label`.
 10. Copy follows the voice in section 8: calm, specific, no exclamation marks, no "Oops".
 
 ---
@@ -76,6 +76,9 @@ Contrast ratios below were computed with the WCAG formula. Text pairs all pass A
      never redefined for dark mode: a page stays paper-colored there (section 3). */
   --paper: #FCFAF4;
   --paper-ink: #1E1B16;
+  /* the citation highlight where it sits on paper (PDF text layer, text viewer): defined once,
+     because --highlight-soft in dark mode is a glow for dark surfaces and would almost vanish on paper */
+  --highlight-on-paper: rgba(243, 213, 104, 0.45);
 
   /* elevation (section 1.5) */
   --shadow-card: 0 1px 2px rgba(30, 27, 22, 0.06), 0 4px 12px rgba(30, 27, 22, 0.05);
@@ -302,7 +305,7 @@ Dark mode is a "reading lamp" version of the same room. Differences from light t
 | Accent | deep ink green (fill) | lighter sage green (so it keeps 8 plus : 1 on dark) |
 | Highlight | flat yellow at 45% | **a glow**: yellow at 30% alpha over the dark surface, text stays readable |
 | Serif text | 400 | 400, but allow `font-weight: 420` and 0.01em letter-spacing if thin strokes shimmer (check on a real screen) |
-| PDF page | paper on paper | **the page stays paper-colored** (`--paper` with `--paper-ink`, defined once for both themes); it sits on a dark "desk" (`--sunken`) with `filter: brightness(0.94)` so it isn't a white flashbang. Never CSS-invert a PDF canvas. |
+| PDF page | paper on paper | **the page stays paper-colored** (`--paper` with `--paper-ink`, defined once for both themes); it sits on a dark "desk" (`--sunken`) with `filter: brightness(0.94)` so it isn't a white flashbang. Never CSS-invert a PDF canvas. The highlight on it uses `--highlight-on-paper` (the light-mode strength), through `.paper`, which also covers the text viewer. |
 | Skeleton shimmer | paper to lighter paper | surface to `raised` |
 | Toast | ink slab | `raised` surface with ring |
 
@@ -443,7 +446,7 @@ One region, bottom center, `max-w-sm`, `rounded-lg bg-toast text-toast-fg shadow
 | Answer | 3 lines at `text-read` height, last line 60% wide |
 | Sources | 2 source-card shapes |
 | Document row | 56 px row: title bar 40% wide, badge pill, meta bar |
-| Viewer | a paper-colored rectangle at 8.5 : 11 with 8 faint text bars |
+| Viewer | a paper-colored rectangle at 8.5 : 11 with 8 faint text bars (the `skeleton` utility, with `--sunken` and `--skeleton-band` redefined on `.paper-skeleton` so the bars stay faint on paper in dark mode) |
 | Header counter | 80 × 16 px bar |
 
 ### 5.10 Document list (a list, not a table)
@@ -616,7 +619,7 @@ Motion makes state changes legible. It never decorates.
 | Dialog | opacity plus `scale(0.98)` to 1; backdrop opacity | `--dur-base` / `--ease-paper` |
 | Viewer sheet (below `xl`) | `translateY(24px)` or `translateX(24px)` to 0 plus opacity; close reverses | open `--dur-sheet` / `--ease-paper`, close `--dur-slow` / `--ease-settle` |
 | Docked viewer / shelf swap | crossfade only; the grid never reflows | `--dur-base` |
-| **Highlight wipe** (signature) | the highlight background grows left to right once over the cited passage, after the page has scrolled into place and settled | `--dur-highlight` / `--ease-paper`; animate `background-size`, play once, never loop |
+| **Highlight wipe** (signature) | the highlight background grows left to right once over the cited passage, after the page has scrolled into place and settled | `--dur-highlight` / `--ease-paper`; animate `background-size` on a flat single-colour layer, play once, never loop. The marks are drawn hidden (`data-wipe="pending"` on the paper sheet), the viewer's own scroll region scrolls to them, and when it settles (`scrollend`, or a 700 ms timer) `data-wipe="play"` starts the wipe; a passage over several lines staggers 80 ms per line, capped at 400 ms. A safety timer plays it after 2.5 s regardless: a highlight is never left hidden. Reduced motion: shown at once |
 | Skeleton shimmer | a soft light band moves across, `background-position` | 1.4 s linear, infinite, only while loading |
 | Processing row progress line | indeterminate slide (the badge itself is static) | 1.2 s ease-in-out, infinite; static under reduced motion |
 | Streaming text | **no per-character animation.** Render text as it arrives. An optional 1 px caret blinks at the end while streaming. | caret: 1 s steps |
@@ -737,3 +740,13 @@ Typographic finish (applies everywhere): `text-wrap: balance` on headings, `pret
 - No centered-hero-plus-three-icon-cards template. The landing page earns its layout from the specimen.
 - No full-page spinners. No modal for something that can be inline. No dropdown menus.
 - No new colors, fonts, or shadows. If something is missing from the tokens, propose a token first.
+
+---
+
+## Appendix: viewer implementation notes (U4)
+
+- **Shells.** One `ViewerPanel` (pinned header with the title and Close, then one scroll region) sits in either shell. From `xl` it is an `<aside aria-label="Document viewer">` of fixed height (`100dvh - 6.5rem`), so skeleton to page never resizes it. Below `xl` it is a native `<dialog class="viewer-sheet">` opened with `showModal()`: focus trap and inert background come from the platform, Escape (`cancel`), a press that starts and ends on the backdrop, and Close all call the same `onClose`, so the URL stays the one source of truth. Body scroll is locked in CSS (`body:has(dialog.viewer-sheet:modal)`), and `html` reserves its scrollbar (`scrollbar-gutter: stable`) so the lock never shifts the page.
+- **Exit.** The URL closes the viewer at once, so `ViewerHost` keeps the last open location mounted until the sheet's exit transition ends (or 450 ms pass). Docked has no exit animation.
+- **Focus.** On open, focus goes to the document title (`tabIndex={-1}`), which names what appeared. On close it returns to the control that opened the viewer (a citation marker or a source card's Open button); if that button is gone, to the marker or card with the same `data-citation-chunk`, else nowhere.
+- **Layout.** Note or fallback passage, then the sticky page toolbar, then the page on a `bg-sunken` desk. The toolbar is part of the scroll region so a long page scrolls under it; the highlight scroll accounts for its height. Crossing `xl` while open swaps shells and reloads the page once; that is accepted.
+- **Dev drill.** `/dev-states/viewer/<scenario>` (a 404 outside `next dev`) runs the real viewer against a scripted `ViewerSource` and a small generated PDF (`public/dev/viewer-sample.pdf`); `/dev-states/viewer/index` lists the scenarios.

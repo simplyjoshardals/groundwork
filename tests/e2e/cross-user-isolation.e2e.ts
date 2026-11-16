@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { getChunk } from "@/lib/documents/get-chunk";
 import { getViewerDocument } from "@/lib/documents/get-viewer-document";
-import { describeSignedUrlFailure } from "@/lib/pdf-viewer/messages";
 import { createDocumentSignedUrl } from "@/lib/storage/documents";
+import { VIEWER_UNAVAILABLE_MESSAGE } from "@/lib/viewer/messages";
 import { fixturePath, TEXT_PDF_NAME, titleOf } from "./helpers/fixtures";
 import { waitForHydration } from "./helpers/hydration";
 import { readOwnUpload, signInAsApi } from "./helpers/supabase-api";
@@ -90,9 +90,7 @@ test("user B cannot see, open, fetch or ask about user A's document", async ({
     const viewer = pageB.getByRole("complementary", {
       name: "Document viewer",
     });
-    await expect(
-      viewer.getByText(describeSignedUrlFailure("not_found")),
-    ).toBeVisible();
+    await expect(viewer.getByText(VIEWER_UNAVAILABLE_MESSAGE)).toBeVisible();
     await expect(pageB.locator("canvas")).toHaveCount(0);
     await expect(pageB.getByText(/Brindlemoor/)).toHaveCount(0);
     // The chunk behind that link is just as hidden.

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { AskPanel } from "@/components/ask-panel";
-import { ViewerPanel } from "@/components/viewer-panel";
+import { ViewerHost } from "@/components/viewer-host";
 import { cn } from "@/components/ui/cn";
+import { useRestoreFocus } from "@/lib/viewer/use-restore-focus";
 import { useViewerLocation } from "@/lib/viewer-url/use-viewer-location";
 import type { StreamSource } from "@/types/ask-stream";
 
@@ -30,21 +30,14 @@ export function Workspace({
   account?: ReactNode;
 }) {
   const { location, open, setPage, close } = useViewerLocation();
-  const triggerRef = useRef<HTMLElement | null>(null);
-  const wasOpenRef = useRef(false);
   const viewerOpen = location.status !== "closed";
 
-  // Give focus back to the chip that opened the viewer once it closes.
-  useEffect(() => {
-    const trigger = triggerRef.current;
-    if (wasOpenRef.current && !viewerOpen && trigger?.isConnected) {
-      trigger.focus();
-    }
-    wasOpenRef.current = viewerOpen;
-  }, [viewerOpen]);
+  // Give focus back to the marker or card that opened the viewer once it
+  // closes (or to the one for the same chunk, if that button is gone).
+  const rememberTrigger = useRestoreFocus(viewerOpen);
 
   function onOpenSource(source: StreamSource, trigger: HTMLElement) {
-    triggerRef.current = trigger;
+    rememberTrigger(trigger, String(source.chunkId));
     open({
       documentId: source.documentId,
       page: source.page,
@@ -70,13 +63,11 @@ export function Workspace({
         >
           {shelf}
         </div>
-        {location.status === "closed" ? null : (
-          <ViewerPanel
-            location={location}
-            onPageChange={setPage}
-            onClose={close}
-          />
-        )}
+        <ViewerHost
+          location={location}
+          onPageChange={setPage}
+          onClose={close}
+        />
         {account}
       </div>
     </div>

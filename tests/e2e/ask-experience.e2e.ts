@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
   ).toBeVisible();
 });
 
-test("an example chip asks at once and returns a cited answer with source cards", async ({
+test("an example chip asks at once, returns a cited answer with source cards, and opens a citation in the viewer", async ({
   page,
 }) => {
   await page.getByRole("button", { name: "Paid annual leave" }).click();
@@ -33,6 +33,45 @@ test("an example chip asks at once and returns a cited answer with source cards"
   // Hovering a marker lights its card.
   await marker.hover();
   await expect(sources.locator('[aria-current="true"]')).toHaveCount(1);
+
+  // At 1280 px a citation docks the viewer beside the answer; Escape closes
+  // it and focus goes back to the marker.
+  await marker.click();
+  const docked = page.getByRole("complementary", { name: "Document viewer" });
+  await expect(docked).toBeVisible();
+  // The page text layer may print "Page 3 of 10" too; the toolbar label is the
+  // paragraph, the text layer's spans are presentation.
+  await expect(
+    docked.getByRole("paragraph").filter({ hasText: /^Page \d+ of \d+$/ }),
+  ).toBeVisible({ timeout: ANSWER_TIMEOUT_MS });
+  await page.keyboard.press("Escape");
+  await expect(docked).toBeHidden();
+  await expect(marker).toBeFocused();
+
+  // Below 1280 px the same citation opens a modal sheet: the page behind it
+  // stops scrolling, Tab stays inside it, and Escape returns focus again.
+  // The height is short on purpose, so the page behind is surely scrollable.
+  await page.setViewportSize({ width: 768, height: 500 });
+  await marker.click();
+  const sheet = page.getByRole("dialog", { name: "Document viewer" });
+  await expect(sheet).toBeVisible();
+  // Wheeling over the backdrop must not move the page. (Not a computed-style
+  // check: the browser hands body's overflow to the viewport, so body itself
+  // reads "visible" even while the page is locked.)
+  const scrollBefore = await page.evaluate(() => window.scrollY);
+  await page.mouse.move(100, 250);
+  await page.mouse.wheel(0, 600);
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore);
+  for (let press = 0; press < 12; press += 1) await page.keyboard.press("Tab");
+  expect(
+    await page.evaluate(
+      () => document.activeElement?.closest("dialog") !== null,
+    ),
+  ).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+  await expect(marker).toBeFocused();
 });
 
 test("the chip that cannot be answered gets the refusal card, with no Retry", async ({

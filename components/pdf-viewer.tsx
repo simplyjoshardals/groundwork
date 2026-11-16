@@ -23,11 +23,14 @@ import {
   keyToNavigation,
   pageForAction,
 } from "@/lib/pdf-viewer/navigation";
-import {
-  createDocumentSignedUrl,
-  type SignedUrlResult,
-} from "@/lib/storage/documents";
-import { createBrowserSupabase } from "@/lib/supabase/browser";
+import type { SignedUrlResult } from "@/lib/storage/documents";
+import { scrollViewerToTop } from "@/lib/viewer/scroll-to-passage";
+import { realViewerSource, type ViewerSource } from "@/lib/viewer/source";
+import { useHighlightReveal } from "@/lib/viewer/use-highlight-reveal";
+import { PaperSheet } from "@/components/paper-sheet";
+import { ViewerFailure } from "@/components/viewer-failure";
+import { ViewerSkeleton } from "@/components/viewer-skeleton";
+import { ViewerToolbar } from "@/components/viewer-toolbar";
 
 // The worker must be configured in the same module that renders <Document>.
 // This `new URL(..., import.meta.url)` form is the one Turbopack bundles, and
@@ -48,8 +51,18 @@ const DOCUMENT_OPTIONS = { disableRange: true, disableStream: true };
 
 const MAX_PAGE_WIDTH = 900;
 
-const BUTTON_CLASS =
-  "rounded-md border border-control px-3 py-1.5 text-sm font-medium disabled:opacity-60";
+/**
+ * The canvas is filled with paper, not white, so the page matches the sheet
+ * around it. Must equal `--paper` (a CSS variable cannot go to PDF.js).
+ */
+const PAPER_CANVAS = "#fcfaf4";
+
+/** PDF.js errors that trying again cannot fix. */
+const PERMANENT_LOAD_ERRORS = new Set([
+  "PasswordException",
+  "InvalidPDFException",
+  "MissingPDFException",
+]);
 
 export interface PdfViewerProps {
   /** Path in the private `documents` bucket, for example `samples/x.pdf`. */
@@ -65,6 +78,8 @@ export interface PdfViewerProps {
   passage?: HighlightPassage | null;
   /** Reports what happened to the highlight; see `HighlightStatus`. */
   onHighlightStatus?: (status: HighlightStatus) => void;
+  /** Where the signed URL comes from. Defaults to the real backend. */
+  source?: ViewerSource;
 }
 
 export interface HighlightPassage {
@@ -76,10 +91,13 @@ export interface HighlightPassage {
   text: string;
 }
 
-/** Asks for a signed URL with the browser (user) session; never throws. */
-async function fetchSignedUrl(storagePath: string): Promise<SignedUrlResult> {
+/** Asks the source for a file URL; never throws. */
+async function fetchSignedUrl(
+  source: ViewerSource,
+  storagePath: string,
+): Promise<SignedUrlResult> {
   try {
-    return await createDocumentSignedUrl(createBrowserSupabase(), storagePath);
+    return await source.createPdfUrl(storagePath);
   } catch (error) {
     // Name only: messages could carry configuration details.
     console.error(
@@ -107,6 +125,7 @@ export function PdfViewer({
   onPageChange,
   passage = null,
   onHighlightStatus,
+  source = realViewerSource,
 }: PdfViewerProps) {
   const [attempt, setAttempt] = useState(0);
   const requestKey = `${storagePath}#${attempt}`;
@@ -121,9 +140,14 @@ export function PdfViewer({
   } | null>(null);
   const [failure, setFailure] = useState<{
     key: string;
+    /** The PDF.js error name; decides whether Retry can help. */
+    name: string;
     message: string;
   } | null>(null);
   const [width, setWidth] = useState<number | null>(null);
+  // Height of the last page drawn: kept while the next page loads, so turning
+  // a page does not collapse the sheet and jump the scroll position.
+  const [renderedHeight, setRenderedHeight] = useState<number | null>(null);
   const pageAreaRef = useRef<HTMLDivElement>(null);
   // Text items of the page on screen, and the result of checking the rendered
   // highlight. Both are keyed, so an answer for another page or passage never
@@ -139,13 +163,13 @@ export function PdfViewer({
 
   useEffect(() => {
     let cancelled = false;
-    void fetchSignedUrl(storagePath).then((result) => {
+    void fetchSignedUrl(source, storagePath).then((result) => {
       if (!cancelled) setUrlResult({ key: requestKey, result });
     });
     return () => {
       cancelled = true;
     };
-  }, [storagePath, requestKey]);
+  }, [source, storagePath, requestKey]);
 
   useEffect(() => {
     const element = pageAreaRef.current;
@@ -188,6 +212,11 @@ export function PdfViewer({
     plan?.status === "highlight" && checkedHere?.ok !== false
       ? plan.ranges
       : null;
+  // The wipe: the highlight is drawn hidden, the region scrolls to it, then it
+  // grows once (DESIGN 7).
+  const { phase, reveal } = useHighlightReveal(
+    ranges !== null ? planKey : null,
+  );
   const customTextRenderer = useMemo(
     () =>
       ranges === null
@@ -223,9 +252,9 @@ export function PdfViewer({
     );
     if (ok && scrolledKeyRef.current !== key) {
       scrolledKeyRef.current = key;
-      marks[0]?.scrollIntoView({ block: "center", inline: "nearest" });
+      void reveal(marks as HTMLElement[], key);
     }
-  }, []);
+  }, [reveal]);
 
   const failed =
     currentFailure !== null || (currentUrl !== null && !currentUrl.ok);
@@ -261,7 +290,9 @@ export function PdfViewer({
   }, [status, onHighlightStatus]);
 
   function goTo(next: number) {
-    if (next !== shownPage) onPageChange(next);
+    if (next === shownPage) return;
+    scrollViewerToTop(pageAreaRef.current);
+    onPageChange(next);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -285,6 +316,12 @@ export function PdfViewer({
     !currentUrl.ok &&
     currentUrl.reason === "invalid_path"
   );
+  const transient =
+    currentUrl && !currentUrl.ok
+      ? currentUrl.reason === "failed"
+      : !PERMANENT_LOAD_ERRORS.has(
+          failure?.key === requestKey ? failure.name : "",
+        );
   const ready = numPages !== null && errorMessage === null;
   const pageWidth = Math.min(width ?? MAX_PAGE_WIDTH, MAX_PAGE_WIDTH);
 
@@ -293,110 +330,106 @@ export function PdfViewer({
       aria-label="PDF viewer"
       tabIndex={0}
       onKeyDown={onKeyDown}
-      className="flex flex-col gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+      className="flex flex-col focus-visible:-outline-offset-2"
     >
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          aria-label="Previous page"
-          disabled={!ready || shownPage <= 1}
-          onClick={() =>
-            goTo(pageForAction("previous", shownPage, numPages ?? 1))
-          }
-          className={BUTTON_CLASS}
-        >
-          Previous
-        </button>
-        <p aria-live="polite" className="text-sm text-muted">
-          {numPages === null
-            ? "Page " + shownPage
-            : `Page ${shownPage} of ${numPages}`}
-        </p>
-        <button
-          type="button"
-          aria-label="Next page"
-          disabled={!ready || numPages === null || shownPage >= numPages}
-          onClick={() => goTo(pageForAction("next", shownPage, numPages ?? 1))}
-          className={BUTTON_CLASS}
-        >
-          Next
-        </button>
-      </div>
+      <ViewerToolbar
+        page={shownPage}
+        total={numPages}
+        previousDisabled={!ready || shownPage <= 1}
+        nextDisabled={!ready || numPages === null || shownPage >= numPages}
+        onPrevious={() =>
+          goTo(pageForAction("previous", shownPage, numPages ?? 1))
+        }
+        onNext={() => goTo(pageForAction("next", shownPage, numPages ?? 1))}
+      />
 
-      <div ref={pageAreaRef} className="overflow-auto">
-        {errorMessage !== null ? (
-          <div role="alert" className="flex flex-col items-start gap-2 text-sm">
-            <p className="text-danger">{errorMessage}</p>
-            {retryable ? (
-              <button type="button" onClick={retry} className={BUTTON_CLASS}>
-                Retry
-              </button>
-            ) : null}
-          </div>
-        ) : currentUrl === null ? (
-          <p role="status" className="text-sm text-muted">
-            Loading PDF…
-          </p>
-        ) : currentUrl.ok ? (
-          <Document
-            file={currentUrl.url}
-            options={DOCUMENT_OPTIONS}
-            suspense={false}
-            loading={
-              <p role="status" className="text-sm text-muted">
-                Loading PDF…
-              </p>
-            }
-            error={null}
-            onLoadSuccess={({ numPages: count }) =>
-              setLoaded({ key: requestKey, numPages: count })
-            }
-            onLoadError={(error) => {
-              // Name only: the message can contain the signed URL.
-              console.error("[pdf-viewer] load failed:", error.name);
-              setFailure({
-                key: requestKey,
-                message: describeLoadError(error.name),
-              });
-            }}
-          >
-            <Page
-              pageNumber={shownPage}
-              width={pageWidth}
-              suspense={false}
-              renderAnnotationLayer={false}
-              customTextRenderer={customTextRenderer}
-              onGetTextSuccess={(textContent) => {
-                setPageText({
-                  key: textKey,
-                  items: toPageTextItems(textContent.items),
-                });
-                setChecked(null);
-              }}
-              onRenderTextLayerSuccess={onTextLayerRendered}
-              loading={
-                <p role="status" className="text-sm text-muted">
-                  Loading page…
-                </p>
+      {errorMessage !== null ? (
+        <div className="px-4 pt-3">
+          <ViewerFailure
+            message={errorMessage}
+            transient={transient}
+            onRetry={retryable ? retry : undefined}
+          />
+        </div>
+      ) : (
+        <div className="mx-4 my-3 rounded-lg bg-sunken p-3 sm:p-4">
+          <div ref={pageAreaRef} className="flex flex-col items-center">
+            <PaperSheet
+              data-wipe={phase}
+              className="w-fit max-w-full"
+              style={
+                renderedHeight === null
+                  ? undefined
+                  : { minHeight: renderedHeight }
               }
-              error={null}
-              onRenderError={(error) => {
-                console.error("[pdf-viewer] render failed:", error.name);
-                setFailure({
-                  key: requestKey,
-                  message: PAGE_RENDER_ERROR_MESSAGE,
-                });
-              }}
-            />
-          </Document>
-        ) : null}
-      </div>
-
-      {ready ? (
-        <p className="text-xs text-muted">
-          Focus the viewer and use the left and right arrow keys to change page.
-        </p>
-      ) : null}
+            >
+              {currentUrl === null || !currentUrl.ok ? (
+                <ViewerSkeleton width={pageWidth} />
+              ) : (
+                <Document
+                  file={currentUrl.url}
+                  options={DOCUMENT_OPTIONS}
+                  suspense={false}
+                  loading={<ViewerSkeleton width={pageWidth} />}
+                  error={null}
+                  onLoadSuccess={({ numPages: count }) =>
+                    setLoaded({ key: requestKey, numPages: count })
+                  }
+                  onLoadError={(error) => {
+                    // Name only: the message can contain the signed URL.
+                    console.error("[pdf-viewer] load failed:", error.name);
+                    setFailure({
+                      key: requestKey,
+                      name: error.name,
+                      message: describeLoadError(error.name),
+                    });
+                  }}
+                >
+                  <Page
+                    pageNumber={shownPage}
+                    width={pageWidth}
+                    suspense={false}
+                    canvasBackground={PAPER_CANVAS}
+                    renderAnnotationLayer={false}
+                    customTextRenderer={customTextRenderer}
+                    onGetTextSuccess={(textContent) => {
+                      setPageText({
+                        key: textKey,
+                        items: toPageTextItems(textContent.items),
+                      });
+                      setChecked(null);
+                    }}
+                    onRenderSuccess={(rendered: { height: number }) =>
+                      setRenderedHeight(Math.round(rendered.height))
+                    }
+                    onRenderTextLayerSuccess={onTextLayerRendered}
+                    loading={<ViewerSkeleton width={pageWidth} />}
+                    error={null}
+                    onRenderError={(error) => {
+                      console.error("[pdf-viewer] render failed:", error.name);
+                      setFailure({
+                        key: requestKey,
+                        name: error.name,
+                        message: PAGE_RENDER_ERROR_MESSAGE,
+                      });
+                    }}
+                  />
+                </Document>
+              )}
+            </PaperSheet>
+          </div>
+          {ready ? (
+            <p className="mt-3 text-xs text-muted">
+              Focus the viewer and use the left and right arrow keys to change
+              page.
+            </p>
+          ) : (
+            <p role="status" className="sr-only">
+              Loading the PDF…
+            </p>
+          )}
+        </div>
+      )}
     </section>
   );
 }

@@ -61,6 +61,7 @@ export function AnswerText({
                       key={marker}
                       type="button"
                       title={label}
+                      data-citation-chunk={source.chunkId}
                       aria-current={solid ? "true" : undefined}
                       onClick={(event) =>
                         onOpenSource(source, event.currentTarget)

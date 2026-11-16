@@ -15,15 +15,23 @@ export type TextPagesState =
   | { state: "ready"; pages: readonly string[] }
   | { state: "error"; reason: TextFileFailureReason };
 
-/** Loads and paginates the file with the browser (user) session; never throws. */
+export type TextLoader = (
+  storagePath: string,
+  signal: AbortSignal,
+) => Promise<TextFileResult>;
+
+/** The default loader: the browser (user) session. */
+const loadWithBrowserSession: TextLoader = (storagePath, signal) =>
+  loadTextFile(createBrowserSupabase(), storagePath, { signal });
+
+/** Loads the file; never throws. */
 async function load(
+  loader: TextLoader,
   storagePath: string,
   signal: AbortSignal,
 ): Promise<TextFileResult> {
   try {
-    return await loadTextFile(createBrowserSupabase(), storagePath, {
-      signal,
-    });
+    return await loader(storagePath, signal);
   } catch (error) {
     // Name only: messages could carry configuration details.
     console.error(
@@ -41,7 +49,10 @@ type Settled = { key: string; state: TextPagesState };
  * path and retry attempt, so a late answer for an earlier document is never
  * shown for the current one (same pattern as `useViewerDocument`).
  */
-export function useTextPages(storagePath: string): {
+export function useTextPages(
+  storagePath: string,
+  loader: TextLoader = loadWithBrowserSession,
+): {
   state: TextPagesState;
   retry: () => void;
 } {
@@ -52,7 +63,7 @@ export function useTextPages(storagePath: string): {
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
-    void load(storagePath, controller.signal).then((result) => {
+    void load(loader, storagePath, controller.signal).then((result) => {
       if (cancelled) return;
       if (!result.ok) {
         setSettled({ key, state: { state: "error", reason: result.reason } });
@@ -75,7 +86,7 @@ export function useTextPages(storagePath: string): {
       cancelled = true;
       controller.abort();
     };
-  }, [key, storagePath]);
+  }, [key, storagePath, loader]);
 
   return {
     state:

@@ -78,6 +78,7 @@ export function SourceList({
                   variant="ghost"
                   size="sm"
                   className="-ml-3"
+                  data-citation-chunk={source.chunkId}
                   onClick={(event) =>
                     onOpenSource(source, event.currentTarget)
                   }
