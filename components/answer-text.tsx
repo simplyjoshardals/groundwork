@@ -77,6 +77,9 @@ export function AnswerText({
                       onBlur={() => onHighlight(null)}
                       className={cn(
                         "relative -top-[0.3em] ml-0.5 inline-block rounded-sm px-1 align-baseline font-mono text-[0.7em] font-medium transition-colors duration-(--dur-fast) after:absolute after:-inset-1.5",
+                        // Touch: a taller hit area (about 44px) and room between
+                        // neighbours so two markers never share a tap.
+                        "pointer-coarse:ml-2 pointer-coarse:min-w-6 pointer-coarse:text-center pointer-coarse:after:-inset-y-2.5",
                         solid
                           ? "bg-accent text-accent-fg"
                           : "bg-accent-soft text-accent hover:bg-accent hover:text-accent-fg",

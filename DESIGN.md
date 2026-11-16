@@ -405,7 +405,7 @@ Input: `h-10 w-full rounded-md border border-control bg-surface px-3 text-base t
 
 ### 5.5 Citation marker and source card
 
-**Marker** (a real `<button>` inside the answer): raised about 0.3em, mono, `0.7em`, `rounded-sm bg-accent-soft px-1 text-accent font-medium`, hover `bg-accent text-accent-fg`. The hit area extends 6 px beyond the pill (`after:absolute after:-inset-1.5`). The marker whose source is open in the viewer is solid (`bg-accent text-accent-fg`). Accessible name stays "Source 2: report.pdf, page 7".
+**Marker** (a real `<button>` inside the answer): raised about 0.3em, mono, `0.7em`, `rounded-sm bg-accent-soft px-1 text-accent font-medium`, hover `bg-accent text-accent-fg`. The hit area extends 6 px beyond the pill (`after:absolute after:-inset-1.5`). The marker whose source is open in the viewer is solid (`bg-accent text-accent-fg`). Accessible name stays "Source 2: report.pdf, page 7". On coarse pointers the marker grows to a 24 px minimum width, sits 8 px from its neighbour, and its hit area is about 44 px tall (`pointer-coarse:after:-inset-y-2.5`); it cannot be 44 px wide without two adjacent markers sharing a tap, so width is about 36 px.
 
 **Cross-highlight:** hovering or focusing a marker gives its source card `ring-2 ring-accent/40 bg-accent-soft`, and the reverse. This replaces a popover (no floating-UI dependency, works with keyboard, nothing to position).
 
