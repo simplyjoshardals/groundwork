@@ -1,5 +1,5 @@
 import { cn } from "@/components/ui/cn";
-import { splitParagraphs } from "@/lib/ask/paragraphs";
+import { groupCitations, splitParagraphs } from "@/lib/ask/paragraphs";
 import type { StreamSource } from "@/types/ask-stream";
 
 /**
@@ -41,45 +41,54 @@ export function AnswerText({
     <div className="flex max-w-[36rem] flex-col gap-4 font-serif text-read text-ink">
       {paragraphs.map((segments, paragraphIndex) => (
         <p key={paragraphIndex} className="text-pretty">
-          {segments.map((segment, index) => {
-            if (segment.type === "text") return segment.text;
-
-            const source = list.find((item) => item.marker === segment.marker);
-            // `splitParagraphs` only returns markers within 1..list.length, but
-            // markers are matched by value, so a gap would drop one, not crash.
-            if (!source) return null;
-            const label = `Source ${source.marker}: ${source.documentTitle}, page ${source.page}`;
-            const solid =
-              activeMarker === source.marker ||
-              openChunkId === String(source.chunkId);
-
+          {groupCitations(segments).map((node, index) => {
+            if (node.type === "text") return node.text;
             return (
-              <button
-                key={index}
-                type="button"
-                title={label}
-                aria-current={solid ? "true" : undefined}
-                onClick={(event) => onOpenSource(source, event.currentTarget)}
-                onMouseEnter={() => {
-                  onHighlight(source.marker);
-                  onPrefetch(source);
-                }}
-                onMouseLeave={() => onHighlight(null)}
-                onFocus={() => {
-                  onHighlight(source.marker);
-                  onPrefetch(source);
-                }}
-                onBlur={() => onHighlight(null)}
-                className={cn(
-                  "relative -top-[0.3em] mx-0.5 inline-block rounded-sm px-1 align-baseline font-mono text-[0.7em] font-medium transition-colors duration-(--dur-fast) after:absolute after:-inset-1.5",
-                  solid
-                    ? "bg-accent text-accent-fg"
-                    : "bg-accent-soft text-accent hover:bg-accent hover:text-accent-fg",
-                )}
-              >
-                <span aria-hidden="true">{source.marker}</span>
-                <span className="sr-only">{label}</span>
-              </button>
+              // Word, markers and punctuation wrap as one unit.
+              <span key={index} className="whitespace-nowrap">
+                {node.lead}
+                {node.markers.map((marker) => {
+                  // `splitParagraphs` only returns markers within 1..list.length,
+                  // but they are matched by value, so a gap would drop one.
+                  const source = list.find((item) => item.marker === marker);
+                  if (!source) return null;
+                  const label = `Source ${source.marker}: ${source.documentTitle}, page ${source.page}`;
+                  const solid =
+                    activeMarker === source.marker ||
+                    openChunkId === String(source.chunkId);
+                  return (
+                    <button
+                      key={marker}
+                      type="button"
+                      title={label}
+                      aria-current={solid ? "true" : undefined}
+                      onClick={(event) =>
+                        onOpenSource(source, event.currentTarget)
+                      }
+                      onMouseEnter={() => {
+                        onHighlight(source.marker);
+                        onPrefetch(source);
+                      }}
+                      onMouseLeave={() => onHighlight(null)}
+                      onFocus={() => {
+                        onHighlight(source.marker);
+                        onPrefetch(source);
+                      }}
+                      onBlur={() => onHighlight(null)}
+                      className={cn(
+                        "relative -top-[0.3em] ml-0.5 inline-block rounded-sm px-1 align-baseline font-mono text-[0.7em] font-medium transition-colors duration-(--dur-fast) after:absolute after:-inset-1.5",
+                        solid
+                          ? "bg-accent text-accent-fg"
+                          : "bg-accent-soft text-accent hover:bg-accent hover:text-accent-fg",
+                      )}
+                    >
+                      <span aria-hidden="true">{source.marker}</span>
+                      <span className="sr-only">{label}</span>
+                    </button>
+                  );
+                })}
+                {node.trail}
+              </span>
             );
           })}
         </p>

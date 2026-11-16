@@ -14,6 +14,7 @@ export function SourceList({
   label = "Sources",
   showHeading = true,
   activeMarker = null,
+  openChunkId = null,
   onHighlight,
   onOpenSource,
 }: {
@@ -23,6 +24,8 @@ export function SourceList({
   /** False when a parent already provides a heading (e.g. a `<summary>`). */
   showHeading?: boolean;
   activeMarker?: number | null;
+  /** Chunk id of the source open in the viewer, if any. */
+  openChunkId?: string | null;
   onHighlight?: (marker: number | null) => void;
   onOpenSource: (source: StreamSource, trigger: HTMLElement) => void;
 }) {
@@ -36,7 +39,7 @@ export function SourceList({
 
   return (
     <section aria-label={label} className="flex flex-col gap-2">
-      {showHeading ? <h3 className="text-sm font-medium">{label}</h3> : null}
+      {showHeading ? <h3 className="font-sans text-xs font-medium text-muted">{label}</h3> : null}
       <ol className="flex flex-col gap-3">
         {sources.map((source) => (
           <li
@@ -47,7 +50,10 @@ export function SourceList({
             onFocus={() => onHighlight?.(source.marker)}
             onBlur={() => onHighlight?.(null)}
             className={cn(
-              "grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-lg border border-line bg-surface p-4 transition-colors duration-(--dur-fast)",
+              "grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-lg border bg-surface px-4 pt-4 pb-2 transition-colors duration-(--dur-fast)",
+              openChunkId === String(source.chunkId)
+                ? "border-accent/60"
+                : "border-line",
               activeMarker === source.marker &&
                 "bg-accent-soft ring-2 ring-accent/40",
             )}
@@ -67,7 +73,7 @@ export function SourceList({
               <p className="line-clamp-2 font-serif text-sm text-muted">
                 {source.snippet}
               </p>
-              <div className="pt-1">
+              <div>
                 <Button
                   variant="ghost"
                   size="sm"

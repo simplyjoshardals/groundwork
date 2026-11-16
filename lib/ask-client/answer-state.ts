@@ -29,6 +29,8 @@ export interface AskState {
   notice: AskFailure | null;
   /** Nearest passages from a `not_found` event; empty otherwise. */
   closest: StreamSource[];
+  /** Markers the finished answer cites (from `done`); `null` until then. */
+  citations: number[] | null;
   /**
    * The question budget from the last `done` or `not_found`. Kept across
    * `submit`, so the counter stays visible between questions; `null` until the
@@ -49,12 +51,13 @@ export const initialAskState: AskState = {
   answer: "",
   notice: null,
   closest: [],
+  citations: null,
   usage: null,
 };
 
 /** Headline of the not-found state (Task 2.7 shows it beside `closest`). */
 const NOT_FOUND: AskFailure = {
-  message: "I couldn't find that in your documents.",
+  message: "I couldn’t find that in your documents.",
   retryable: false,
 };
 
@@ -73,7 +76,12 @@ function applyEvent(state: AskState, event: AskStreamEvent): AskState {
         answer: state.answer + event.text,
       };
     case "done":
-      return { ...state, status: "done", usage: event.usage ?? state.usage };
+      return {
+        ...state,
+        status: "done",
+        citations: event.citations,
+        usage: event.usage ?? state.usage,
+      };
     case "not_found":
       return {
         ...state,

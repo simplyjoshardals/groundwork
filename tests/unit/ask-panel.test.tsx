@@ -43,6 +43,11 @@ const DONE: AskStreamEvent = {
   citations: [1],
   invalidCitations: [],
 };
+const DONE_BOTH: AskStreamEvent = {
+  type: "done",
+  citations: [1, 2],
+  invalidCitations: [],
+};
 
 /** A stream the test pushes events into, one at a time. */
 function controlled() {
@@ -206,7 +211,7 @@ describe("streaming answer", () => {
     await c.push(
       { type: "token", text: "Twenty-six days [1]." },
       { type: "token", text: "\n\nSee also the policy [2]." },
-      DONE,
+      DONE_BOTH,
     );
     expect(screen.queryByRole("status")).toBeNull();
     expect(
@@ -219,8 +224,8 @@ describe("streaming answer", () => {
       screen.getByRole("region", { name: "Sources" }),
     ).getAllByRole("listitem");
     expect(cards).toHaveLength(2);
-    expect(screen.getByText(/Twenty-six days/).closest("p")).not.toBe(
-      screen.getByText(/See also the policy/).closest("p"),
+    expect(screen.getByText(/Twenty-six/).closest("p")).not.toBe(
+      screen.getByText(/See also the/).closest("p"),
     );
   });
 
@@ -231,7 +236,7 @@ describe("streaming answer", () => {
     await c.push(
       { type: "sources", sources: [source(1), source(2)] },
       { type: "token", text: "A [1] and B [2]." },
-      DONE,
+      DONE_BOTH,
     );
     const marker = screen.getByRole("button", {
       name: "Source 2: Handbook, page 4",
@@ -291,6 +296,54 @@ describe("streaming answer", () => {
   });
 });
 
+describe("sources after the answer is done", () => {
+  async function finished(citations: number[]) {
+    const c = controlled();
+    setup(c.stream);
+    await ask("q");
+    await c.push(
+      {
+        type: "sources",
+        sources: [source(1), source(2), source(3), source(4)],
+      },
+      { type: "token", text: "Only these [1][2]." },
+      { type: "done", citations, invalidCitations: [] },
+    );
+  }
+
+  it("lists the cited passages and tucks the rest into a collapsed group", async () => {
+    await finished([1, 2]);
+    const cited = within(screen.getByRole("region", { name: "Sources" }));
+    expect(cited.getAllByRole("listitem")).toHaveLength(2);
+    expect(screen.getByText("Other passages searched (2)")).toBeTruthy();
+    expect(
+      screen.getByText("Other passages searched (2)").closest("details")
+        ?.open,
+    ).toBe(false);
+  });
+
+  it("shows every passage when the answer cites none", async () => {
+    await finished([]);
+    expect(
+      within(screen.getByRole("region", { name: "Sources" })).getAllByRole(
+        "listitem",
+      ),
+    ).toHaveLength(4);
+    expect(screen.queryByText(/Other passages searched/)).toBeNull();
+  });
+
+  it("shows every passage while the answer is still streaming", async () => {
+    const c = controlled();
+    setup(c.stream);
+    await ask("q");
+    await c.push(
+      { type: "sources", sources: [source(1), source(2), source(3)] },
+      { type: "token", text: "Partial [1]" },
+    );
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+  });
+});
+
 describe("refusal", () => {
   it("is a neutral status card with no Retry, and offers the closest passages", async () => {
     const c = controlled();
@@ -299,7 +352,7 @@ describe("refusal", () => {
     await c.push({ type: "not_found", closest: [source(1)] });
 
     const card = screen.getByRole("status");
-    expect(card.textContent).toContain("I couldn't find that in your documents.");
+    expect(card.textContent).toContain("I couldn’t find that in your documents.");
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
     expect(screen.getByText("Closest passages (1)")).toBeTruthy();
@@ -363,7 +416,7 @@ describe("errors, limits and fallbacks", () => {
       resetsAt: "2026-11-16T00:00:00.000Z",
     });
     const banner = screen.getByRole("status");
-    expect(banner.textContent).toContain("You've used today's questions");
+    expect(banner.textContent).toContain("You’ve used today’s questions");
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
   });

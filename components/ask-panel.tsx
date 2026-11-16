@@ -97,6 +97,16 @@ export function AskPanel({
   const sourcesPending = busy && state.sources === null;
   const notice = state.notice;
 
+  // Once the answer is done, show the passages it cites and tuck the rest
+  // away. Before that (and when nothing is cited) every passage is shown.
+  const all = state.sources ?? [];
+  const citedMarkers = state.status === "done" ? state.citations : null;
+  const cited =
+    citedMarkers && citedMarkers.length > 0
+      ? all.filter((source) => citedMarkers.includes(source.marker))
+      : all;
+  const others = all.filter((source) => !cited.includes(source));
+
   return (
     <section aria-label="Ask" className="flex flex-col gap-6">
       <Composer
@@ -117,7 +127,7 @@ export function AskPanel({
         </div>
       ) : (
         <div aria-busy={busy} className="flex flex-col gap-6">
-          <h2 className="max-w-[36rem] font-serif text-read text-muted">
+          <h2 className="max-w-[36rem] font-serif text-base text-muted">
             {state.question}
           </h2>
 
@@ -189,13 +199,30 @@ export function AskPanel({
 
           {sourcesPending ? <SourcesSkeleton /> : null}
           {state.sources && state.status !== "not_found" ? (
-            <div className="animate-fade-in">
+            <div className="flex animate-fade-in flex-col gap-4">
               <SourceList
-                sources={state.sources}
+                sources={cited}
                 activeMarker={activeMarker}
+                openChunkId={openChunkId}
                 onHighlight={setActiveMarker}
                 onOpenSource={onOpenSource}
               />
+              {others.length > 0 ? (
+                <details>
+                  <summary className="w-fit cursor-pointer rounded-sm text-sm font-medium text-ink pointer-coarse:py-2">
+                    Other passages searched ({others.length})
+                  </summary>
+                  <div className="mt-3">
+                    <SourceList
+                      sources={others}
+                      label="Other passages"
+                      showHeading={false}
+                      openChunkId={openChunkId}
+                      onOpenSource={onOpenSource}
+                    />
+                  </div>
+                </details>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -204,29 +231,32 @@ export function AskPanel({
   );
 }
 
-/** Three lines at answer height, the last one 60% wide (DESIGN 5.9). */
+/** Three lines at answer line height (32px each), the last 60% wide (DESIGN 5.9). */
 function AnswerSkeleton() {
   return (
-    <div className="flex max-w-[36rem] flex-col gap-[0.6rem]" aria-hidden="true">
-      <Skeleton className="h-[1.1rem] w-full" />
-      <Skeleton className="h-[1.1rem] w-full" />
-      <Skeleton className="h-[1.1rem] w-3/5" />
+    <div className="flex max-w-[36rem] flex-col" aria-hidden="true">
+      {["w-full", "w-full", "w-3/5"].map((width, index) => (
+        <div key={index} className="flex h-8 items-center">
+          <Skeleton className={`h-4 ${width}`} />
+        </div>
+      ))}
     </div>
   );
 }
 
-/** Two source-card shapes (DESIGN 5.9). */
+/** Two source-card shapes: title, two snippet lines, the button (DESIGN 5.9). */
 function SourcesSkeleton() {
   return (
     <div className="flex flex-col gap-3" aria-hidden="true">
       {[0, 1].map((key) => (
         <div
           key={key}
-          className="flex flex-col gap-2 rounded-lg border border-line bg-surface p-4"
+          className="flex flex-col gap-2 rounded-lg border border-line bg-surface px-4 pt-4 pb-3"
         >
           <Skeleton className="h-4 w-2/5" />
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-4/5" />
+          <Skeleton className="mt-1 h-5 w-24" />
         </div>
       ))}
     </div>

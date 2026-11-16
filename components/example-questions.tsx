@@ -14,7 +14,7 @@ export function ExampleQuestions({
 }) {
   return (
     <section aria-label="Example questions" className="flex flex-col gap-2">
-      <h2 className="text-xs font-medium text-muted">Try asking</h2>
+      <h2 className="font-sans text-xs font-medium text-muted">Try asking</h2>
       <ul className="flex flex-wrap gap-2">
         {EXAMPLE_QUESTIONS.map((example) => (
           <li key={example.question}>

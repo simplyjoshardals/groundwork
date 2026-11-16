@@ -21,7 +21,7 @@ const QUESTION =
  * `lib/ask-client/answer-state.ts`, so it is copied here: if the wording
  * changes, this test fails loudly and needs the same edit.
  */
-const NOT_FOUND_MESSAGE = "I couldn't find that in your documents.";
+const NOT_FOUND_MESSAGE = "I couldn’t find that in your documents.";
 
 async function uploadAndWaitUntilReady(page: Page): Promise<void> {
   const title = titleOf(TEXT_PDF_NAME);

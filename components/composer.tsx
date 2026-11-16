@@ -39,8 +39,14 @@ export function Composer({
     const el = ref.current;
     if (!el) return;
     el.style.height = "auto";
-    const lineHeight = Number.parseFloat(getComputedStyle(el).lineHeight);
-    const max = Number.isFinite(lineHeight) ? lineHeight * MAX_LINES : Infinity;
+    const style = getComputedStyle(el);
+    const lineHeight = Number.parseFloat(style.lineHeight);
+    const padding =
+      Number.parseFloat(style.paddingTop) +
+      Number.parseFloat(style.paddingBottom);
+    const max = Number.isFinite(lineHeight)
+      ? lineHeight * MAX_LINES + padding
+      : Infinity;
     el.style.height = `${Math.min(el.scrollHeight, max)}px`;
   }, [value]);
 
@@ -79,9 +85,9 @@ export function Composer({
           onKeyDown={onKeyDown}
           maxLength={MAX_QUESTION_LENGTH}
           autoComplete="off"
-          placeholder="Ask about your documents…"
+          placeholder="Ask a question…"
           aria-describedby={helperId}
-          className="min-h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 font-serif text-read text-ink outline-none placeholder:text-muted"
+          className="min-h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-1 font-serif text-read text-ink outline-none placeholder:text-muted"
         />
         <Button
           type="submit"

@@ -44,7 +44,7 @@ test("the chip that cannot be answered gets the refusal card, with no Retry", as
   // is always on the page.
   const panel = page.getByRole("region", { name: "Ask", exact: true });
   const card = panel.getByRole("status").filter({
-    hasText: "I couldn't find that in your documents.",
+    hasText: "I couldn’t find that in your documents.",
   });
   await expect(card).toBeVisible({ timeout: ANSWER_TIMEOUT_MS });
   await expect(panel.getByRole("alert")).toHaveCount(0);

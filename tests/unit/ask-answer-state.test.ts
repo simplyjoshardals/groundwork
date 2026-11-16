@@ -32,6 +32,7 @@ describe("askReducer", () => {
     expect(initialAskState.sources).toBeNull();
     expect(initialAskState.notice).toBeNull();
     expect(initialAskState.closest).toEqual([]);
+    expect(initialAskState.citations).toBeNull();
     expect(initialAskState.usage).toBeNull();
   });
 
@@ -49,6 +50,7 @@ describe("askReducer", () => {
       answer: "",
       notice: null,
       closest: [],
+      citations: null,
       usage: null,
     });
   });
@@ -72,11 +74,12 @@ describe("askReducer", () => {
       [
         event({ type: "token", text: "Two " }),
         event({ type: "token", text: "days [1]." }),
-        event({ type: "done", citations: [], invalidCitations: [] }),
+        event({ type: "done", citations: [1], invalidCitations: [] }),
       ],
       state,
     );
     expect(state.status).toBe("done");
+    expect(state.citations).toEqual([1]);
     expect(state.answer).toBe("Two days [1].");
     expect(state.sources).toEqual([SOURCE]);
   });

@@ -82,7 +82,7 @@ const STREAM_ERROR_FAILURES: Record<StreamErrorCode, AskFailure> = {
     retryable: true,
   },
   llm_unavailable: {
-    message: "An answer couldn't be generated right now. Please try again.",
+    message: "An answer couldn’t be generated right now. Please try again.",
     retryable: true,
   },
   interrupted: {
@@ -98,7 +98,7 @@ const STREAM_ERROR_FAILURES: Record<StreamErrorCode, AskFailure> = {
  */
 const LLM_UNAVAILABLE_WITH_SOURCES: AskFailure = {
   message:
-    "I can't generate an answer right now. The closest passages I found are listed below.",
+    "I can’t generate an answer right now. The closest passages I found are listed below.",
   retryable: true,
   tone: "info",
 };
@@ -132,7 +132,7 @@ export function failureForStatus(
   switch (status) {
     case 400:
       return {
-        message: "That question couldn't be processed. Please rephrase it.",
+        message: "That question couldn’t be processed. Please rephrase it.",
         retryable: false,
       };
     case 401:
@@ -163,14 +163,14 @@ export function failureForLimit(
   switch (reason) {
     case "user_limit":
       return {
-        message: `You've used today's questions. Resets at ${formatResetTime(event.resetsAt, timeZone)}.`,
+        message: `You’ve used today’s questions. Resets at ${formatResetTime(event.resetsAt, timeZone)}.`,
         retryable: false,
         tone: "warn",
       };
     case "cooldown":
       // The server cannot say when the cooldown ends (Task 5.2), so no time.
       return {
-        message: "You're asking too quickly. Wait a few seconds and try again.",
+        message: "You’re asking too quickly. Wait a few seconds and try again.",
         retryable: true,
         tone: "warn",
       };

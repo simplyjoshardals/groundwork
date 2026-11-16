@@ -544,7 +544,9 @@ Header per 4.2, two-column body per 4.2. Contains Ask, Shelf, Viewer below.
 
 **Layout stability while streaming.** Nothing above the answer moves: the composer, the echoed question and the status line keep their place, and the skeleton (3 lines, then 2 source cards) is replaced by content of the same width. Content below the answer (the source cards) is pushed down as paragraphs arrive; this is inherent to a list under streaming text and is accepted, but nothing above it ever shifts.
 
-**Notes.** The idle line lives in the ask panel (the page no longer carries its own intro). A cooldown limit keeps its Retry button (the question is cleared from the composer on submit, so Retry is the only way back to it); the daily and kill-switch limits have none. The highlighted marker and its card carry `aria-current="true"`. Ask copy in code uses straight apostrophes inside sentences the server and e2e tests compare against ("I couldn't find that in your documents."); chip labels use curly ones.
+**Notes.** The idle line lives in the ask panel (the page no longer carries its own intro). A cooldown limit keeps its Retry button (the question is cleared from the composer on submit, so Retry is the only way back to it); the daily and kill-switch limits have none. The highlighted marker and its card carry `aria-current="true"`. All ask copy uses curly apostrophes and a real ellipsis, including the refusal and limit messages.
+
+**Sources after the answer.** While the answer streams, every retrieved passage is shown. When `done` arrives, the cards for the markers the answer actually cites stay as "Sources" and the rest move into a collapsed "Other passages searched (n)" group; if the answer cites nothing, all stay. A card whose source is open in the viewer has a firmer border (`border-accent/60`). Markers are grouped with the word before them and the punctuation after them (`whitespace-nowrap`), so a wrapped line never leaves "2." alone. The echoed question is `font-serif text-base text-muted` so the answer stays the largest text. Small labels inside the ask column ("Try asking", "Sources") are `font-sans text-xs font-medium text-muted`, not the global serif heading style. The composer placeholder is "Ask a question…" so it never wraps at 360 px.
 
 **Ask drill (dev only).** `/dev-states/ask/index` lists scripted scenarios (`answer`, `slow`, `refusal`, `error-early`, `error-mid`, `fallback`, `limit-daily`, `limit-cooldown`, `limit-global`, `network`, `expired`, `empty`); `/dev-states/ask/<name>` runs the real ask panel against one, `?chips=1` shows the chips. It 404s outside `next dev`.
 
@@ -734,4 +736,4 @@ Typographic finish (applies everywhere): `text-wrap: balance` on headings, `pret
 - No purple or blue gradients, no glass or blur surfaces, no glow (except the dark highlight).
 - No centered-hero-plus-three-icon-cards template. The landing page earns its layout from the specimen.
 - No full-page spinners. No modal for something that can be inline. No dropdown menus.
-- No new colors, fonts, or shadows. If something is missing from the tokens, propose a token first.
+- No new colors, fonts, or shadows. If something is missing from the tokens, propose a token first.
