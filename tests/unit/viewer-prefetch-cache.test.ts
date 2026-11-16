@@ -57,4 +57,18 @@ describe("createTtlCache", () => {
     const load = vi.fn(async () => ({ ok: true }));
     await expect(cache.get("a", load)).resolves.toEqual({ ok: true });
   });
+
+  it("does not store a result that was still loading when the cache was cleared", async () => {
+    const { cache } = setup();
+    let resolve!: (r: Result) => void;
+    const slow = vi.fn(() => new Promise<Result>((r) => (resolve = r)));
+    const pending = cache.get("a", slow);
+    cache.clear();
+    resolve({ ok: true });
+    await pending;
+
+    const next = vi.fn(async () => ({ ok: true }));
+    await cache.get("a", next);
+    expect(next).toHaveBeenCalledTimes(1);
+  });
 });

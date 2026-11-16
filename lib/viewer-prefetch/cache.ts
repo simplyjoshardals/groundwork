@@ -8,7 +8,9 @@
  *   makes one query, not two.
  * - Entries expire after `ttlMs` and nothing is persisted: a reload empties
  *   it. Lookups run as the browser user (RLS decides), and results are keyed
- *   by id only, so the cache is cleared when the module reloads on sign-in.
+ *   by id only, so the owner clears it when the signed-in user changes (see
+ *   `index.ts`). `clear()` also stops requests already in flight from storing
+ *   their result afterwards.
  */
 export interface TtlCache<T> {
   /** Resolves from the cache, a shared in-flight request, or `load`. */
@@ -27,6 +29,8 @@ export function createTtlCache<T>(options: {
   const now = options.now ?? Date.now;
   const stored = new Map<string, { value: T; expires: number }>();
   const inFlight = new Map<string, Promise<T>>();
+  /** Bumped by `clear()`; a load started before it must not store its result. */
+  let generation = 0;
 
   function get(key: string, load: () => Promise<T>): Promise<T> {
     const hit = stored.get(key);
@@ -37,9 +41,10 @@ export function createTtlCache<T>(options: {
     const pending = inFlight.get(key);
     if (pending) return pending;
 
+    const startedIn = generation;
     const request = load()
       .then((value) => {
-        if (options.isCacheable(value)) {
+        if (startedIn === generation && options.isCacheable(value)) {
           stored.set(key, { value, expires: now() + options.ttlMs });
         }
         return value;
@@ -57,6 +62,7 @@ export function createTtlCache<T>(options: {
       get(key, load).catch(() => undefined);
     },
     clear() {
+      generation += 1;
       stored.clear();
       inFlight.clear();
     },
