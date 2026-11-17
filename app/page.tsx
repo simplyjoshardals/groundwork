@@ -5,6 +5,7 @@ import { DocumentsPanel } from "@/components/documents-panel";
 import { LandingPage } from "@/components/landing/landing-page";
 import { OfflineBanner } from "@/components/offline-banner";
 import { SampleShelf } from "@/components/sample-shelf";
+import { ToastProvider } from "@/components/ui/toast";
 import { UsageProvider } from "@/components/usage-context";
 import { WaitingPage } from "@/components/waiting-page";
 import { Workspace } from "@/components/workspace";
@@ -64,29 +65,31 @@ export default async function Home({
 
   return (
     <UsageProvider initial={usage}>
-      <AppHeader isAnonymous={session.isAnonymous} email={session.email} />
-      <main className="mx-auto w-full max-w-[84rem] flex-1 px-4 pt-6 pb-12 md:px-6 md:pt-8 xl:px-8">
-        <h1 className="sr-only">Groundwork</h1>
-        <div className="mb-6 empty:hidden">
-          <OfflineBanner>
-            You’re offline. Questions and uploads will work again when you’re
-            back.
-          </OfflineBanner>
-        </div>
-        {/* `useSearchParams` (in Workspace) needs a Suspense boundary. */}
-        <Suspense fallback={<WorkspaceSkeleton />}>
-          <Workspace
-            showExamples={session.isAnonymous || !hasOwnDocuments}
-            shelf={shelf}
-            account={
-              <AccountSection
-                isAnonymous={session.isAnonymous}
-                email={session.email}
-              />
-            }
-          />
-        </Suspense>
-      </main>
+      <ToastProvider>
+        <AppHeader isAnonymous={session.isAnonymous} email={session.email} />
+        <main className="mx-auto w-full max-w-[84rem] flex-1 px-4 pt-6 pb-12 md:px-6 md:pt-8 xl:px-8">
+          <h1 className="sr-only">Groundwork</h1>
+          <div className="mb-6 empty:hidden">
+            <OfflineBanner>
+              You’re offline. Questions and uploads will work again when you’re
+              back.
+            </OfflineBanner>
+          </div>
+          {/* `useSearchParams` (in Workspace) needs a Suspense boundary. */}
+          <Suspense fallback={<WorkspaceSkeleton />}>
+            <Workspace
+              showExamples={session.isAnonymous || !hasOwnDocuments}
+              shelf={shelf}
+              account={
+                <AccountSection
+                  isAnonymous={session.isAnonymous}
+                  email={session.email}
+                />
+              }
+            />
+          </Suspense>
+        </main>
+      </ToastProvider>
     </UsageProvider>
   );
 }

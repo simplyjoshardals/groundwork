@@ -1,0 +1,13 @@
+# DESIGN.md changes for U5
+
+**§6.5 (copy fix).** Privacy note is the §8 text: "Don’t upload sensitive documents. Their text is sent to AI providers to answer questions." (§6.5 had a shorter variant.)
+
+**§5.2 Dropzone, additions.** The dropzone never moves: it sits under the "Your documents" heading and above the rows in every state, including empty. The empty card goes below it. Three text lines in every state (label "Upload a document", status or helper, hint), so idle, busy and disabled have equal height. Busy: line 2 says "Uploading {name}…" or "Processing {name}…"; line 3 says "Keep this tab open." / "This can take a minute or more." Disabled: `bg-sunken text-muted border-line`, line 2 gives the reason ("Uploads need a connection." offline, "The shelf is full." at the cap). The label is stretched over the zone; the hint lines are outside it and linked with `aria-describedby`. Only the first dropped file is taken; line 3 then says "One file at a time. The others were skipped."
+
+**§5.10 Row, additions.** Retry is always visible (it is the next step on a failed or stuck row); only Delete is hidden until hover or focus-within on fine pointers (`pointer-fine:opacity-0`), visible on touch. Row structure: title and badge; meta and actions on one line (wraps, `min-h-8`); then at most one note. The badge crossfades only when the status changes after first paint. Progress lines of all processing rows share one keyframe and timing, so they move as one and count as one looping animation in the region. A stuck row has no progress line (nothing is moving). The loading skeleton uses the same structure as a real row.
+
+**§5.7 Dialog, additions.** One dialog per Delete button, mounted closed. Cancel ("Keep it") is first in the DOM and has initial focus. No backdrop-click close for destructive confirmations. A failed request keeps the dialog open and shows a danger banner inside it; the confirm button then retries. After a delete, the row is removed at once and focus moves to the "Your documents" heading (the trigger is gone).
+
+**§5.8 Toast, additions.** Provider at the shell (`ToastProvider` in `app/page.tsx`); the live region is mounted from the start. One at a time; a new toast replaces the current one. U5 uses it for "{name} is ready to search." and "Document deleted". Upload failures, the cap and paused uploads are banners, never toasts.
+
+**§6.5 states.** Offline: dropzone disabled with a note, stale-list warn banner on the shelf. Cap: warn banner under the privacy note, dropzone disabled. Paused: warn banner with the existing paused message; the dropzone stays enabled.

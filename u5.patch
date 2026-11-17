@@ -1,0 +1,3026 @@
+From 5249a97c220800e97413195f0b7346905bcf4b4b Mon Sep 17 00:00:00 2001
+From: U5 patch <dev@example.com>
+Date: Tue, 17 Nov 2026 17:04:48 +0000
+Subject: [PATCH] feat(u5): dropzone, document rows, confirm dialog, toasts,
+ cap/paused/offline states, dev drill
+
+---
+ DESIGN.u5-additions.md                       |  13 +
+ app/dev-states/documents/[scenario]/page.tsx |  28 ++
+ app/dev-states/documents/index/page.tsx      |  29 ++
+ app/globals.css                              | 100 +++++
+ app/page.tsx                                 |   3 +
+ components/delete-document-button.tsx        | 125 +++---
+ components/dev/documents-drill.tsx           |  27 ++
+ components/document-list.tsx                 | 213 ++++-------
+ components/document-row.tsx                  | 116 ++++++
+ components/documents-panel.tsx               |  38 +-
+ components/ui/confirm-dialog.tsx             | 109 ++++++
+ components/ui/icons.tsx                      |   5 +
+ components/ui/toast.tsx                      | 107 ++++++
+ components/upload-dropzone.tsx               | 179 +++++++++
+ components/upload-panel.tsx                  | 228 ++++++-----
+ lib/documents/dev-scenario-names.ts          |  51 +++
+ lib/documents/dev-scenarios.ts               | 380 +++++++++++++++++++
+ lib/documents/document-meta.ts               |  84 ++++
+ lib/documents/source.ts                      | 107 ++++++
+ tests/e2e/delete-document.e2e.ts             |  42 ++
+ tests/unit/delete-document-button.test.tsx   |  99 +++++
+ tests/unit/document-list-delete.test.tsx     |  99 +++++
+ tests/unit/document-meta.test.ts             |  67 ++++
+ tests/unit/document-row.test.tsx             |  78 ++++
+ tests/unit/toast.test.tsx                    |  73 ++++
+ tests/unit/upload-panel.test.tsx             | 129 +++++++
+ 26 files changed, 2192 insertions(+), 337 deletions(-)
+ create mode 100644 DESIGN.u5-additions.md
+ create mode 100644 app/dev-states/documents/[scenario]/page.tsx
+ create mode 100644 app/dev-states/documents/index/page.tsx
+ create mode 100644 components/dev/documents-drill.tsx
+ create mode 100644 components/document-row.tsx
+ create mode 100644 components/ui/confirm-dialog.tsx
+ create mode 100644 components/ui/toast.tsx
+ create mode 100644 components/upload-dropzone.tsx
+ create mode 100644 lib/documents/dev-scenario-names.ts
+ create mode 100644 lib/documents/dev-scenarios.ts
+ create mode 100644 lib/documents/document-meta.ts
+ create mode 100644 lib/documents/source.ts
+ create mode 100644 tests/e2e/delete-document.e2e.ts
+ create mode 100644 tests/unit/delete-document-button.test.tsx
+ create mode 100644 tests/unit/document-list-delete.test.tsx
+ create mode 100644 tests/unit/document-meta.test.ts
+ create mode 100644 tests/unit/document-row.test.tsx
+ create mode 100644 tests/unit/toast.test.tsx
+ create mode 100644 tests/unit/upload-panel.test.tsx
+
+diff --git a/DESIGN.u5-additions.md b/DESIGN.u5-additions.md
+new file mode 100644
+index 0000000..2d5578d
+--- /dev/null
++++ b/DESIGN.u5-additions.md
+@@ -0,0 +1,13 @@
++# DESIGN.md changes for U5
++
++**§6.5 (copy fix).** Privacy note is the §8 text: "Don’t upload sensitive documents. Their text is sent to AI providers to answer questions." (§6.5 had a shorter variant.)
++
++**§5.2 Dropzone, additions.** The dropzone never moves: it sits under the "Your documents" heading and above the rows in every state, including empty. The empty card goes below it. Three text lines in every state (label "Upload a document", status or helper, hint), so idle, busy and disabled have equal height. Busy: line 2 says "Uploading {name}…" or "Processing {name}…"; line 3 says "Keep this tab open." / "This can take a minute or more." Disabled: `bg-sunken text-muted border-line`, line 2 gives the reason ("Uploads need a connection." offline, "The shelf is full." at the cap). The label is stretched over the zone; the hint lines are outside it and linked with `aria-describedby`. Only the first dropped file is taken; line 3 then says "One file at a time. The others were skipped."
++
++**§5.10 Row, additions.** Retry is always visible (it is the next step on a failed or stuck row); only Delete is hidden until hover or focus-within on fine pointers (`pointer-fine:opacity-0`), visible on touch. Row structure: title and badge; meta and actions on one line (wraps, `min-h-8`); then at most one note. The badge crossfades only when the status changes after first paint. Progress lines of all processing rows share one keyframe and timing, so they move as one and count as one looping animation in the region. A stuck row has no progress line (nothing is moving). The loading skeleton uses the same structure as a real row.
++
++**§5.7 Dialog, additions.** One dialog per Delete button, mounted closed. Cancel ("Keep it") is first in the DOM and has initial focus. No backdrop-click close for destructive confirmations. A failed request keeps the dialog open and shows a danger banner inside it; the confirm button then retries. After a delete, the row is removed at once and focus moves to the "Your documents" heading (the trigger is gone).
++
++**§5.8 Toast, additions.** Provider at the shell (`ToastProvider` in `app/page.tsx`); the live region is mounted from the start. One at a time; a new toast replaces the current one. U5 uses it for "{name} is ready to search." and "Document deleted". Upload failures, the cap and paused uploads are banners, never toasts.
++
++**§6.5 states.** Offline: dropzone disabled with a note, stale-list warn banner on the shelf. Cap: warn banner under the privacy note, dropzone disabled. Paused: warn banner with the existing paused message; the dropzone stays enabled.
+diff --git a/app/dev-states/documents/[scenario]/page.tsx b/app/dev-states/documents/[scenario]/page.tsx
+new file mode 100644
+index 0000000..2168f89
+--- /dev/null
++++ b/app/dev-states/documents/[scenario]/page.tsx
+@@ -0,0 +1,28 @@
++import { notFound } from "next/navigation";
++import { DocumentsDrill } from "@/components/dev/documents-drill";
++import {
++  DOC_SCENARIO_NOTES,
++  isDocScenario,
++} from "@/lib/documents/dev-scenario-names";
++
++// Dev only: the documents shelf against scripted data (U5). 404s elsewhere.
++export const dynamic = "force-dynamic";
++
++export default async function DocumentsDrillPage({
++  params,
++}: {
++  params: Promise<{ scenario: string }>;
++}) {
++  if (process.env.NODE_ENV !== "development") notFound();
++  const { scenario } = await params;
++  if (!isDocScenario(scenario)) notFound();
++
++  return (
++    <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-8 md:px-6">
++      <p className="text-sm text-muted text-pretty">
++        <span className="font-mono">{scenario}</span>: {DOC_SCENARIO_NOTES[scenario]}
++      </p>
++      <DocumentsDrill scenario={scenario} now={Date.now()} />
++    </main>
++  );
++}
+diff --git a/app/dev-states/documents/index/page.tsx b/app/dev-states/documents/index/page.tsx
+new file mode 100644
+index 0000000..fa73f8d
+--- /dev/null
++++ b/app/dev-states/documents/index/page.tsx
+@@ -0,0 +1,29 @@
++import Link from "next/link";
++import { notFound } from "next/navigation";
++import {
++  DOC_SCENARIOS,
++  DOC_SCENARIO_NOTES,
++} from "@/lib/documents/dev-scenario-names";
++
++// Dev only: lists the documents drill scenarios (U5). 404s elsewhere.
++export default function DocumentsDrillIndex() {
++  if (process.env.NODE_ENV !== "development") notFound();
++  return (
++    <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-8 md:px-6">
++      <h1 className="font-serif text-h2">Documents drill</h1>
++      <ul className="flex flex-col gap-3 text-sm">
++        {DOC_SCENARIOS.map((name) => (
++          <li key={name}>
++            <Link
++              href={`/dev-states/documents/${name}`}
++              className="font-mono text-accent underline underline-offset-4"
++            >
++              {name}
++            </Link>
++            <span className="text-muted"> {DOC_SCENARIO_NOTES[name]}</span>
++          </li>
++        ))}
++      </ul>
++    </main>
++  );
++}
+diff --git a/app/globals.css b/app/globals.css
+index 9771542..620d4d0 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -472,3 +472,103 @@ dialog.viewer-sheet[open]::backdrop {
+ body:has(dialog.viewer-sheet:modal) {
+   overflow: hidden;
+ }
++
++/* ------------------------------------------------------------------ */
++/* Documents (U5: DESIGN 5.7, 5.8, 5.10, 7)                            */
++/* Append to the end of app/globals.css.                               */
++/* ------------------------------------------------------------------ */
++
++/* Processing row progress line (5.10): a 2 px track along the bottom edge,
++   one bar sliding with `transform` only. Every row shares this keyframe and
++   timing, so several processing rows move as one. Static under reduced motion. */
++@keyframes row-progress {
++  from { transform: translateX(-100%); }
++  to { transform: translateX(250%); }
++}
++.row-progress {
++  position: absolute;
++  inset-inline: 0;
++  bottom: 0;
++  height: 2px;
++  overflow: hidden;
++  background: var(--accent-soft);
++}
++.row-progress__bar {
++  display: block;
++  height: 100%;
++  width: 40%;
++  background: var(--accent);
++  animation: row-progress 1.2s var(--ease-settle) infinite;
++}
++@media (prefers-reduced-motion: reduce) {
++  .row-progress__bar {
++    animation: none;
++    transform: none;
++    width: 100%;
++  }
++}
++
++/* Confirm dialog (5.7, 7): opacity plus scale(0.98) to 1; backdrop opacity.
++   Same `@starting-style` and `allow-discrete` approach as the viewer sheet,
++   so the exit plays too. Reduced motion: fade only. */
++dialog.confirm-dialog {
++  opacity: 0;
++  transform: scale(0.98);
++  transition:
++    opacity var(--dur-base) var(--ease-paper),
++    transform var(--dur-base) var(--ease-paper),
++    overlay var(--dur-base) allow-discrete,
++    display var(--dur-base) allow-discrete;
++}
++dialog.confirm-dialog[open] {
++  opacity: 1;
++  transform: none;
++}
++@starting-style {
++  dialog.confirm-dialog[open] {
++    opacity: 0;
++    transform: scale(0.98);
++  }
++}
++dialog.confirm-dialog::backdrop {
++  opacity: 0;
++  transition:
++    opacity var(--dur-base) var(--ease-paper),
++    overlay var(--dur-base) allow-discrete,
++    display var(--dur-base) allow-discrete;
++}
++dialog.confirm-dialog[open]::backdrop {
++  opacity: 1;
++}
++@starting-style {
++  dialog.confirm-dialog[open]::backdrop {
++    opacity: 0;
++  }
++}
++@media (prefers-reduced-motion: reduce) {
++  dialog.confirm-dialog,
++  dialog.confirm-dialog[open] {
++    transform: none;
++  }
++  @starting-style {
++    dialog.confirm-dialog[open] {
++      transform: none;
++    }
++  }
++}
++body:has(dialog.confirm-dialog:modal) {
++  overflow: hidden;
++}
++
++/* Toast (5.8, 7): enter is opacity plus translateY(8px); exit is opacity only. */
++@keyframes toast-in {
++  from { opacity: 0; transform: translateY(8px); }
++  to { opacity: 1; transform: none; }
++}
++.toast-enter {
++  animation: toast-in var(--dur-base) var(--ease-paper) both;
++}
++.toast-leave {
++  opacity: 0;
++  transition: opacity var(--dur-fast) var(--ease-settle);
++}
+diff --git a/app/page.tsx b/app/page.tsx
+index 5fe9e66..4119b96 100644
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -5,6 +5,7 @@ import { DocumentsPanel } from "@/components/documents-panel";
+ import { LandingPage } from "@/components/landing/landing-page";
+ import { OfflineBanner } from "@/components/offline-banner";
+ import { SampleShelf } from "@/components/sample-shelf";
++import { ToastProvider } from "@/components/ui/toast";
+ import { UsageProvider } from "@/components/usage-context";
+ import { WaitingPage } from "@/components/waiting-page";
+ import { Workspace } from "@/components/workspace";
+@@ -64,6 +65,7 @@ export default async function Home({
+ 
+   return (
+     <UsageProvider initial={usage}>
++      <ToastProvider>
+       <AppHeader isAnonymous={session.isAnonymous} email={session.email} />
+       <main className="mx-auto w-full max-w-[84rem] flex-1 px-4 pt-6 pb-12 md:px-6 md:pt-8 xl:px-8">
+         <h1 className="sr-only">Groundwork</h1>
+@@ -87,6 +89,7 @@ export default async function Home({
+           />
+         </Suspense>
+       </main>
++      </ToastProvider>
+     </UsageProvider>
+   );
+ }
+diff --git a/components/delete-document-button.tsx b/components/delete-document-button.tsx
+index bf2a29b..3e6aeda 100644
+--- a/components/delete-document-button.tsx
++++ b/components/delete-document-button.tsx
+@@ -1,21 +1,23 @@
+ "use client";
+ 
+ import { useState } from "react";
+-import type {
+-  DeleteDocumentErrorBody,
+-  DeleteDocumentResponseBody,
+-} from "@/types/delete-document";
++import { Button } from "@/components/ui/button";
++import { ConfirmDialog } from "@/components/ui/confirm-dialog";
++import { useDocumentsSource } from "@/lib/documents/source";
+ 
+ type Phase = "idle" | "confirming" | "deleting";
+ 
+ /**
+- * Delete control for one document row (Task 4.7): a button, then an inline
+- * "Delete? Yes / Cancel" step, then `DELETE /api/documents/[id]`. Works for any
+- * status, including `processing` (ingestion then fails cleanly on the server).
++ * Delete control for one document row (Task 4.7, restyled in U5): a ghost
++ * button that opens the confirm dialog (DESIGN 5.7), then `DELETE
++ * /api/documents/[id]` through the documents source. Works for any status,
++ * including `processing` (ingestion then fails cleanly on the server).
+  *
+- * `onDeleted` is called when the document is gone, including a 404 (already
+- * deleted elsewhere), so the list can reload. A leftover Storage file
+- * (`fileRemoved: false`) is not the user's problem: the document is deleted.
++ * A failure keeps the dialog open with the reason, so the same button retries
++ * it. `onDeleted` is called when the document is gone, including a 404 (already
++ * deleted elsewhere); the list removes the row, shows the toast and moves
++ * focus. A leftover Storage file (`fileRemoved: false`) is not the user's
++ * problem: the document is deleted.
+  */
+ export function DeleteDocumentButton({
+   documentId,
+@@ -26,88 +28,49 @@ export function DeleteDocumentButton({
+   documentTitle: string;
+   onDeleted: () => void;
+ }) {
++  const source = useDocumentsSource();
+   const [phase, setPhase] = useState<Phase>("idle");
+   const [error, setError] = useState<string | null>(null);
+ 
+   async function confirmDelete() {
+     setPhase("deleting");
+     setError(null);
+-    try {
+-      const response = await fetch(
+-        `/api/documents/${encodeURIComponent(documentId)}`,
+-        { method: "DELETE" },
+-      );
+-      if (response.ok || response.status === 404) {
+-        // Validate the shape only on success; a 404 means it is already gone.
+-        if (response.ok) {
+-          const body = (await response.json()) as DeleteDocumentResponseBody;
+-          if (body.status !== "deleted") throw new Error("unexpected response");
+-        }
+-        onDeleted();
+-        return;
+-      }
+-      if (response.status === 401) {
+-        setError("Your session has ended. Sign in again to delete.");
+-      } else {
+-        const body = (await response
+-          .json()
+-          .catch(() => null)) as DeleteDocumentErrorBody | null;
+-        setError(body?.message ?? "Could not delete the document. Try again.");
+-      }
+-    } catch {
+-      setError(
+-        "Could not reach the server. Check your connection and try again.",
+-      );
++    const result = await source.remove(documentId);
++    if (result.ok) {
++      setPhase("idle");
++      onDeleted();
++      return;
+     }
+-    setPhase("idle");
+-  }
+-
+-  if (phase === "idle") {
+-    return (
+-      <div className="flex flex-col items-end gap-1">
+-        <button
+-          type="button"
+-          onClick={() => {
+-            setError(null);
+-            setPhase("confirming");
+-          }}
+-          aria-label={`Delete ${documentTitle}`}
+-          className="rounded-md border border-danger px-2 py-1 text-sm text-danger hover:bg-danger-soft"
+-        >
+-          Delete
+-        </button>
+-        {error ? (
+-          <p role="alert" className="text-xs text-danger">
+-            {error}
+-          </p>
+-        ) : null}
+-      </div>
+-    );
++    setError(result.message);
++    setPhase("confirming");
+   }
+ 
+   return (
+-    <div
+-      className="flex items-center gap-2 text-sm"
+-      role="group"
+-      aria-label="Confirm delete"
+-    >
+-      <span>Delete this document?</span>
+-      <button
+-        type="button"
+-        onClick={confirmDelete}
+-        disabled={phase === "deleting"}
+-        className="rounded-md bg-danger px-2 py-1 text-danger-fg hover:bg-danger disabled:opacity-60"
++    <>
++      <Button
++        variant="ghost"
++        size="sm"
++        aria-label={`Delete ${documentTitle}`}
++        onClick={() => {
++          setError(null);
++          setPhase("confirming");
++        }}
+       >
+-        {phase === "deleting" ? "Deleting…" : "Yes, delete"}
+-      </button>
+-      <button
+-        type="button"
+-        onClick={() => setPhase("idle")}
+-        disabled={phase === "deleting"}
+-        className="rounded-md border px-2 py-1 hover:bg-sunken disabled:opacity-60"
++        Delete
++      </Button>
++      <ConfirmDialog
++        open={phase !== "idle"}
++        title={`Delete “${documentTitle}”?`}
++        confirmLabel="Delete document"
++        busyLabel="Deleting…"
++        cancelLabel="Keep it"
++        busy={phase === "deleting"}
++        error={error}
++        onConfirm={() => void confirmDelete()}
++        onCancel={() => setPhase("idle")}
+       >
+-        Cancel
+-      </button>
+-    </div>
++        This removes the file and everything made from it. It can’t be undone.
++      </ConfirmDialog>
++    </>
+   );
+ }
+diff --git a/components/dev/documents-drill.tsx b/components/dev/documents-drill.tsx
+new file mode 100644
+index 0000000..b300664
+--- /dev/null
++++ b/components/dev/documents-drill.tsx
+@@ -0,0 +1,27 @@
++"use client";
++
++import { useState } from "react";
++import { DocumentsPanel } from "@/components/documents-panel";
++import { ToastProvider } from "@/components/ui/toast";
++import type { DocScenario } from "@/lib/documents/dev-scenario-names";
++import { createScenario } from "@/lib/documents/dev-scenarios";
++
++/**
++ * The real documents panel against a scripted in-memory source (dev only; the
++ * route 404s outside `next dev`). `now` comes from the server page so the
++ * rows are built from one clock on the server and in the browser.
++ */
++export function DocumentsDrill({
++  scenario,
++  now,
++}: {
++  scenario: DocScenario;
++  now: number;
++}) {
++  const [{ initial, source }] = useState(() => createScenario(scenario, now));
++  return (
++    <ToastProvider>
++      <DocumentsPanel initial={initial} source={source} />
++    </ToastProvider>
++  );
++}
+diff --git a/components/document-list.tsx b/components/document-list.tsx
+index d002f96..50a6bb1 100644
+--- a/components/document-list.tsx
++++ b/components/document-list.tsx
+@@ -1,60 +1,31 @@
+ "use client";
+ 
+-import { useEffect, useRef, useState } from "react";
++import { useEffect, useRef, useState, type ReactNode } from "react";
+ import { DeleteDocumentButton } from "@/components/delete-document-button";
++import { DocumentRow } from "@/components/document-row";
+ import { Banner } from "@/components/ui/banner";
+ import { Button } from "@/components/ui/button";
+ import { cardClasses } from "@/components/ui/card";
+ import { Skeleton } from "@/components/ui/skeleton";
++import { useToast } from "@/components/ui/toast";
+ import {
+   canRetry,
+   isInFlight,
+   isStuck,
+   pollDelayMs,
+   statusSignature,
+-  type DocumentStatus,
+ } from "@/lib/documents/document-status";
+-import {
+-  listOwnDocuments,
+-  type ListOwnDocumentsResult,
+-  type OwnDocument,
+-} from "@/lib/documents/list-own-documents";
+-import { ingestFailureMessage } from "@/lib/ingest/failure-messages";
+-import { createBrowserSupabase } from "@/lib/supabase/browser";
++import type { OwnDocument } from "@/lib/documents/list-own-documents";
++import { useDocumentsSource } from "@/lib/documents/source";
++import { useOnlineStatus } from "@/lib/net/use-online-status";
+ import { retryLimitMessage } from "@/lib/upload/ingest-limit";
+-import { requestIngest } from "@/lib/upload/request-ingest";
+-
+-const BADGE_LABEL: Record<DocumentStatus, string> = {
+-  queued: "Queued",
+-  processing: "Processing",
+-  ready: "Ready",
+-  failed: "Failed",
+-};
+-
+-const BADGE_CLASS: Record<DocumentStatus, string> = {
+-  queued: "border-control text-ink",
+-  processing: "border-accent text-accent",
+-  ready: "border-accent text-accent",
+-  failed: "border-danger text-danger",
+-};
+ 
+ /** What the server read before the page was sent (U2). */
+ export type InitialDocuments =
+   | { ok: true; documents: OwnDocument[]; fetchedAt: number }
+   | { ok: false };
+ 
+-/** Never throws: a missing public env var is reported like any other failed read. */
+-async function load(): Promise<ListOwnDocumentsResult> {
+-  try {
+-    return await listOwnDocuments(createBrowserSupabase());
+-  } catch (error) {
+-    console.warn(
+-      "[documents] could not create the browser client:",
+-      error instanceof Error ? error.name : "unknown",
+-    );
+-    return { ok: false, reason: "failed" };
+-  }
+-}
++const HEADING_ID = "documents-heading";
+ 
+ /**
+  * The signed-in user's documents with live status (Task 4.6). Reads through the
+@@ -70,6 +41,7 @@ export function DocumentList({
+   refreshKey,
+   onCountChange,
+   initial,
++  aboveList,
+ }: {
+   refreshKey: number;
+   /** Called with the number of documents after each successful load (Task 4.8). */
+@@ -81,7 +53,17 @@ export function DocumentList({
+    * Omit it to load on mount, as before.
+    */
+   initial?: InitialDocuments;
++  /**
++   * Rendered between the heading and the list (U5): the upload control, so the
++   * shelf reads heading, dropzone, documents, and the dropzone never moves.
++   */
++  aboveList?: ReactNode;
+ }) {
++  const source = useDocumentsSource();
++  const toast = useToast();
++  const online = useOnlineStatus();
++  /** Set by a delete; the focus moves to the heading once the row is gone. */
++  const focusHeadingRef = useRef(false);
+   const [documents, setDocuments] = useState<OwnDocument[] | null>(
+     initial?.ok ? initial.documents : null,
+   );
+@@ -106,7 +88,7 @@ export function DocumentList({
+     let lastSignature: string | null = null;
+ 
+     async function tick() {
+-      const result = await load();
++      const result = await source.list();
+       if (cancelled) return;
+       setReloading(false);
+ 
+@@ -153,12 +135,30 @@ export function DocumentList({
+       cancelled = true;
+       if (timer !== undefined) clearTimeout(timer);
+     };
+-  }, [refreshKey, retryToken]);
++  }, [refreshKey, retryToken, source]);
+ 
+   useEffect(() => {
+     if (documents !== null) onCountChange?.(documents.length);
+   }, [documents, onCountChange]);
+ 
++  useEffect(() => {
++    // The delete button went away with its row: keep the keyboard user's place.
++    if (!focusHeadingRef.current) return;
++    focusHeadingRef.current = false;
++    document.getElementById(HEADING_ID)?.focus();
++  }, [documents]);
++
++  function onDeleted(documentId: string) {
++    // Remove the row now and reconcile with a read, so the shelf never shows a
++    // document the person just deleted while that read is in flight.
++    setDocuments((prev) =>
++      prev === null ? prev : prev.filter((d) => d.id !== documentId),
++    );
++    focusHeadingRef.current = true;
++    toast.show("Document deleted");
++    setRetryToken((n) => n + 1);
++  }
++
+   function reload() {
+     setReloading(true);
+     setRetryToken((n) => n + 1);
+@@ -181,7 +181,7 @@ export function DocumentList({
+     // claims it, and the request below only answers when processing ends.
+     setRetryToken((n) => n + 1);
+ 
+-    const result = await requestIngest(documentId);
++    const result = await source.ingest(documentId);
+ 
+     const next = new Set(retryingRef.current);
+     next.delete(documentId);
+@@ -212,29 +212,48 @@ export function DocumentList({
+     setRetryToken((n) => n + 1);
+   }
+ 
++  const stale = documents !== null && (loadFailed || !online);
++  const tryAgain = (
++    <Button
++      variant="secondary"
++      size="sm"
++      disabled={reloading}
++      onClick={reload}
++      className="min-w-24"
++    >
++      {reloading ? "Trying…" : "Try again"}
++    </Button>
++  );
++
+   return (
+     <section
+-      aria-labelledby="documents-heading"
++      aria-labelledby={HEADING_ID}
+       aria-busy={documents === null && !loadFailed}
+       className="flex flex-col gap-4 text-sm"
+     >
+-      <h2 id="documents-heading" className="font-serif text-h3">
++      <h2 id={HEADING_ID} tabIndex={-1} className="font-serif text-h3">
+         Your documents
+       </h2>
+ 
++      {aboveList}
++
+       {documents === null && !loadFailed ? (
+         <div role="status">
+           <span className="sr-only">Loading your documents</span>
++          {/* Same structure as a real row, so nothing jumps when they arrive. */}
+           <ul aria-hidden="true" className="flex flex-col gap-2">
+             {[0, 1, 2].map((n) => (
+               <li
+                 key={n}
+-                className={cardClasses({
+-                  className: "flex h-14 items-center gap-3 py-0",
+-                })}
++                className={cardClasses({ className: "flex flex-col gap-1" })}
+               >
+-                <Skeleton className="h-4 w-2/5" />
+-                <Skeleton shape="pill" className="h-5 w-16" />
++                <div className="flex h-6 items-center justify-between gap-3">
++                  <Skeleton className="h-4 w-2/5" />
++                  <Skeleton shape="pill" className="h-5 w-16" />
++                </div>
++                <div className="flex min-h-8 items-center">
++                  <Skeleton className="h-3 w-1/3" />
++                </div>
+               </li>
+             ))}
+           </ul>
+@@ -242,39 +261,13 @@ export function DocumentList({
+       ) : null}
+ 
+       {documents === null && loadFailed ? (
+-        <Banner
+-          tone="danger"
+-          action={
+-            <Button
+-              variant="secondary"
+-              size="sm"
+-              disabled={reloading}
+-              onClick={reload}
+-              className="min-w-24"
+-            >
+-              {reloading ? "Trying…" : "Try again"}
+-            </Button>
+-          }
+-        >
++        <Banner tone="danger" action={tryAgain}>
+           We couldn&apos;t load your documents.
+         </Banner>
+       ) : null}
+ 
+-      {documents !== null && loadFailed ? (
+-        <Banner
+-          tone="warn"
+-          action={
+-            <Button
+-              variant="secondary"
+-              size="sm"
+-              disabled={reloading}
+-              onClick={reload}
+-              className="min-w-24"
+-            >
+-              {reloading ? "Trying…" : "Try again"}
+-            </Button>
+-          }
+-        >
++      {stale ? (
++        <Banner tone="warn" action={tryAgain}>
+           Couldn&apos;t refresh. Showing the last list we have.
+         </Banner>
+       ) : null}
+@@ -282,8 +275,8 @@ export function DocumentList({
+       {documents !== null && documents.length === 0 ? (
+         <div className={cardClasses({ padding: "roomy" })}>
+           <p className="font-serif text-h3">Nothing on the shelf yet.</p>
+-          <p className="mt-1 text-muted">
+-            Upload a PDF, TXT or Markdown file to get started.
++          <p className="mt-1 text-muted text-pretty">
++            Add a PDF, text, or Markdown file. Answers will cite the exact page.
+           </p>
+         </div>
+       ) : null}
+@@ -292,66 +285,24 @@ export function DocumentList({
+         <ul className="flex flex-col gap-2">
+           {documents.map((doc) => {
+             const isRetrying = retrying.has(doc.id);
+-            const stuck = isStuck(doc, now);
+-            const showRetry = canRetry(doc, now) || isRetrying;
+-            const note = doc.status === "ready" ? undefined : notes[doc.id];
+             return (
+-              <li
++              <DocumentRow
+                 key={doc.id}
+-                className="rounded-md border border-line p-3"
+-              >
+-                <div className="flex flex-wrap items-center gap-2">
+-                  <span className="min-w-0 wrap-break-word font-medium">
+-                    {doc.title}
+-                  </span>
+-                  <span
+-                    className={`rounded-full border px-2 py-0.5 text-xs ${BADGE_CLASS[doc.status]}`}
+-                  >
+-                    {BADGE_LABEL[doc.status]}
+-                  </span>
+-                  {doc.status === "ready" && doc.pageCount !== null ? (
+-                    <span className="text-xs text-muted">
+-                      {doc.pageCount} {doc.pageCount === 1 ? "page" : "pages"}
+-                    </span>
+-                  ) : null}
+-                </div>
+-
+-                {doc.status === "failed" ? (
+-                  <p className="mt-1 text-danger">
+-                    {ingestFailureMessage(doc.errorReason)}
+-                  </p>
+-                ) : null}
+-                {/* A note from the last Retry explains more than the generic text. */}
+-                {stuck && doc.status !== "failed" && !isRetrying && !note ? (
+-                  <p className="mt-1 text-ink">
+-                    This is taking longer than expected. You can retry it.
+-                  </p>
+-                ) : null}
+-                {note ? (
+-                  <p role="status" className="mt-1 text-ink">
+-                    {note}
+-                  </p>
+-                ) : null}
+-
+-                <div className="mt-2 flex flex-wrap items-center gap-2">
+-                  {showRetry ? (
+-                    <button
+-                      type="button"
+-                      disabled={isRetrying}
+-                      onClick={() => void onRetry(doc.id)}
+-                      className="rounded-md border border-control px-3 py-1 disabled:opacity-60"
+-                    >
+-                      {isRetrying ? "Retrying…" : "Retry"}
+-                    </button>
+-                  ) : null}
+-                  {/* Any status, including processing: ingestion then fails cleanly (Task 4.7). */}
++                doc={doc}
++                now={now}
++                stuck={isStuck(doc, now)}
++                retrying={isRetrying}
++                showRetry={canRetry(doc, now) || isRetrying}
++                note={doc.status === "ready" ? undefined : notes[doc.id]}
++                onRetry={() => void onRetry(doc.id)}
++                deleteAction={
+                   <DeleteDocumentButton
+                     documentId={doc.id}
+                     documentTitle={doc.title}
+-                    onDeleted={() => setRetryToken((n) => n + 1)}
++                    onDeleted={() => onDeleted(doc.id)}
+                   />
+-                </div>
+-              </li>
++                }
++              />
+             );
+           })}
+         </ul>
+diff --git a/components/document-row.tsx b/components/document-row.tsx
+new file mode 100644
+index 0000000..cb3c3f5
+--- /dev/null
++++ b/components/document-row.tsx
+@@ -0,0 +1,116 @@
++"use client";
++
++import { useState, type ReactNode } from "react";
++import { Badge } from "@/components/ui/badge";
++import { Button } from "@/components/ui/button";
++import { cardClasses } from "@/components/ui/card";
++import { cn } from "@/components/ui/cn";
++import { documentMeta } from "@/lib/documents/document-meta";
++import type { OwnDocument } from "@/lib/documents/list-own-documents";
++import { ingestFailureMessage } from "@/lib/ingest/failure-messages";
++
++export const STUCK_NOTE = "This is taking longer than expected. You can retry it.";
++
++/**
++ * One row of the shelf (DESIGN 5.10): title and status badge, then the meta
++ * line and the row actions, then at most one note. It is an `<li>`; the list
++ * owns the `<ul>`, the polling and the retry logic, and passes the results in.
++ *
++ * Retry is always visible, because it is the next step on a failed or stuck
++ * row. Delete is revealed on hover and focus-within on fine pointers and always
++ * visible on touch (opacity only, so nothing moves). A processing row that is
++ * not stuck carries the 2 px progress line along its bottom edge. The badge
++ * crossfades in place when the status changes; the first paint does not animate.
++ */
++export function DocumentRow({
++  doc,
++  now,
++  stuck,
++  retrying,
++  showRetry,
++  note,
++  onRetry,
++  deleteAction,
++}: {
++  doc: OwnDocument;
++  /** The clock of the last successful read, so server and browser agree. */
++  now: number;
++  stuck: boolean;
++  retrying: boolean;
++  showRetry: boolean;
++  /** The outcome of the last Retry, which explains more than the generic text. */
++  note?: string;
++  onRetry: () => void;
++  deleteAction: ReactNode;
++}) {
++  // Derive "the status just changed" during render, not in an effect.
++  const [shownStatus, setShownStatus] = useState(doc.status);
++  const [statusChanged, setStatusChanged] = useState(false);
++  if (shownStatus !== doc.status) {
++    setShownStatus(doc.status);
++    setStatusChanged(true);
++  }
++
++  const processing = doc.status === "processing" && !stuck;
++
++  return (
++    <li
++      className={cardClasses({
++        className: "group relative flex flex-col gap-1 overflow-hidden",
++      })}
++    >
++      <div className="flex items-start justify-between gap-3">
++        <span className="min-w-0 font-medium wrap-break-word">{doc.title}</span>
++        <Badge
++          key={doc.status}
++          status={doc.status}
++          className={cn("shrink-0", statusChanged && "animate-fade-in")}
++        />
++      </div>
++
++      <div className="flex min-h-8 flex-wrap items-center justify-between gap-x-3">
++        <p className="font-mono text-xs text-muted tabular-nums">
++          {documentMeta(doc, now)}
++        </p>
++        <div className="-mr-2 flex items-center gap-1">
++          {showRetry ? (
++            <Button
++              variant="ghost"
++              size="sm"
++              disabled={retrying}
++              onClick={onRetry}
++              aria-label={`Retry ${doc.title}`}
++              className="min-w-20"
++            >
++              {retrying ? "Retrying…" : "Retry"}
++            </Button>
++          ) : null}
++          <div className="transition-opacity duration-(--dur-fast) pointer-fine:opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
++            {deleteAction}
++          </div>
++        </div>
++      </div>
++
++      {doc.status === "failed" ? (
++        <p className="text-sm text-danger text-pretty">
++          {ingestFailureMessage(doc.errorReason)}
++        </p>
++      ) : null}
++      {/* A note from the last Retry explains more than the generic text. */}
++      {stuck && doc.status !== "failed" && !retrying && !note ? (
++        <p className="text-sm text-muted text-pretty">{STUCK_NOTE}</p>
++      ) : null}
++      {note ? (
++        <p role="status" className="text-sm text-muted text-pretty">
++          {note}
++        </p>
++      ) : null}
++
++      {processing ? (
++        <span aria-hidden="true" className="row-progress">
++          <span className="row-progress__bar" />
++        </span>
++      ) : null}
++    </li>
++  );
++}
+diff --git a/components/documents-panel.tsx b/components/documents-panel.tsx
+index c22e3ab..4a89c0f 100644
+--- a/components/documents-panel.tsx
++++ b/components/documents-panel.tsx
+@@ -6,10 +6,19 @@ import {
+   type InitialDocuments,
+ } from "@/components/document-list";
+ import { UploadPanel } from "@/components/upload-panel";
++import {
++  DocumentsSourceContext,
++  defaultDocumentsSource,
++  type DocumentsSource,
++} from "@/lib/documents/source";
+ import { isAtDocumentCap } from "@/lib/upload/limits";
+ 
+ /**
+- * Upload control plus the document list (Task 4.6). A client wrapper because
++ * Upload control plus the document list (Task 4.6). From U5 the upload control
++ * sits between the shelf heading and the rows (`aboveList`), and the documents
++ * source (`lib/documents/source.ts`) is provided here.
++ *
++ * Originally: upload control plus the document list (Task 4.6). A client wrapper because
+  * `app/page.tsx` is a server component and cannot pass callbacks: the upload
+  * panel bumps `refreshKey` right after the row is inserted and again when the
+  * ingest call returns, and the list reloads on each bump.
+@@ -21,24 +30,33 @@ import { isAtDocumentCap } from "@/lib/upload/limits";
+  * Signed-in (non-demo) sessions only: demo sessions get `SampleShelf` instead
+  * (U2). `initial` is the server's first read of the list.
+  */
+-export function DocumentsPanel({ initial }: { initial: InitialDocuments }) {
++export function DocumentsPanel({
++  initial,
++  source = defaultDocumentsSource,
++}: {
++  initial?: InitialDocuments;
++  /** Where documents come from. Only the dev drill passes one; the app never does. */
++  source?: DocumentsSource;
++}) {
+   const [refreshKey, setRefreshKey] = useState(0);
+   const refresh = useCallback(() => setRefreshKey((n) => n + 1), []);
+   const [documentCount, setDocumentCount] = useState<number | null>(null);
+ 
+   return (
+-    <div className="flex flex-col gap-6">
+-      <UploadPanel
+-        canUpload
+-        atCap={isAtDocumentCap(documentCount)}
+-        onUploaded={refresh}
+-        onIngestSettled={refresh}
+-      />
++    <DocumentsSourceContext value={source}>
+       <DocumentList
+         refreshKey={refreshKey}
+         onCountChange={setDocumentCount}
+         initial={initial}
++        aboveList={
++          <UploadPanel
++            canUpload
++            atCap={isAtDocumentCap(documentCount)}
++            onUploaded={refresh}
++            onIngestSettled={refresh}
++          />
++        }
+       />
+-    </div>
++    </DocumentsSourceContext>
+   );
+ }
+diff --git a/components/ui/confirm-dialog.tsx b/components/ui/confirm-dialog.tsx
+new file mode 100644
+index 0000000..bebabce
+--- /dev/null
++++ b/components/ui/confirm-dialog.tsx
+@@ -0,0 +1,109 @@
++"use client";
++
++import { useEffect, useId, useRef, type ReactNode } from "react";
++import { Banner } from "./banner";
++import { Button } from "./button";
++
++export interface ConfirmDialogProps {
++  open: boolean;
++  title: string;
++  /** One sentence of consequence (DESIGN 5.7). */
++  children: ReactNode;
++  confirmLabel: string;
++  /** Swapped in for `confirmLabel` while `busy`. Keep it the same width class. */
++  busyLabel: string;
++  cancelLabel: string;
++  busy?: boolean;
++  /** A failure from the last attempt. The dialog stays open so it can be retried. */
++  error?: string | null;
++  onConfirm: () => void;
++  onCancel: () => void;
++}
++
++/**
++ * Native `<dialog>` with `showModal()` (DESIGN 5.7): focus trap, inert
++ * background and Escape come from the platform. Initial focus is the safe
++ * action (Cancel, first in the DOM and `autoFocus`). Focus returns to the
++ * element that was focused when it opened, if that element is still there.
++ * `open` drives the dialog, so Escape and Cancel both end up in `onCancel` and
++ * the parent stays the source of truth. There is no backdrop-click close: for
++ * a destructive confirmation, a stray click should not decide anything.
++ */
++export function ConfirmDialog({
++  open,
++  title,
++  children,
++  confirmLabel,
++  busyLabel,
++  cancelLabel,
++  busy = false,
++  error = null,
++  onConfirm,
++  onCancel,
++}: ConfirmDialogProps) {
++  const ref = useRef<HTMLDialogElement>(null);
++  const returnFocusTo = useRef<HTMLElement | null>(null);
++  const titleId = useId();
++  const descriptionId = useId();
++
++  useEffect(() => {
++    const dialog = ref.current;
++    if (!dialog) return;
++    if (open && !dialog.open) {
++      returnFocusTo.current =
++        document.activeElement instanceof HTMLElement
++          ? document.activeElement
++          : null;
++      dialog.showModal();
++    } else if (!open && dialog.open) {
++      dialog.close();
++      const target = returnFocusTo.current;
++      returnFocusTo.current = null;
++      if (target?.isConnected) target.focus();
++    }
++  }, [open]);
++
++  return (
++    <dialog
++      ref={ref}
++      aria-labelledby={titleId}
++      aria-describedby={descriptionId}
++      onCancel={(event) => {
++        // Escape: let the parent close it, and never while a request is running.
++        event.preventDefault();
++        if (!busy) onCancel();
++      }}
++      className="confirm-dialog m-auto w-[calc(100%-2rem)] max-w-sm rounded-xl border border-line bg-raised p-6 text-ink shadow-pop backdrop:bg-ink/40"
++    >
++      <h2 id={titleId} className="font-serif text-h3 wrap-break-word">
++        {title}
++      </h2>
++      <p id={descriptionId} className="mt-2 text-sm text-pretty">
++        {children}
++      </p>
++      {error ? (
++        <Banner tone="danger" className="mt-4">
++          {error}
++        </Banner>
++      ) : null}
++      <div className="mt-6 flex justify-end gap-3">
++        <Button
++          variant="secondary"
++          autoFocus
++          disabled={busy}
++          onClick={onCancel}
++        >
++          {cancelLabel}
++        </Button>
++        <Button
++          variant="danger-solid"
++          disabled={busy}
++          onClick={onConfirm}
++          className="min-w-36"
++        >
++          {busy ? busyLabel : confirmLabel}
++        </Button>
++      </div>
++    </dialog>
++  );
++}
+diff --git a/components/ui/icons.tsx b/components/ui/icons.tsx
+index f8046d2..518acce 100644
+--- a/components/ui/icons.tsx
++++ b/components/ui/icons.tsx
+@@ -8,6 +8,7 @@ import {
+   MonitorIcon as PhMonitorIcon,
+   MoonIcon as PhMoonIcon,
+   SunIcon as PhSunIcon,
++  UploadSimpleIcon as PhUploadSimpleIcon,
+   WarningCircleIcon,
+   WarningIcon as PhWarningIcon,
+   WarningOctagonIcon,
+@@ -54,6 +55,10 @@ export function MonitorIcon({ size = 16, ...rest }: IconProps) {
+   return <PhMonitorIcon size={size} weight="regular" {...HIDDEN} {...rest} />;
+ }
+ 
++export function UploadIcon({ size = 16, ...rest }: IconProps) {
++  return <PhUploadSimpleIcon size={size} weight="regular" {...HIDDEN} {...rest} />;
++}
++
+ // --- banner tones (fill): circle-i, triangle, octagon ------------------
+ 
+ export function InfoIcon({ size = 16, ...rest }: IconProps) {
+diff --git a/components/ui/toast.tsx b/components/ui/toast.tsx
+new file mode 100644
+index 0000000..d51aa66
+--- /dev/null
++++ b/components/ui/toast.tsx
+@@ -0,0 +1,107 @@
++"use client";
++
++import {
++  createContext,
++  useCallback,
++  useContext,
++  useEffect,
++  useMemo,
++  useState,
++  type ReactNode,
++} from "react";
++
++/** How long a toast stays (DESIGN 5.8), and the length of its fade-out. */
++const TOAST_MS = 4000;
++const LEAVE_MS = 120;
++
++export interface ToastApi {
++  /** Shows one message. A toast already on screen is replaced (one at a time). */
++  show: (message: string) => void;
++}
++
++const ToastContext = createContext<ToastApi | null>(null);
++
++interface ActiveToast {
++  id: number;
++  message: string;
++}
++
++/**
++ * Toasts for completed actions that leave no other trace (DESIGN 5.8): never
++ * for errors or anything the person must read. The region is mounted from the
++ * start (`role="status"`, polite), because a live region has to exist before
++ * its content changes to be announced. Auto-dismisses after 4 s; hover or
++ * focus inside the toast pauses the timer.
++ */
++export function ToastProvider({ children }: { children: ReactNode }) {
++  const [toast, setToast] = useState<ActiveToast | null>(null);
++  const [leaving, setLeaving] = useState(false);
++  const [paused, setPaused] = useState(false);
++
++  const show = useCallback((message: string) => {
++    setLeaving(false);
++    setPaused(false);
++    setToast((prev) => ({ id: (prev?.id ?? 0) + 1, message }));
++  }, []);
++
++  const api = useMemo<ToastApi>(() => ({ show }), [show]);
++
++  const toastId = toast?.id;
++  useEffect(() => {
++    if (toastId === undefined || paused) return;
++    const leave = setTimeout(() => setLeaving(true), TOAST_MS);
++    return () => clearTimeout(leave);
++  }, [toastId, paused]);
++
++  useEffect(() => {
++    if (!leaving) return;
++    const remove = setTimeout(() => setToast(null), LEAVE_MS);
++    return () => clearTimeout(remove);
++  }, [leaving]);
++
++  return (
++    <ToastContext value={api}>
++      {children}
++      <div
++        role="status"
++        aria-live="polite"
++        aria-atomic="true"
++        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
++      >
++        {toast ? (
++          <div
++            key={toast.id}
++            onMouseEnter={() => setPaused(true)}
++            onMouseLeave={() => setPaused(false)}
++            onFocus={() => setPaused(true)}
++            onBlur={() => setPaused(false)}
++            className={
++              leaving
++                ? "toast-leave pointer-events-auto w-full max-w-sm rounded-lg bg-toast px-4 py-3 text-sm text-toast-fg shadow-pop"
++                : "toast-enter pointer-events-auto w-full max-w-sm rounded-lg bg-toast px-4 py-3 text-sm text-toast-fg shadow-pop"
++            }
++          >
++            <p className="wrap-break-word">{toast.message}</p>
++          </div>
++        ) : null}
++      </div>
++    </ToastContext>
++  );
++}
++
++const NOOP_TOAST: ToastApi = { show: () => undefined };
++let warnedMissingProvider = false;
++
++/**
++ * Without a provider (a component rendered on its own in a test) this is a
++ * no-op, with one development warning, so an isolated render still works.
++ */
++export function useToast(): ToastApi {
++  const api = useContext(ToastContext);
++  if (api) return api;
++  if (process.env.NODE_ENV !== "production" && !warnedMissingProvider) {
++    warnedMissingProvider = true;
++    console.warn("[toast] useToast was used outside a ToastProvider.");
++  }
++  return NOOP_TOAST;
++}
+diff --git a/components/upload-dropzone.tsx b/components/upload-dropzone.tsx
+new file mode 100644
+index 0000000..338f557
+--- /dev/null
++++ b/components/upload-dropzone.tsx
+@@ -0,0 +1,179 @@
++"use client";
++
++import { useRef, useState } from "react";
++import type { ChangeEvent, DragEvent } from "react";
++import { cn } from "@/components/ui/cn";
++import { UploadIcon } from "@/components/ui/icons";
++import { ACCEPT_ATTRIBUTE } from "@/lib/upload/file-checks";
++
++export type DropzoneActivity =
++  | { kind: "idle" }
++  | { kind: "uploading"; fileName: string }
++  | { kind: "processing"; fileName: string };
++
++function hasFiles(event: DragEvent): boolean {
++  return Array.from(event.dataTransfer.types).includes("Files");
++}
++
++/**
++ * The file dropzone (DESIGN 5.2): a dashed zone over a real `<input type="file">`
++ * that keyboard and screen-reader users operate. The label "Upload a document"
++ * is stretched over the whole zone (`after:inset-0`), so a click anywhere opens
++ * the picker, and the hint lines stay outside the label and are linked with
++ * `aria-describedby`.
++ *
++ * Three lines of text in every state (label, status or helper, hint), so
++ * busy, idle and disabled have the same height and nothing shifts. A drop
++ * does not go through `accept`, so the caller still validates the file.
++ * `disabledNote` is shown instead of the helper while the zone is unavailable.
++ */
++export function UploadDropzone({
++  inputId,
++  describedBy,
++  activity,
++  disabled,
++  disabledNote,
++  skipped,
++  hint,
++  onFiles,
++}: {
++  inputId: string;
++  /** Ids of notes outside the zone (the privacy note, the cap banner). */
++  describedBy: string;
++  activity: DropzoneActivity;
++  /** Cap, offline or busy: the input is disabled. */
++  disabled: boolean;
++  /** Why it is unavailable (cap, offline). Ignored while busy. */
++  disabledNote?: string;
++  /** Files dropped beyond the first, which were not taken. */
++  skipped: number;
++  hint: string;
++  onFiles: (files: File[]) => void;
++}) {
++  const [dragging, setDragging] = useState(false);
++  // dragenter and dragleave fire for every child element; count them.
++  const depth = useRef(0);
++  const hintLineId = `${inputId}-hint`;
++  const busy = activity.kind !== "idle";
++  const unavailable = disabled && !busy;
++
++  function onChange(event: ChangeEvent<HTMLInputElement>) {
++    const input = event.currentTarget;
++    const files = Array.from(input.files ?? []);
++    // Clear the input so picking the same file again fires `change` again.
++    input.value = "";
++    if (files.length > 0) onFiles(files);
++  }
++
++  function onDragEnter(event: DragEvent<HTMLDivElement>) {
++    if (!hasFiles(event)) return;
++    event.preventDefault();
++    depth.current += 1;
++    if (!disabled) setDragging(true);
++  }
++
++  function onDragOver(event: DragEvent<HTMLDivElement>) {
++    if (!hasFiles(event)) return;
++    // Always cancel the default, or a refused drop would open the file in the tab.
++    event.preventDefault();
++    event.dataTransfer.dropEffect = disabled ? "none" : "copy";
++  }
++
++  function onDragLeave() {
++    depth.current = Math.max(0, depth.current - 1);
++    if (depth.current === 0) setDragging(false);
++  }
++
++  function onDrop(event: DragEvent<HTMLDivElement>) {
++    if (!hasFiles(event)) return;
++    event.preventDefault();
++    depth.current = 0;
++    setDragging(false);
++    if (disabled) return;
++    const files = Array.from(event.dataTransfer.files);
++    if (files.length > 0) onFiles(files);
++  }
++
++  // Line 2 says what is happening or what to do; line 3 is the hint, or what
++  // to know while busy. Three lines in every state keeps the height still.
++  let line2: string;
++  let line3: string;
++  if (activity.kind === "uploading") {
++    line2 = `Uploading ${activity.fileName}…`;
++    line3 =
++      skipped > 0
++        ? "One file at a time. The others were skipped."
++        : "Keep this tab open.";
++  } else if (activity.kind === "processing") {
++    line2 = `Processing ${activity.fileName}…`;
++    line3 = "This can take a minute or more.";
++  } else {
++    line2 =
++      unavailable && disabledNote
++        ? disabledNote
++        : "Drag a file here or choose one.";
++    line3 = hint;
++  }
++
++  const liveText =
++    activity.kind === "uploading"
++      ? `Uploading ${activity.fileName}…`
++      : activity.kind === "processing"
++        ? `Processing ${activity.fileName}… this can take a minute or more.`
++        : "";
++
++  return (
++    <div
++      onDragEnter={onDragEnter}
++      onDragOver={onDragOver}
++      onDragLeave={onDragLeave}
++      onDrop={onDrop}
++      data-dragging={dragging || undefined}
++      className={cn(
++        "relative flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed p-6 text-center transition-colors duration-(--dur-fast) ease-(--ease-settle) has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus",
++        unavailable
++          ? "border-line bg-sunken text-muted"
++          : dragging
++            ? "border-accent bg-accent-soft text-ink"
++            : busy
++              ? "border-control bg-surface text-ink"
++              : "border-control bg-surface text-ink hover:border-accent hover:bg-accent-soft",
++      )}
++    >
++      <input
++        id={inputId}
++        type="file"
++        accept={ACCEPT_ATTRIBUTE}
++        disabled={disabled}
++        onChange={onChange}
++        aria-describedby={`${hintLineId} ${describedBy}`}
++        className="sr-only"
++      />
++      <label
++        htmlFor={inputId}
++        className={cn(
++          "inline-flex items-center gap-2 text-sm font-medium after:absolute after:inset-0 after:content-['']",
++          disabled ? "cursor-not-allowed" : "cursor-pointer",
++        )}
++      >
++        <UploadIcon />
++        Upload a document
++      </label>
++      <p
++        aria-hidden={busy || undefined}
++        className={cn(
++          "max-w-full truncate text-sm",
++          unavailable ? "text-muted" : "text-ink",
++        )}
++      >
++        {line2}
++      </p>
++      <p id={hintLineId} className="text-xs text-pretty text-muted">
++        {line3}
++      </p>
++      <span role="status" className="sr-only">
++        {liveText}
++      </span>
++    </div>
++  );
++}
+diff --git a/components/upload-panel.tsx b/components/upload-panel.tsx
+index ddbb99b..adcca52 100644
+--- a/components/upload-panel.tsx
++++ b/components/upload-panel.tsx
+@@ -2,29 +2,33 @@
+ 
+ import Link from "next/link";
+ import { useId, useState } from "react";
+-import type { ChangeEvent } from "react";
++import { UploadDropzone } from "@/components/upload-dropzone";
++import { Banner } from "@/components/ui/banner";
++import { useToast } from "@/components/ui/toast";
++import { useDocumentsSource } from "@/lib/documents/source";
+ import { ingestFailureMessage } from "@/lib/ingest/failure-messages";
++import { useOnlineStatus } from "@/lib/net/use-online-status";
+ import { MAX_FILE_BYTES } from "@/lib/pdf/limits";
+-import { createBrowserSupabase } from "@/lib/supabase/browser";
+-import { createUploadPorts } from "@/lib/upload/create-upload-ports";
+-import {
+-  ACCEPT_ATTRIBUTE,
+-  MAX_DOCS_PER_USER_HINT,
+-} from "@/lib/upload/file-checks";
++import { MAX_DOCS_PER_USER_HINT } from "@/lib/upload/file-checks";
+ import { ingestLimitMessage } from "@/lib/upload/ingest-limit";
+ import { DOCUMENT_LIMIT_MESSAGE } from "@/lib/upload/limits";
+-import { requestIngest } from "@/lib/upload/request-ingest";
+-import {
+-  uploadDocument,
+-  type UploadFailureReason,
+-} from "@/lib/upload/upload-document";
++import type { UploadFailureReason } from "@/lib/upload/upload-document";
+ 
++/** DESIGN section 8. */
++export const PRIVACY_NOTE =
++  "Don’t upload sensitive documents. Their text is sent to AI providers to answer questions.";
++export const OFFLINE_UPLOAD_NOTE = "Uploads need a connection.";
++export const CAP_UPLOAD_NOTE = "The shelf is full.";
++
++/**
++ * What the panel is doing, and the last outcome that needs a banner. Success
++ * (`ready`, `no_op`) is a toast and leaves the panel idle, because it leaves
++ * nothing else to read.
++ */
+ type PanelState =
+   | { status: "idle" }
+   | { status: "uploading"; fileName: string }
+   | { status: "processing"; fileName: string }
+-  | { status: "ready"; fileName: string }
+-  | { status: "no_op"; fileName: string }
+   | { status: "ingest_failed"; fileName: string; message: string }
+   | { status: "unconfirmed"; fileName: string }
+   | { status: "ingest_limited"; message: string }
+@@ -32,22 +36,24 @@ type PanelState =
+   | { status: "error"; reason: UploadFailureReason | null; message: string };
+ 
+ /**
+- * Upload control (Tasks 4.3 and 4.4). One file at a time, straight to Storage
+- * with the user's own session, then a call to `/api/ingest`, which answers when
+- * processing has finished (it can take a minute or more). The outcome is
+- * reported here and the document list (Task 4.6) shows the live status; the
+- * optional callbacks tell the list to refresh. A failed or unreachable ingest
+- * never undoes the upload: the file stays stored and queued. Demo sessions get
+- * an explanation instead of a control that RLS would refuse.
++ * Upload control (Tasks 4.3 and 4.4, restyled in U5). One file at a time,
++ * straight to Storage with the user's own session, then a call to
++ * `/api/ingest`, which answers when processing has finished (it can take a
++ * minute or more). A failed or unreachable ingest never undoes the upload: the
++ * file stays stored and queued.
++ *
++ * Where each outcome shows (DESIGN 5.2, 5.6, 5.8, 6.5): progress lives inside
++ * the dropzone, whose height does not change; success is a toast; failures,
++ * the cap and a paused budget are banners under the privacy note. The
++ * document list below shows the live status of every row either way.
+  *
+- * A 429 from `/api/ingest` (Task 5.3) is shown as a distinct "uploaded, not
+- * processed yet" status per limit reason, not as "unconfirmed".
++ * Cap (Task 4.8): `atCap` disables the zone and shows a warn banner. The global
++ * storage budget cannot be known up front (clients cannot read `app_config`),
++ * so it shows as an "uploads are paused" banner after the server refuses an
++ * insert; the zone stays enabled so the user can try again later. Offline
++ * disables the zone with a note.
+  *
+- * Cap and budget (Task 4.8): `atCap` (from the document list's count) disables
+- * the control and says why. The global storage budget cannot be known up front
+- * (clients cannot read `app_config`), so it shows as a neutral "uploads paused"
+- * status after the server refuses an insert; the control stays enabled so the
+- * user can try again later.
++ * Demo sessions get an explanation instead of a control that RLS would refuse.
+  */
+ export function UploadPanel({
+   canUpload,
+@@ -64,9 +70,13 @@ export function UploadPanel({
+   onIngestSettled?: () => void;
+ }) {
+   const inputId = useId();
+-  const hintId = useId();
+-  const capId = useId();
++  const privacyId = useId();
++  const noteId = useId();
++  const source = useDocumentsSource();
++  const toast = useToast();
++  const online = useOnlineStatus();
+   const [state, setState] = useState<PanelState>({ status: "idle" });
++  const [skipped, setSkipped] = useState(0);
+   const busy = state.status === "uploading" || state.status === "processing";
+ 
+   if (!canUpload) {
+@@ -86,54 +96,57 @@ export function UploadPanel({
+     );
+   }
+ 
+-  async function onChange(event: ChangeEvent<HTMLInputElement>) {
+-    const input = event.currentTarget;
+-    const file = input.files?.[0];
+-    // Clear the input so picking the same file again fires `change` again.
+-    input.value = "";
+-    if (!file) return;
++  async function onFiles(files: File[]) {
++    const file = files[0];
++    if (!file || busy || atCap || !online) return;
++    setSkipped(files.length - 1);
+ 
+     setState({ status: "uploading", fileName: file.name });
+     try {
+-      const result = await uploadDocument(
+-        file,
+-        createUploadPorts(createBrowserSupabase()),
+-      );
++      const result = await source.upload(file);
+       if (!result.ok) {
+         setState(
+           result.reason === "budget_exhausted"
+             ? { status: "paused", message: result.message }
+-            : {
+-                status: "error",
+-                reason: result.reason,
+-                message: result.message,
+-              },
++            : { status: "error", reason: result.reason, message: result.message },
+         );
+         return;
+       }
+ 
+       onUploaded?.();
+       setState({ status: "processing", fileName: file.name });
+-      const ingest = await requestIngest(result.documentId);
++      const ingest = await source.ingest(result.documentId);
+       onIngestSettled?.();
+-      if (ingest.status === "failed") {
+-        setState({
+-          status: "ingest_failed",
+-          fileName: file.name,
+-          message: ingestFailureMessage(ingest.reason),
+-        });
+-      } else if (ingest.status === "limit") {
+-        // Stored and queued, but processing was refused by a usage limit.
+-        setState({
+-          status: "ingest_limited",
+-          message: ingestLimitMessage({
++      switch (ingest.status) {
++        case "ready":
++          toast.show(`${file.name} is ready to search.`);
++          setState({ status: "idle" });
++          break;
++        case "no_op":
++          toast.show(`${file.name} is already processed or is being processed.`);
++          setState({ status: "idle" });
++          break;
++        case "failed":
++          setState({
++            status: "ingest_failed",
+             fileName: file.name,
+-            reason: ingest.reason,
+-            resetsAt: ingest.resetsAt,
+-          }),
+-        });
+-      } else {
+-        setState({ status: ingest.status, fileName: file.name });
++            message: ingestFailureMessage(ingest.reason),
++          });
++          break;
++        case "limit":
++          // Stored and queued, but processing was refused by a usage limit.
++          setState({
++            status: "ingest_limited",
++            message: ingestLimitMessage({
++              fileName: file.name,
++              reason: ingest.reason,
++              resetsAt: ingest.resetsAt,
++            }),
++          });
++          break;
++        case "unconfirmed":
++          setState({ status: "unconfirmed", fileName: file.name });
++          break;
+       }
+     } catch (err) {
+       console.error("[upload] unexpected failure:", err);
+@@ -142,79 +155,64 @@ export function UploadPanel({
+         reason: null,
+         message: "Something went wrong. Please try again.",
+       });
++    } finally {
++      setSkipped(0);
+     }
+   }
+ 
+   const maxMb = MAX_FILE_BYTES / (1024 * 1024);
++  const disabled = busy || atCap || !online;
++  const disabledNote = !online ? OFFLINE_UPLOAD_NOTE : CAP_UPLOAD_NOTE;
+ 
+   return (
+-    <section aria-busy={busy} className="flex flex-col gap-2 text-sm">
+-      <label htmlFor={inputId} className="font-medium">
+-        Upload a document
+-      </label>
+-      <input
+-        id={inputId}
+-        type="file"
+-        accept={ACCEPT_ATTRIBUTE}
+-        disabled={busy || atCap}
+-        onChange={onChange}
+-        aria-describedby={atCap ? `${capId} ${hintId}` : hintId}
+-        className="block w-full text-sm file:mr-3 file:rounded-md file:border file:border-control file:bg-transparent file:px-3 file:py-1 disabled:opacity-60"
++    <div aria-busy={busy} className="flex flex-col gap-3 text-sm">
++      <UploadDropzone
++        inputId={inputId}
++        describedBy={atCap ? `${noteId} ${privacyId}` : privacyId}
++        activity={
++          state.status === "uploading" || state.status === "processing"
++            ? { kind: state.status, fileName: state.fileName }
++            : { kind: "idle" }
++        }
++        disabled={disabled}
++        disabledNote={disabledNote}
++        skipped={skipped}
++        hint={`PDF, TXT or Markdown, up to ${maxMb} MB. You can keep up to ${MAX_DOCS_PER_USER_HINT} documents.`}
++        onFiles={(files) => void onFiles(files)}
+       />
+-      <p id={hintId} className="text-muted">
+-        PDF, TXT or Markdown, up to {maxMb} MB. You can keep up to{" "}
+-        {MAX_DOCS_PER_USER_HINT} documents.
++      {/* Always there, directly under the zone (DESIGN 6.5). */}
++      <p id={privacyId} className="text-xs text-muted text-pretty">
++        {PRIVACY_NOTE}
+       </p>
++
+       {atCap ? (
+-        <p id={capId} role="status" className="text-warn">
++        <Banner tone="warn" id={noteId}>
+           {DOCUMENT_LIMIT_MESSAGE}
+-        </p>
+-      ) : null}
+-      {state.status === "uploading" ? (
+-        <p role="status">Uploading {state.fileName}…</p>
++        </Banner>
+       ) : null}
+-      {state.status === "processing" ? (
+-        <p role="status">
+-          Processing {state.fileName}… this can take a minute or more.
+-        </p>
+-      ) : null}
+-      {state.status === "ready" ? (
+-        <p role="status">{state.fileName} is ready to search.</p>
+-      ) : null}
+-      {state.status === "no_op" ? (
+-        <p role="status">
+-          {state.fileName} is already processed or is being processed.
+-        </p>
++      {state.status === "paused" ? (
++        <Banner tone="warn">{state.message}</Banner>
+       ) : null}
+-      {state.status === "ingest_failed" ? (
+-        <p role="alert" className="text-danger">
+-          Uploaded {state.fileName}, but it could not be processed.{" "}
+-          {state.message}
+-        </p>
++      {state.status === "ingest_limited" ? (
++        <Banner tone="warn">{state.message}</Banner>
+       ) : null}
+       {state.status === "unconfirmed" ? (
+-        <p role="alert" className="text-danger">
++        <Banner tone="warn">
+           Uploaded {state.fileName}, but we could not confirm that processing
+           finished. It may still complete. Check its status in the list below.
+-        </p>
+-      ) : null}
+-      {state.status === "ingest_limited" ? (
+-        <p role="status" className="text-warn">
+-          {state.message}
+-        </p>
++        </Banner>
+       ) : null}
+-      {state.status === "paused" ? (
+-        <p role="status" className="text-warn">
++      {state.status === "ingest_failed" ? (
++        <Banner tone="danger">
++          Uploaded {state.fileName}, but it could not be processed.{" "}
+           {state.message}
+-        </p>
++        </Banner>
+       ) : null}
+-      {/* At the cap the notice above already says it: no second copy. */}
++      {/* At the cap the banner above already says it: no second copy. */}
+       {state.status === "error" &&
+       !(atCap && state.reason === "limit_reached") ? (
+-        <p role="alert" className="text-danger">
+-          {state.message}
+-        </p>
++        <Banner tone="danger">{state.message}</Banner>
+       ) : null}
+-    </section>
++    </div>
+   );
+ }
+diff --git a/lib/documents/dev-scenario-names.ts b/lib/documents/dev-scenario-names.ts
+new file mode 100644
+index 0000000..2c1b057
+--- /dev/null
++++ b/lib/documents/dev-scenario-names.ts
+@@ -0,0 +1,51 @@
++/**
++ * Names of the documents drill scenarios (`/dev-states/documents/<scenario>`).
++ * A separate file with no React import, so the server page can validate a
++ * route segment without pulling in the client-only source.
++ */
++export const DOC_SCENARIOS = [
++  "mixed",
++  "empty",
++  "slow",
++  "load-error",
++  "refresh-error",
++  "stuck",
++  "retry-notes",
++  "cap",
++  "paused",
++  "scanned",
++  "ingest-limit",
++  "delete-error",
++  "session-ended",
++] as const;
++
++export type DocScenario = (typeof DOC_SCENARIOS)[number];
++
++export const DOC_SCENARIO_NOTES: Readonly<Record<DocScenario, string>> = {
++  mixed:
++    "Every status. The queued row turns processing after 6 s and ready after 14 s; the processing row turns ready after 10 s. Upload and delete work.",
++  empty: "Nothing on the shelf. Upload any file: it is processed in 3 s.",
++  slow: "No server data: the skeleton shows for 3 s. Upload takes 4 s, processing 8 s, delete 3 s.",
++  "load-error":
++    "The first read failed: danger banner. Try again fails once more, then works.",
++  "refresh-error":
++    "A list with a processing row whose refreshes always fail: the stale warn banner.",
++  stuck:
++    "A stuck queued row and a stuck processing row, each with Retry. Retry works.",
++  "retry-notes":
++    "Three stuck rows. Retry on each, top to bottom: still processing, unconfirmed, then limit.",
++  cap: "Ten documents: the dropzone is disabled and the cap banner shows.",
++  paused:
++    "Two documents. Any upload is refused with the paused-uploads banner.",
++  scanned:
++    "Upload any file: it fails as a scanned PDF (banner plus a Failed row with no Retry).",
++  "ingest-limit":
++    "Upload any file: it is stored, but processing is refused by today's limit.",
++  "delete-error":
++    "Delete fails once with a network message, then works.",
++  "session-ended": "Delete always answers that the session has ended.",
++};
++
++export function isDocScenario(value: string): value is DocScenario {
++  return (DOC_SCENARIOS as readonly string[]).includes(value);
++}
+diff --git a/lib/documents/dev-scenarios.ts b/lib/documents/dev-scenarios.ts
+new file mode 100644
+index 0000000..003d09c
+--- /dev/null
++++ b/lib/documents/dev-scenarios.ts
+@@ -0,0 +1,380 @@
++import type { InitialDocuments } from "@/components/document-list";
++import type { DocumentStatus } from "@/lib/documents/document-status";
++import type { OwnDocument } from "@/lib/documents/list-own-documents";
++import {
++  REMOVE_NETWORK_MESSAGE,
++  REMOVE_SESSION_ENDED_MESSAGE,
++  type DocumentsSource,
++  type RemoveDocumentResult,
++} from "@/lib/documents/source";
++import type { DocScenario } from "@/lib/documents/dev-scenario-names";
++import type { RequestIngestResult } from "@/lib/upload/request-ingest";
++import { titleFromFileName, validateUploadFile } from "@/lib/upload/file-checks";
++import { UPLOADS_PAUSED_MESSAGE } from "@/lib/upload/limits";
++import type { UploadResult } from "@/lib/upload/upload-document";
++
++/**
++ * Scripted data for the documents drill (`/dev-states/documents/<scenario>`).
++ * The real components run against a `DocumentsSource` that is fully in memory:
++ * no Supabase, no `fetch`. Upload still runs the real file checks, so a
++ * wrong type or an empty file is refused with the real messages. Dev only.
++ */
++
++const SECOND = 1000;
++const MINUTE = 60 * SECOND;
++const HOUR = 60 * MINUTE;
++const DAY = 24 * HOUR;
++
++function wait(ms: number): Promise<void> {
++  return new Promise((resolve) => setTimeout(resolve, ms));
++}
++
++interface Step {
++  afterMs: number;
++  status: DocumentStatus;
++  pageCount?: number;
++}
++
++interface Setup {
++  docs: OwnDocument[];
++  /** Status changes over time, by document id (what the server would do). */
++  steps?: Readonly<Record<string, readonly Step[]>>;
++  /** `false`: no server data at all, so the shelf shows its loading skeleton. */
++  initial?: "docs" | "failed" | "none";
++  listDelayMs?: number;
++  /** How many client reads fail before they work; `Infinity` for always. */
++  listFailures?: number;
++  uploadDelayMs?: number;
++  ingestDelayMs?: number;
++  removeDelayMs?: number;
++  upload?: "ok" | "paused";
++  ingest?: (documentId: string, attempt: number) => RequestIngestResult | null;
++  /** The document an upload with this outcome leaves behind. */
++  uploadedAs?: (id: string, title: string, now: number) => OwnDocument;
++  remove?: (attempt: number) => RemoveDocumentResult;
++}
++
++function doc(now: number, over: Partial<OwnDocument> & { id: string }): OwnDocument {
++  return {
++    title: "Lease agreement",
++    originalFilename: "lease.pdf",
++    status: "ready",
++    errorReason: null,
++    pageCount: 4,
++    chunkCount: 8,
++    createdAt: new Date(now - 2 * DAY).toISOString(),
++    processingStartedAt: null,
++    ...over,
++  };
++}
++
++function setupFor(name: DocScenario, now: number): Setup {
++  const ready = (id: string, title: string, file: string, pages: number | null, ago: number) =>
++    doc(now, {
++      id,
++      title,
++      originalFilename: file,
++      pageCount: pages,
++      createdAt: new Date(now - ago).toISOString(),
++    });
++
++  switch (name) {
++    case "mixed":
++      return {
++        docs: [
++          ready("r1", "Lease agreement", "lease.pdf", 12, 2 * DAY),
++          ready("r2", "Meeting notes", "meeting-notes.md", null, 3 * HOUR),
++          doc(now, {
++            id: "q1",
++            title: "Quarterly report with a long title that has to wrap onto a second line",
++            originalFilename: "quarterly-report.pdf",
++            status: "queued",
++            pageCount: null,
++            createdAt: new Date(now - 20 * SECOND).toISOString(),
++          }),
++          doc(now, {
++            id: "p1",
++            title: "Handbook",
++            originalFilename: "handbook.pdf",
++            status: "processing",
++            pageCount: null,
++            createdAt: new Date(now - MINUTE).toISOString(),
++            processingStartedAt: new Date(now - 30 * SECOND).toISOString(),
++          }),
++          doc(now, {
++            id: "f1",
++            title: "Scanned receipt",
++            originalFilename: "receipt.pdf",
++            status: "failed",
++            errorReason: "scanned_pdf",
++            pageCount: null,
++            createdAt: new Date(now - 10 * MINUTE).toISOString(),
++          }),
++          doc(now, {
++            id: "f2",
++            title: "Contract",
++            originalFilename: "contract.pdf",
++            status: "failed",
++            errorReason: "provider_unavailable",
++            pageCount: null,
++            createdAt: new Date(now - 5 * HOUR).toISOString(),
++          }),
++          doc(now, {
++            id: "s1",
++            title: "Old upload",
++            originalFilename: "old.txt",
++            status: "processing",
++            pageCount: null,
++            createdAt: new Date(now - 40 * MINUTE).toISOString(),
++            processingStartedAt: new Date(now - 25 * MINUTE).toISOString(),
++          }),
++        ],
++        steps: {
++          q1: [
++            { afterMs: 6 * SECOND, status: "processing" },
++            { afterMs: 14 * SECOND, status: "ready", pageCount: 9 },
++          ],
++          p1: [{ afterMs: 10 * SECOND, status: "ready", pageCount: 5 }],
++        },
++      };
++    case "empty":
++      return { docs: [], ingestDelayMs: 3 * SECOND };
++    case "slow":
++      return {
++        docs: [ready("r1", "Lease agreement", "lease.pdf", 12, 2 * DAY)],
++        initial: "none",
++        listDelayMs: 3 * SECOND,
++        uploadDelayMs: 4 * SECOND,
++        ingestDelayMs: 8 * SECOND,
++        removeDelayMs: 3 * SECOND,
++      };
++    case "load-error":
++      return { docs: [ready("r1", "Lease agreement", "lease.pdf", 12, 2 * DAY)], initial: "failed", listFailures: 1 };
++    case "refresh-error":
++      return {
++        docs: [
++          ready("r1", "Lease agreement", "lease.pdf", 12, 2 * DAY),
++          doc(now, {
++            id: "p1",
++            title: "Handbook",
++            originalFilename: "handbook.pdf",
++            status: "processing",
++            pageCount: null,
++            processingStartedAt: new Date(now - 30 * SECOND).toISOString(),
++          }),
++        ],
++        listFailures: Infinity,
++      };
++    case "stuck":
++      return {
++        docs: [
++          doc(now, {
++            id: "s1",
++            title: "Never started",
++            originalFilename: "never-started.pdf",
++            status: "queued",
++            pageCount: null,
++            createdAt: new Date(now - 5 * MINUTE).toISOString(),
++          }),
++          doc(now, {
++            id: "s2",
++            title: "Stalled",
++            originalFilename: "stalled.pdf",
++            status: "processing",
++            pageCount: null,
++            createdAt: new Date(now - 30 * MINUTE).toISOString(),
++            processingStartedAt: new Date(now - 25 * MINUTE).toISOString(),
++          }),
++        ],
++        ingestDelayMs: 2 * SECOND,
++      };
++    case "retry-notes":
++      return {
++        docs: ["a", "b", "c"].map((k, i) =>
++          doc(now, {
++            id: `s-${k}`,
++            title: ["First stuck", "Second stuck", "Third stuck"][i],
++            originalFilename: `stuck-${k}.pdf`,
++            status: "processing",
++            pageCount: null,
++            createdAt: new Date(now - 30 * MINUTE).toISOString(),
++            processingStartedAt: new Date(now - 25 * MINUTE).toISOString(),
++          }),
++        ),
++        ingest: (id) =>
++          id === "s-a"
++            ? { status: "no_op" }
++            : id === "s-b"
++              ? { status: "unconfirmed" }
++              : { status: "limit", reason: "cooldown" },
++      };
++    case "cap":
++      return {
++        docs: Array.from({ length: 10 }, (_, i) =>
++          ready(`c${i}`, `Document ${i + 1}`, `document-${i + 1}.pdf`, 3 + i, (i + 1) * HOUR),
++        ),
++      };
++    case "paused":
++      return {
++        docs: [
++          ready("r1", "Lease agreement", "lease.pdf", 12, 2 * DAY),
++          ready("r2", "Meeting notes", "meeting-notes.md", null, 3 * HOUR),
++        ],
++        upload: "paused",
++      };
++    case "scanned":
++      return {
++        docs: [],
++        ingest: () => ({ status: "failed", reason: "scanned_pdf" }),
++        uploadedAs: (id, title, t) =>
++          doc(t, {
++            id,
++            title,
++            status: "failed",
++            errorReason: "scanned_pdf",
++            pageCount: null,
++            createdAt: new Date(t).toISOString(),
++          }),
++      };
++    case "ingest-limit":
++      return {
++        docs: [],
++        ingest: () => ({
++          status: "limit",
++          reason: "user_limit",
++          resetsAt: new Date(now + 6 * HOUR).toISOString(),
++        }),
++        uploadedAs: (id, title, t) =>
++          doc(t, {
++            id,
++            title,
++            status: "queued",
++            pageCount: null,
++            createdAt: new Date(t).toISOString(),
++          }),
++      };
++    case "delete-error":
++      return {
++        docs: [ready("r1", "Lease agreement", "lease.pdf", 12, 2 * DAY), ready("r2", "Meeting notes", "meeting-notes.md", null, 3 * HOUR)],
++        remove: (attempt) =>
++          attempt === 1
++            ? { ok: false, kind: "network", message: REMOVE_NETWORK_MESSAGE }
++            : { ok: true },
++      };
++    case "session-ended":
++      return {
++        docs: [ready("r1", "Lease agreement", "lease.pdf", 12, 2 * DAY)],
++        remove: () => ({
++          ok: false,
++          kind: "session_ended",
++          message: REMOVE_SESSION_ENDED_MESSAGE,
++        }),
++      };
++  }
++}
++
++export interface Scenario {
++  /** What the server would have sent with the page. */
++  initial: InitialDocuments | undefined;
++  source: DocumentsSource;
++}
++
++/** Builds a fresh scenario. `now` comes from the server page, not from render. */
++export function createScenario(name: DocScenario, now: number): Scenario {
++  const setup = setupFor(name, now);
++  let docs = [...setup.docs];
++  const startedAt = Date.now();
++  let listFailed = 0;
++  let removeAttempts = 0;
++  const ingestAttempts = new Map<string, number>();
++  const stepsById = new Map<string, readonly Step[]>(
++    Object.entries(setup.steps ?? {}),
++  );
++
++  function view(): OwnDocument[] {
++    const elapsed = Date.now() - startedAt;
++    return docs.map((d) => {
++      const steps = stepsById.get(d.id);
++      if (!steps) return d;
++      let current: OwnDocument = d;
++      for (const step of steps) {
++        if (elapsed < step.afterMs) break;
++        current = {
++          ...d,
++          status: step.status,
++          pageCount: step.pageCount ?? d.pageCount,
++          processingStartedAt:
++            step.status === "processing"
++              ? new Date(Date.now()).toISOString()
++              : d.processingStartedAt,
++        };
++      }
++      return current;
++    });
++  }
++
++  const source: DocumentsSource = {
++    async list() {
++      if (setup.listDelayMs) await wait(setup.listDelayMs);
++      if (listFailed < (setup.listFailures ?? 0)) {
++        listFailed += 1;
++        return { ok: false, reason: "failed" };
++      }
++      return { ok: true, documents: view() };
++    },
++
++    async upload(file): Promise<UploadResult> {
++      if (setup.uploadDelayMs) await wait(setup.uploadDelayMs);
++      else await wait(600);
++      const check = validateUploadFile(file);
++      if (!check.ok) return { ok: false, reason: check.reason, message: check.message };
++      if (setup.upload === "paused") {
++        return { ok: false, reason: "budget_exhausted", message: UPLOADS_PAUSED_MESSAGE };
++      }
++      const id = `up-${docs.length}-${Math.random().toString(36).slice(2, 8)}`;
++      const title = titleFromFileName(file.name);
++      const row =
++        setup.uploadedAs?.(id, title, Date.now()) ??
++        doc(Date.now(), {
++          id,
++          title,
++          originalFilename: file.name,
++          status: "queued",
++          pageCount: null,
++          createdAt: new Date().toISOString(),
++        });
++      docs = [row, ...docs];
++      return { ok: true, documentId: id, storagePath: `dev/${id}`, title };
++    },
++
++    async ingest(documentId): Promise<RequestIngestResult> {
++      const attempt = (ingestAttempts.get(documentId) ?? 0) + 1;
++      ingestAttempts.set(documentId, attempt);
++      await wait(setup.ingestDelayMs ?? 1500);
++      const scripted = setup.ingest?.(documentId, attempt);
++      if (scripted) return scripted;
++      docs = docs.map((d) =>
++        d.id === documentId
++          ? { ...d, status: "ready", errorReason: null, pageCount: 3, chunkCount: 9 }
++          : d,
++      );
++      stepsById.delete(documentId);
++      return { status: "ready", pageCount: 3, chunkCount: 9 };
++    },
++
++    async remove(documentId): Promise<RemoveDocumentResult> {
++      await wait(setup.removeDelayMs ?? 500);
++      removeAttempts += 1;
++      const result = setup.remove?.(removeAttempts) ?? { ok: true as const };
++      if (result.ok) docs = docs.filter((d) => d.id !== documentId);
++      return result;
++    },
++  };
++
++  let initial: InitialDocuments | undefined;
++  if (setup.initial === "failed") initial = { ok: false };
++  else if (setup.initial === "none") initial = undefined;
++  else initial = { ok: true, documents: view(), fetchedAt: now };
++
++  return { initial, source };
++}
+diff --git a/lib/documents/document-meta.ts b/lib/documents/document-meta.ts
+new file mode 100644
+index 0000000..4e90fe9
+--- /dev/null
++++ b/lib/documents/document-meta.ts
+@@ -0,0 +1,84 @@
++import type { DocumentStatus } from "./document-status";
++
++/**
++ * The meta line of a document row (DESIGN 5.10): "4 pages · PDF · added 2 days
++ * ago". Pure and client-safe. Time goes in as `now`, so a row renders the same
++ * on the server and in the browser (`DocumentList` seeds `now` from the
++ * server's read) and tests control the clock.
++ */
++
++export type FileKind = "PDF" | "Text" | "Markdown";
++
++const KIND_BY_EXTENSION: Readonly<Record<string, FileKind>> = {
++  pdf: "PDF",
++  txt: "Text",
++  md: "Markdown",
++  markdown: "Markdown",
++};
++
++/** The kind of file, from the extension of the name it was uploaded with. */
++export function fileKindOf(fileName: string): FileKind | null {
++  const dot = fileName.lastIndexOf(".");
++  if (dot < 0 || dot === fileName.length - 1) return null;
++  const extension = fileName.slice(dot + 1).toLowerCase();
++  return Object.prototype.hasOwnProperty.call(KIND_BY_EXTENSION, extension)
++    ? KIND_BY_EXTENSION[extension]
++    : null;
++}
++
++const MINUTE = 60_000;
++const HOUR = 60 * MINUTE;
++const DAY = 24 * HOUR;
++
++const DATE_FORMAT = new Intl.DateTimeFormat("en-GB", {
++  day: "numeric",
++  month: "short",
++  year: "numeric",
++  // Fixed zone: the server and the browser must print the same text.
++  timeZone: "UTC",
++});
++
++function plural(count: number, unit: string): string {
++  return `${count} ${unit}${count === 1 ? "" : "s"} ago`;
++}
++
++/** "added …" text, or null when the timestamp cannot be read. */
++export function formatAdded(createdAt: string, now: number): string | null {
++  const time = Date.parse(createdAt);
++  if (Number.isNaN(time)) return null;
++  const age = now - time;
++  // A clock that is a little behind the server's must not print "in 2 minutes".
++  if (age < MINUTE) return "added just now";
++  if (age < HOUR) return `added ${plural(Math.floor(age / MINUTE), "minute")}`;
++  if (age < DAY) return `added ${plural(Math.floor(age / HOUR), "hour")}`;
++  if (age < 30 * DAY) return `added ${plural(Math.floor(age / DAY), "day")}`;
++  return `added ${DATE_FORMAT.format(time)}`;
++}
++
++export interface DocumentMetaFields {
++  status: DocumentStatus;
++  originalFilename: string;
++  pageCount: number | null;
++  createdAt: string;
++}
++
++/** Parts of the meta line in display order; empty parts are left out. */
++export function documentMetaParts(
++  doc: DocumentMetaFields,
++  now: number,
++): string[] {
++  const parts: string[] = [];
++  // A page count is only trusted once the document is ready.
++  if (doc.status === "ready" && doc.pageCount !== null) {
++    parts.push(`${doc.pageCount} ${doc.pageCount === 1 ? "page" : "pages"}`);
++  }
++  const kind = fileKindOf(doc.originalFilename);
++  if (kind) parts.push(kind);
++  const added = formatAdded(doc.createdAt, now);
++  if (added) parts.push(added);
++  return parts;
++}
++
++export function documentMeta(doc: DocumentMetaFields, now: number): string {
++  return documentMetaParts(doc, now).join(" · ");
++}
+diff --git a/lib/documents/source.ts b/lib/documents/source.ts
+new file mode 100644
+index 0000000..75858c5
+--- /dev/null
++++ b/lib/documents/source.ts
+@@ -0,0 +1,107 @@
++import { createContext, useContext } from "react";
++import {
++  listOwnDocuments,
++  type ListOwnDocumentsResult,
++} from "@/lib/documents/list-own-documents";
++import { createBrowserSupabase } from "@/lib/supabase/browser";
++import { createUploadPorts } from "@/lib/upload/create-upload-ports";
++import { requestIngest, type RequestIngestResult } from "@/lib/upload/request-ingest";
++import { uploadDocument, type UploadResult } from "@/lib/upload/upload-document";
++import type {
++  DeleteDocumentErrorBody,
++  DeleteDocumentResponseBody,
++} from "@/types/delete-document";
++
++/**
++ * The one seam between the documents UI and where its data comes from (U5).
++ * The shelf, the upload control and the delete button all read through it, so
++ * the real backend is the default and only the dev drill
++ * (`/dev-states/documents/<scenario>`) ever passes another. No component
++ * above this line calls Supabase or `fetch` directly.
++ */
++
++export type RemoveDocumentResult =
++  | { ok: true }
++  | { ok: false; kind: "session_ended" | "network" | "failed"; message: string };
++
++export interface DocumentsSource {
++  /** Never throws: a failed read is `{ ok: false }`. */
++  list(): Promise<ListOwnDocumentsResult>;
++  /** Validates, inserts the queued row and stores the file. Never throws. */
++  upload(file: File): Promise<UploadResult>;
++  /** Asks the server to process a document. Answers when processing ends. */
++  ingest(documentId: string): Promise<RequestIngestResult>;
++  /** `DELETE /api/documents/[id]`. A 404 counts as deleted. Never throws. */
++  remove(documentId: string): Promise<RemoveDocumentResult>;
++}
++
++export const REMOVE_SESSION_ENDED_MESSAGE =
++  "Your session has ended. Sign in again to delete.";
++export const REMOVE_FAILED_MESSAGE = "Could not delete the document. Try again.";
++export const REMOVE_NETWORK_MESSAGE =
++  "Could not reach the server. Check your connection and try again.";
++
++export const defaultDocumentsSource: DocumentsSource = {
++  async list() {
++    try {
++      return await listOwnDocuments(createBrowserSupabase());
++    } catch (error) {
++      // A missing public env var is reported like any other failed read.
++      console.warn(
++        "[documents] could not create the browser client:",
++        error instanceof Error ? error.name : "unknown",
++      );
++      return { ok: false, reason: "failed" };
++    }
++  },
++
++  upload(file) {
++    return uploadDocument(file, createUploadPorts(createBrowserSupabase()));
++  },
++
++  ingest(documentId) {
++    return requestIngest(documentId);
++  },
++
++  async remove(documentId) {
++    try {
++      const response = await fetch(
++        `/api/documents/${encodeURIComponent(documentId)}`,
++        { method: "DELETE" },
++      );
++      if (response.ok || response.status === 404) {
++        // Validate the shape only on success; a 404 means it is already gone.
++        if (response.ok) {
++          const body = (await response.json()) as DeleteDocumentResponseBody;
++          if (body.status !== "deleted") throw new Error("unexpected response");
++        }
++        return { ok: true };
++      }
++      if (response.status === 401) {
++        return {
++          ok: false,
++          kind: "session_ended",
++          message: REMOVE_SESSION_ENDED_MESSAGE,
++        };
++      }
++      const body = (await response
++        .json()
++        .catch(() => null)) as DeleteDocumentErrorBody | null;
++      return {
++        ok: false,
++        kind: "failed",
++        message: body?.message ?? REMOVE_FAILED_MESSAGE,
++      };
++    } catch {
++      return { ok: false, kind: "network", message: REMOVE_NETWORK_MESSAGE };
++    }
++  },
++};
++
++export const DocumentsSourceContext = createContext<DocumentsSource>(
++  defaultDocumentsSource,
++);
++
++export function useDocumentsSource(): DocumentsSource {
++  return useContext(DocumentsSourceContext);
++}
+diff --git a/tests/e2e/delete-document.e2e.ts b/tests/e2e/delete-document.e2e.ts
+new file mode 100644
+index 0000000..a10e694
+--- /dev/null
++++ b/tests/e2e/delete-document.e2e.ts
+@@ -0,0 +1,42 @@
++import { expect, test } from "@playwright/test";
++import { fixturePath, TEXT_PDF_NAME, titleOf } from "./helpers/fixtures";
++import { waitForHydration } from "./helpers/hydration";
++import { createTestUser, signUpViaUi } from "./helpers/test-user";
++
++const INGEST_TIMEOUT_MS = 120_000;
++
++/** U5: delete a document with the keyboard only; focus ends on the heading. */
++test("a user deletes a document by keyboard", async ({ page }) => {
++  const title = titleOf(TEXT_PDF_NAME);
++  await signUpViaUi(page, createTestUser());
++
++  const fileInput = page.getByLabel("Upload a document");
++  await waitForHydration(fileInput);
++  await fileInput.setInputFiles(fixturePath(TEXT_PDF_NAME));
++
++  const row = page.getByRole("listitem").filter({ hasText: title });
++  await expect(row.getByText("Ready", { exact: true })).toBeVisible({
++    timeout: INGEST_TIMEOUT_MS,
++  });
++
++  await row.getByRole("button", { name: `Delete ${title}` }).focus();
++  await page.keyboard.press("Enter");
++
++  const dialog = page.getByRole("dialog");
++  await expect(dialog).toBeVisible();
++  // The safe action has focus first, so Enter alone cannot delete by accident.
++  await expect(dialog.getByRole("button", { name: "Keep it" })).toBeFocused();
++
++  await page.keyboard.press("Tab");
++  await expect(
++    dialog.getByRole("button", { name: "Delete document" }),
++  ).toBeFocused();
++  await page.keyboard.press("Enter");
++
++  await expect(page.getByText("Document deleted")).toBeVisible();
++  await expect(row).toHaveCount(0);
++  await expect(page.getByText("Nothing on the shelf yet.")).toBeVisible();
++  await expect(
++    page.getByRole("heading", { name: "Your documents" }),
++  ).toBeFocused();
++});
+diff --git a/tests/unit/delete-document-button.test.tsx b/tests/unit/delete-document-button.test.tsx
+new file mode 100644
+index 0000000..84695d8
+--- /dev/null
++++ b/tests/unit/delete-document-button.test.tsx
+@@ -0,0 +1,99 @@
++// @vitest-environment jsdom
++import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
++import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
++import { DeleteDocumentButton } from "@/components/delete-document-button";
++import {
++  DocumentsSourceContext,
++  defaultDocumentsSource,
++  type DocumentsSource,
++  type RemoveDocumentResult,
++} from "@/lib/documents/source";
++
++// jsdom has no modal dialog: a small polyfill, as in the viewer shell tests.
++beforeAll(() => {
++  HTMLDialogElement.prototype.showModal = function showModal() {
++    this.setAttribute("open", "");
++  };
++  HTMLDialogElement.prototype.close = function close() {
++    this.removeAttribute("open");
++  };
++});
++afterEach(cleanup);
++
++function setup(remove: () => Promise<RemoveDocumentResult>) {
++  const onDeleted = vi.fn();
++  const source: DocumentsSource = { ...defaultDocumentsSource, remove };
++  render(
++    <DocumentsSourceContext value={source}>
++      <DeleteDocumentButton
++        documentId="d1"
++        documentTitle="Lease"
++        onDeleted={onDeleted}
++      />
++    </DocumentsSourceContext>,
++  );
++  return { onDeleted };
++}
++
++const open = () => fireEvent.click(screen.getByRole("button", { name: "Delete Lease" }));
++
++describe("DeleteDocumentButton", () => {
++  it("asks first, with the consequence, and Keep it changes nothing", () => {
++    const remove = vi.fn(async () => ({ ok: true as const }));
++    const { onDeleted } = setup(remove);
++    expect(screen.queryByRole("dialog")).toBeNull();
++    open();
++    expect(screen.getByRole("dialog", { name: "Delete “Lease”?" })).toBeTruthy();
++    expect(screen.getByText(/can’t be undone/)).toBeTruthy();
++    fireEvent.click(screen.getByRole("button", { name: "Keep it" }));
++    expect(screen.queryByRole("dialog")).toBeNull();
++    expect(remove).not.toHaveBeenCalled();
++    expect(onDeleted).not.toHaveBeenCalled();
++  });
++
++  it("Escape cancels", () => {
++    setup(async () => ({ ok: true }));
++    open();
++    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
++    expect(screen.queryByRole("dialog")).toBeNull();
++  });
++
++  it("deletes on confirm and reports it", async () => {
++    const remove = vi.fn(async () => ({ ok: true as const }));
++    const { onDeleted } = setup(remove);
++    open();
++    fireEvent.click(screen.getByRole("button", { name: "Delete document" }));
++    await waitFor(() => expect(onDeleted).toHaveBeenCalledTimes(1));
++    expect(remove).toHaveBeenCalledWith("d1");
++  });
++
++  it("keeps the dialog open with the reason when it fails, and can try again", async () => {
++    const remove = vi
++      .fn<() => Promise<RemoveDocumentResult>>()
++      .mockResolvedValueOnce({
++        ok: false,
++        kind: "network",
++        message: "Could not reach the server. Check your connection and try again.",
++      })
++      .mockResolvedValueOnce({ ok: true });
++    const { onDeleted } = setup(remove);
++    open();
++    fireEvent.click(screen.getByRole("button", { name: "Delete document" }));
++    expect(await screen.findByRole("alert")).toBeTruthy();
++    expect(screen.getByRole("dialog")).toBeTruthy();
++    expect(onDeleted).not.toHaveBeenCalled();
++    fireEvent.click(screen.getByRole("button", { name: "Delete document" }));
++    await waitFor(() => expect(onDeleted).toHaveBeenCalledTimes(1));
++  });
++
++  it("disables both buttons while deleting", async () => {
++    let finish: (r: RemoveDocumentResult) => void = () => undefined;
++    setup(() => new Promise((resolve) => (finish = resolve)));
++    open();
++    fireEvent.click(screen.getByRole("button", { name: "Delete document" }));
++    const busy = await screen.findByRole("button", { name: "Deleting…" });
++    expect((busy as HTMLButtonElement).disabled).toBe(true);
++    expect((screen.getByRole("button", { name: "Keep it" }) as HTMLButtonElement).disabled).toBe(true);
++    finish({ ok: true });
++  });
++});
+diff --git a/tests/unit/document-list-delete.test.tsx b/tests/unit/document-list-delete.test.tsx
+new file mode 100644
+index 0000000..c083eca
+--- /dev/null
++++ b/tests/unit/document-list-delete.test.tsx
+@@ -0,0 +1,99 @@
++// @vitest-environment jsdom
++import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
++import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
++import { DocumentList } from "@/components/document-list";
++import { ToastProvider } from "@/components/ui/toast";
++import {
++  DocumentsSourceContext,
++  defaultDocumentsSource,
++  type DocumentsSource,
++} from "@/lib/documents/source";
++import type { OwnDocument } from "@/lib/documents/list-own-documents";
++
++let online = true;
++vi.mock("@/lib/net/use-online-status", () => ({ useOnlineStatus: () => online }));
++
++beforeAll(() => {
++  HTMLDialogElement.prototype.showModal = function showModal() {
++    this.setAttribute("open", "");
++  };
++  HTMLDialogElement.prototype.close = function close() {
++    this.removeAttribute("open");
++  };
++});
++beforeEach(() => {
++  online = true;
++});
++afterEach(cleanup);
++
++const NOW = Date.parse("2026-11-17T12:00:00.000Z");
++const mk = (id: string, title: string): OwnDocument => ({
++  id,
++  title,
++  originalFilename: `${id}.pdf`,
++  status: "ready",
++  errorReason: null,
++  pageCount: 3,
++  chunkCount: 6,
++  createdAt: new Date(NOW - 86_400_000).toISOString(),
++  processingStartedAt: null,
++});
++
++function setup(docs: OwnDocument[], over: Partial<DocumentsSource> = {}) {
++  let current = docs;
++  const source: DocumentsSource = {
++    ...defaultDocumentsSource,
++    list: vi.fn(async () => ({ ok: true as const, documents: current })),
++    remove: vi.fn(async (id: string) => {
++      current = current.filter((d) => d.id !== id);
++      return { ok: true as const };
++    }),
++    ...over,
++  };
++  render(
++    <DocumentsSourceContext value={source}>
++      <ToastProvider>
++        <DocumentList
++          refreshKey={0}
++          onCountChange={() => undefined}
++          initial={{ ok: true, documents: docs, fetchedAt: NOW }}
++          aboveList={<p>upload control</p>}
++        />
++      </ToastProvider>
++    </DocumentsSourceContext>,
++  );
++  return source;
++}
++
++describe("DocumentList (U5)", () => {
++  it("reads heading, upload control, then rows", () => {
++    setup([mk("a", "Alpha")]);
++    const heading = screen.getByRole("heading", { name: "Your documents" });
++    const above = screen.getByText("upload control");
++    const item = screen.getByRole("listitem");
++    expect(heading.compareDocumentPosition(above) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
++    expect(above.compareDocumentPosition(item) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
++  });
++
++  it("shows the empty invitation", () => {
++    setup([]);
++    expect(screen.getByText("Nothing on the shelf yet.")).toBeTruthy();
++    expect(screen.getByText(/Answers will cite the exact page/)).toBeTruthy();
++  });
++
++  it("deleting removes the row at once, toasts, and moves focus to the heading", async () => {
++    setup([mk("a", "Alpha"), mk("b", "Beta")]);
++    fireEvent.click(screen.getByRole("button", { name: "Delete Alpha" }));
++    fireEvent.click(screen.getByRole("button", { name: "Delete document" }));
++    await waitFor(() => expect(screen.queryByText("Alpha")).toBeNull());
++    expect(screen.getByText("Beta")).toBeTruthy();
++    expect(await screen.findByText("Document deleted")).toBeTruthy();
++    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your documents" }));
++  });
++
++  it("offline: warns that the list may be stale", () => {
++    online = false;
++    setup([mk("a", "Alpha")]);
++    expect(screen.getByText(/Showing the last list we have/)).toBeTruthy();
++  });
++});
+diff --git a/tests/unit/document-meta.test.ts b/tests/unit/document-meta.test.ts
+new file mode 100644
+index 0000000..c32683c
+--- /dev/null
++++ b/tests/unit/document-meta.test.ts
+@@ -0,0 +1,67 @@
++import { describe, expect, it } from "vitest";
++import {
++  documentMeta,
++  fileKindOf,
++  formatAdded,
++} from "@/lib/documents/document-meta";
++
++const NOW = Date.parse("2026-11-17T12:00:00.000Z");
++const ago = (ms: number) => new Date(NOW - ms).toISOString();
++const MIN = 60_000;
++const HOUR = 60 * MIN;
++const DAY = 24 * HOUR;
++
++describe("fileKindOf", () => {
++  it("names the three accepted kinds, whatever the case", () => {
++    expect(fileKindOf("lease.pdf")).toBe("PDF");
++    expect(fileKindOf("NOTES.TXT")).toBe("Text");
++    expect(fileKindOf("readme.md")).toBe("Markdown");
++  });
++  it("returns null for no extension, a trailing dot or an unknown one", () => {
++    expect(fileKindOf("lease")).toBeNull();
++    expect(fileKindOf("lease.")).toBeNull();
++    expect(fileKindOf("archive.zip")).toBeNull();
++    // Inherited object keys are not extensions.
++    expect(fileKindOf("x.constructor")).toBeNull();
++  });
++});
++
++describe("formatAdded", () => {
++  it("steps through just now, minutes, hours, days and a date", () => {
++    expect(formatAdded(ago(10_000), NOW)).toBe("added just now");
++    expect(formatAdded(ago(MIN), NOW)).toBe("added 1 minute ago");
++    expect(formatAdded(ago(5 * MIN), NOW)).toBe("added 5 minutes ago");
++    expect(formatAdded(ago(3 * HOUR), NOW)).toBe("added 3 hours ago");
++    expect(formatAdded(ago(2 * DAY), NOW)).toBe("added 2 days ago");
++    expect(formatAdded(ago(45 * DAY), NOW)).toBe("added 3 Oct 2026");
++  });
++  it("treats a timestamp in the future as just now", () => {
++    expect(formatAdded(ago(-5 * MIN), NOW)).toBe("added just now");
++  });
++  it("returns null for an unreadable timestamp", () => {
++    expect(formatAdded("not a date", NOW)).toBeNull();
++  });
++});
++
++describe("documentMeta", () => {
++  const base = {
++    status: "ready" as const,
++    originalFilename: "lease.pdf",
++    pageCount: 6,
++    createdAt: ago(2 * DAY),
++  };
++  it("joins pages, kind and age", () => {
++    expect(documentMeta(base, NOW)).toBe("6 pages · PDF · added 2 days ago");
++    expect(documentMeta({ ...base, pageCount: 1 }, NOW)).toBe(
++      "1 page · PDF · added 2 days ago",
++    );
++  });
++  it("leaves out the page count until the document is ready", () => {
++    expect(documentMeta({ ...base, status: "processing" }, NOW)).toBe(
++      "PDF · added 2 days ago",
++    );
++    expect(documentMeta({ ...base, pageCount: null }, NOW)).toBe(
++      "PDF · added 2 days ago",
++    );
++  });
++});
+diff --git a/tests/unit/document-row.test.tsx b/tests/unit/document-row.test.tsx
+new file mode 100644
+index 0000000..9e3f6e6
+--- /dev/null
++++ b/tests/unit/document-row.test.tsx
+@@ -0,0 +1,78 @@
++// @vitest-environment jsdom
++import { cleanup, render, screen } from "@testing-library/react";
++import { afterEach, describe, expect, it } from "vitest";
++import { DocumentRow, STUCK_NOTE } from "@/components/document-row";
++import type { OwnDocument } from "@/lib/documents/list-own-documents";
++import { ingestFailureMessage } from "@/lib/ingest/failure-messages";
++
++afterEach(cleanup);
++
++const NOW = Date.parse("2026-11-17T12:00:00.000Z");
++const DOC: OwnDocument = {
++  id: "d1",
++  title: "Lease agreement",
++  originalFilename: "lease.pdf",
++  status: "ready",
++  errorReason: null,
++  pageCount: 6,
++  chunkCount: 12,
++  createdAt: new Date(NOW - 2 * 86_400_000).toISOString(),
++  processingStartedAt: null,
++};
++
++function row(over: Partial<React.ComponentProps<typeof DocumentRow>> & { doc?: Partial<OwnDocument> } = {}) {
++  const { doc, ...rest } = over;
++  render(
++    <ul>
++      <DocumentRow
++        doc={{ ...DOC, ...doc }}
++        now={NOW}
++        stuck={false}
++        retrying={false}
++        showRetry={false}
++        onRetry={() => undefined}
++        deleteAction={<button type="button">Delete</button>}
++        {...rest}
++      />
++    </ul>,
++  );
++}
++
++describe("DocumentRow", () => {
++  it("shows title, status, meta and the delete action", () => {
++    row();
++    expect(screen.getByRole("listitem")).toBeTruthy();
++    expect(screen.getByText("Lease agreement")).toBeTruthy();
++    expect(screen.getByText("Ready")).toBeTruthy();
++    expect(screen.getByText("6 pages · PDF · added 2 days ago")).toBeTruthy();
++    expect(screen.getByRole("button", { name: "Delete" })).toBeTruthy();
++    expect(screen.queryByRole("button", { name: /Retry/ })).toBeNull();
++  });
++
++  it("a failed row shows its reason, and Retry only when allowed", () => {
++    row({ doc: { status: "failed", errorReason: "scanned_pdf", pageCount: null } });
++    expect(screen.getByText(ingestFailureMessage("scanned_pdf"))).toBeTruthy();
++    expect(screen.queryByRole("button", { name: /Retry/ })).toBeNull();
++  });
++
++  it("a stuck row says so and offers Retry", () => {
++    row({ doc: { status: "processing", pageCount: null }, stuck: true, showRetry: true });
++    expect(screen.getByText(STUCK_NOTE)).toBeTruthy();
++    expect(screen.getByRole("button", { name: "Retry Lease agreement" })).toBeTruthy();
++  });
++
++  it("a retrying row disables Retry and a note replaces the generic text", () => {
++    row({
++      doc: { status: "processing", pageCount: null },
++      stuck: true,
++      showRetry: true,
++      retrying: true,
++      note: "It is still being processed.",
++    });
++    const retry = screen.getByRole("button", { name: "Retry Lease agreement" }) as HTMLButtonElement;
++    expect(retry.disabled).toBe(true);
++    expect(retry.textContent).toBe("Retrying…");
++    expect(screen.queryByText(STUCK_NOTE)).toBeNull();
++    expect(screen.getByRole("status").textContent).toBe("It is still being processed.");
++  });
++});
+diff --git a/tests/unit/toast.test.tsx b/tests/unit/toast.test.tsx
+new file mode 100644
+index 0000000..8812745
+--- /dev/null
++++ b/tests/unit/toast.test.tsx
+@@ -0,0 +1,73 @@
++// @vitest-environment jsdom
++import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++import { ToastProvider, useToast } from "@/components/ui/toast";
++
++function Trigger({ message }: { message: string }) {
++  const toast = useToast();
++  return (
++    <button type="button" onClick={() => toast.show(message)}>
++      Show {message}
++    </button>
++  );
++}
++
++beforeEach(() => vi.useFakeTimers());
++afterEach(() => {
++  cleanup();
++  vi.useRealTimers();
++});
++
++describe("Toast", () => {
++  it("has its live region before anything is shown", () => {
++    render(
++      <ToastProvider>
++        <p>page</p>
++      </ToastProvider>,
++    );
++    expect(screen.getByRole("status")).toBeTruthy();
++  });
++
++  it("shows a message, then removes it after 4 s", () => {
++    render(
++      <ToastProvider>
++        <Trigger message="Document deleted" />
++      </ToastProvider>,
++    );
++    fireEvent.click(screen.getByRole("button", { name: "Show Document deleted" }));
++    expect(screen.getByText("Document deleted")).toBeTruthy();
++    act(() => void vi.advanceTimersByTime(3900));
++    expect(screen.getByText("Document deleted")).toBeTruthy();
++    act(() => void vi.advanceTimersByTime(300));
++    expect(screen.queryByText("Document deleted")).toBeNull();
++  });
++
++  it("shows one toast at a time: a new message replaces the old one", () => {
++    render(
++      <ToastProvider>
++        <Trigger message="one" />
++        <Trigger message="two" />
++      </ToastProvider>,
++    );
++    fireEvent.click(screen.getByRole("button", { name: "Show one" }));
++    fireEvent.click(screen.getByRole("button", { name: "Show two" }));
++    expect(screen.queryByText("one")).toBeNull();
++    expect(screen.getByText("two")).toBeTruthy();
++  });
++
++  it("pauses while the pointer is over it", () => {
++    render(
++      <ToastProvider>
++        <Trigger message="kept" />
++      </ToastProvider>,
++    );
++    fireEvent.click(screen.getByRole("button", { name: "Show kept" }));
++    const toast = screen.getByText("kept").parentElement as HTMLElement;
++    fireEvent.mouseEnter(toast);
++    act(() => void vi.advanceTimersByTime(10_000));
++    expect(screen.getByText("kept")).toBeTruthy();
++    fireEvent.mouseLeave(toast);
++    act(() => void vi.advanceTimersByTime(4200));
++    expect(screen.queryByText("kept")).toBeNull();
++  });
++});
+diff --git a/tests/unit/upload-panel.test.tsx b/tests/unit/upload-panel.test.tsx
+new file mode 100644
+index 0000000..6982cbe
+--- /dev/null
++++ b/tests/unit/upload-panel.test.tsx
+@@ -0,0 +1,129 @@
++// @vitest-environment jsdom
++import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++import { UploadPanel } from "@/components/upload-panel";
++import { ToastProvider } from "@/components/ui/toast";
++import {
++  DocumentsSourceContext,
++  defaultDocumentsSource,
++  type DocumentsSource,
++} from "@/lib/documents/source";
++import { ingestFailureMessage } from "@/lib/ingest/failure-messages";
++import { DOCUMENT_LIMIT_MESSAGE, UPLOADS_PAUSED_MESSAGE } from "@/lib/upload/limits";
++
++let online = true;
++vi.mock("@/lib/net/use-online-status", () => ({
++  useOnlineStatus: () => online,
++}));
++
++beforeEach(() => {
++  online = true;
++});
++afterEach(cleanup);
++
++const OK = { ok: true as const, documentId: "d1", storagePath: "u/d1", title: "Lease" };
++
++function setup(
++  over: Partial<DocumentsSource> = {},
++  props: { atCap?: boolean } = {},
++) {
++  const source: DocumentsSource = {
++    ...defaultDocumentsSource,
++    upload: vi.fn(async () => OK),
++    ingest: vi.fn(async () => ({ status: "ready" as const, pageCount: 2, chunkCount: 4 })),
++    ...over,
++  };
++  render(
++    <DocumentsSourceContext value={source}>
++      <ToastProvider>
++        <UploadPanel canUpload atCap={props.atCap} />
++      </ToastProvider>
++    </DocumentsSourceContext>,
++  );
++  return source;
++}
++
++const input = () => screen.getByLabelText("Upload a document") as HTMLInputElement;
++const pdf = (name = "lease.pdf") => new File(["x"], name, { type: "application/pdf" });
++const pick = (file: File) => fireEvent.change(input(), { target: { files: [file] } });
++
++describe("UploadPanel", () => {
++  it("offers the control and always shows the privacy note", () => {
++    setup();
++    expect(input().disabled).toBe(false);
++    expect(screen.getByText(/Don’t upload sensitive documents/)).toBeTruthy();
++    expect(input().getAttribute("aria-describedby")).toBeTruthy();
++  });
++
++  it("shows progress in the zone, then a toast when the document is ready", async () => {
++    setup();
++    pick(pdf());
++    expect(await screen.findByText("Processing lease.pdf…")).toBeTruthy();
++    expect(await screen.findByText("lease.pdf is ready to search.")).toBeTruthy();
++    expect(screen.queryByRole("alert")).toBeNull();
++  });
++
++  it("shows a danger alert when processing fails", async () => {
++    setup({ ingest: vi.fn(async () => ({ status: "failed" as const, reason: "scanned_pdf" as const })) });
++    pick(pdf());
++    const alert = await screen.findByRole("alert");
++    expect(alert.textContent).toContain(ingestFailureMessage("scanned_pdf"));
++  });
++
++  it("shows a refused file as an alert and never calls ingest", async () => {
++    const source = setup({
++      upload: vi.fn(async () => ({
++        ok: false as const,
++        reason: "unsupported_type" as const,
++        message: "Only PDF, TXT and Markdown files are supported.",
++      })),
++    });
++    pick(pdf("photo.png"));
++    expect((await screen.findByRole("alert")).textContent).toContain("Only PDF");
++    expect(source.ingest).not.toHaveBeenCalled();
++  });
++
++  it("shows the paused banner and keeps the zone enabled", async () => {
++    setup({
++      upload: vi.fn(async () => ({
++        ok: false as const,
++        reason: "budget_exhausted" as const,
++        message: UPLOADS_PAUSED_MESSAGE,
++      })),
++    });
++    pick(pdf());
++    expect(await screen.findByText(UPLOADS_PAUSED_MESSAGE)).toBeTruthy();
++    expect(input().disabled).toBe(false);
++  });
++
++  it("at the cap: disables the zone and says why", () => {
++    setup({}, { atCap: true });
++    expect(input().disabled).toBe(true);
++    expect(screen.getByText(DOCUMENT_LIMIT_MESSAGE)).toBeTruthy();
++    expect(screen.getByText("The shelf is full.")).toBeTruthy();
++  });
++
++  it("offline: disables the zone with a note and ignores a drop", () => {
++    online = false;
++    const source = setup();
++    expect(input().disabled).toBe(true);
++    expect(screen.getByText("Uploads need a connection.")).toBeTruthy();
++    fireEvent.drop(input().parentElement as HTMLElement, {
++      dataTransfer: { types: ["Files"], files: [pdf()] },
++    });
++    expect(source.upload).not.toHaveBeenCalled();
++  });
++
++  it("takes the first of several dropped files and says the rest were skipped", async () => {
++    let finish: (r: typeof OK) => void = () => undefined;
++    const source = setup({ upload: vi.fn(() => new Promise<typeof OK>((r) => (finish = r))) });
++    fireEvent.drop(input().parentElement as HTMLElement, {
++      dataTransfer: { types: ["Files"], files: [pdf("a.pdf"), pdf("b.pdf")] },
++    });
++    expect(await screen.findByText("One file at a time. The others were skipped.")).toBeTruthy();
++    expect(source.upload).toHaveBeenCalledTimes(1);
++    expect((source.upload as ReturnType<typeof vi.fn>).mock.calls[0][0].name).toBe("a.pdf");
++    finish(OK);
++    await waitFor(() => expect(screen.queryByText("One file at a time. The others were skipped.")).toBeNull());
++  });
++});
+-- 
+2.43.0
+

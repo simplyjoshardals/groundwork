@@ -1,60 +1,31 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { DeleteDocumentButton } from "@/components/delete-document-button";
+import { DocumentRow } from "@/components/document-row";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { cardClasses } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
 import {
   canRetry,
   isInFlight,
   isStuck,
   pollDelayMs,
   statusSignature,
-  type DocumentStatus,
 } from "@/lib/documents/document-status";
-import {
-  listOwnDocuments,
-  type ListOwnDocumentsResult,
-  type OwnDocument,
-} from "@/lib/documents/list-own-documents";
-import { ingestFailureMessage } from "@/lib/ingest/failure-messages";
-import { createBrowserSupabase } from "@/lib/supabase/browser";
+import type { OwnDocument } from "@/lib/documents/list-own-documents";
+import { useDocumentsSource } from "@/lib/documents/source";
+import { useOnlineStatus } from "@/lib/net/use-online-status";
 import { retryLimitMessage } from "@/lib/upload/ingest-limit";
-import { requestIngest } from "@/lib/upload/request-ingest";
-
-const BADGE_LABEL: Record<DocumentStatus, string> = {
-  queued: "Queued",
-  processing: "Processing",
-  ready: "Ready",
-  failed: "Failed",
-};
-
-const BADGE_CLASS: Record<DocumentStatus, string> = {
-  queued: "border-control text-ink",
-  processing: "border-accent text-accent",
-  ready: "border-accent text-accent",
-  failed: "border-danger text-danger",
-};
 
 /** What the server read before the page was sent (U2). */
 export type InitialDocuments =
   | { ok: true; documents: OwnDocument[]; fetchedAt: number }
   | { ok: false };
 
-/** Never throws: a missing public env var is reported like any other failed read. */
-async function load(): Promise<ListOwnDocumentsResult> {
-  try {
-    return await listOwnDocuments(createBrowserSupabase());
-  } catch (error) {
-    console.warn(
-      "[documents] could not create the browser client:",
-      error instanceof Error ? error.name : "unknown",
-    );
-    return { ok: false, reason: "failed" };
-  }
-}
+const HEADING_ID = "documents-heading";
 
 /**
  * The signed-in user's documents with live status (Task 4.6). Reads through the
@@ -70,6 +41,7 @@ export function DocumentList({
   refreshKey,
   onCountChange,
   initial,
+  aboveList,
 }: {
   refreshKey: number;
   /** Called with the number of documents after each successful load (Task 4.8). */
@@ -81,7 +53,17 @@ export function DocumentList({
    * Omit it to load on mount, as before.
    */
   initial?: InitialDocuments;
+  /**
+   * Rendered between the heading and the list (U5): the upload control, so the
+   * shelf reads heading, dropzone, documents, and the dropzone never moves.
+   */
+  aboveList?: ReactNode;
 }) {
+  const source = useDocumentsSource();
+  const toast = useToast();
+  const online = useOnlineStatus();
+  /** Set by a delete; the focus moves to the heading once the row is gone. */
+  const focusHeadingRef = useRef(false);
   const [documents, setDocuments] = useState<OwnDocument[] | null>(
     initial?.ok ? initial.documents : null,
   );
@@ -106,7 +88,7 @@ export function DocumentList({
     let lastSignature: string | null = null;
 
     async function tick() {
-      const result = await load();
+      const result = await source.list();
       if (cancelled) return;
       setReloading(false);
 
@@ -153,11 +135,29 @@ export function DocumentList({
       cancelled = true;
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [refreshKey, retryToken]);
+  }, [refreshKey, retryToken, source]);
 
   useEffect(() => {
     if (documents !== null) onCountChange?.(documents.length);
   }, [documents, onCountChange]);
+
+  useEffect(() => {
+    // The delete button went away with its row: keep the keyboard user's place.
+    if (!focusHeadingRef.current) return;
+    focusHeadingRef.current = false;
+    document.getElementById(HEADING_ID)?.focus();
+  }, [documents]);
+
+  function onDeleted(documentId: string) {
+    // Remove the row now and reconcile with a read, so the shelf never shows a
+    // document the person just deleted while that read is in flight.
+    setDocuments((prev) =>
+      prev === null ? prev : prev.filter((d) => d.id !== documentId),
+    );
+    focusHeadingRef.current = true;
+    toast.show("Document deleted");
+    setRetryToken((n) => n + 1);
+  }
 
   function reload() {
     setReloading(true);
@@ -181,7 +181,7 @@ export function DocumentList({
     // claims it, and the request below only answers when processing ends.
     setRetryToken((n) => n + 1);
 
-    const result = await requestIngest(documentId);
+    const result = await source.ingest(documentId);
 
     const next = new Set(retryingRef.current);
     next.delete(documentId);
@@ -212,29 +212,48 @@ export function DocumentList({
     setRetryToken((n) => n + 1);
   }
 
+  const stale = documents !== null && (loadFailed || !online);
+  const tryAgain = (
+    <Button
+      variant="secondary"
+      size="sm"
+      disabled={reloading}
+      onClick={reload}
+      className="min-w-24"
+    >
+      {reloading ? "Trying…" : "Try again"}
+    </Button>
+  );
+
   return (
     <section
-      aria-labelledby="documents-heading"
+      aria-labelledby={HEADING_ID}
       aria-busy={documents === null && !loadFailed}
       className="flex flex-col gap-4 text-sm"
     >
-      <h2 id="documents-heading" className="font-serif text-h3">
+      <h2 id={HEADING_ID} tabIndex={-1} className="font-serif text-h3">
         Your documents
       </h2>
+
+      {aboveList}
 
       {documents === null && !loadFailed ? (
         <div role="status">
           <span className="sr-only">Loading your documents</span>
+          {/* Same structure as a real row, so nothing jumps when they arrive. */}
           <ul aria-hidden="true" className="flex flex-col gap-2">
             {[0, 1, 2].map((n) => (
               <li
                 key={n}
-                className={cardClasses({
-                  className: "flex h-14 items-center gap-3 py-0",
-                })}
+                className={cardClasses({ className: "flex flex-col gap-1" })}
               >
-                <Skeleton className="h-4 w-2/5" />
-                <Skeleton shape="pill" className="h-5 w-16" />
+                <div className="flex h-6 items-center justify-between gap-3">
+                  <Skeleton className="h-4 w-2/5" />
+                  <Skeleton shape="pill" className="h-5 w-16" />
+                </div>
+                <div className="flex min-h-8 items-center">
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
               </li>
             ))}
           </ul>
@@ -242,39 +261,13 @@ export function DocumentList({
       ) : null}
 
       {documents === null && loadFailed ? (
-        <Banner
-          tone="danger"
-          action={
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={reloading}
-              onClick={reload}
-              className="min-w-24"
-            >
-              {reloading ? "Trying…" : "Try again"}
-            </Button>
-          }
-        >
+        <Banner tone="danger" action={tryAgain}>
           We couldn&apos;t load your documents.
         </Banner>
       ) : null}
 
-      {documents !== null && loadFailed ? (
-        <Banner
-          tone="warn"
-          action={
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={reloading}
-              onClick={reload}
-              className="min-w-24"
-            >
-              {reloading ? "Trying…" : "Try again"}
-            </Button>
-          }
-        >
+      {stale ? (
+        <Banner tone="warn" action={tryAgain}>
           Couldn&apos;t refresh. Showing the last list we have.
         </Banner>
       ) : null}
@@ -282,8 +275,8 @@ export function DocumentList({
       {documents !== null && documents.length === 0 ? (
         <div className={cardClasses({ padding: "roomy" })}>
           <p className="font-serif text-h3">Nothing on the shelf yet.</p>
-          <p className="mt-1 text-muted">
-            Upload a PDF, TXT or Markdown file to get started.
+          <p className="mt-1 text-muted text-pretty">
+            Add a PDF, text, or Markdown file. Answers will cite the exact page.
           </p>
         </div>
       ) : null}
@@ -292,66 +285,24 @@ export function DocumentList({
         <ul className="flex flex-col gap-2">
           {documents.map((doc) => {
             const isRetrying = retrying.has(doc.id);
-            const stuck = isStuck(doc, now);
-            const showRetry = canRetry(doc, now) || isRetrying;
-            const note = doc.status === "ready" ? undefined : notes[doc.id];
             return (
-              <li
+              <DocumentRow
                 key={doc.id}
-                className="rounded-md border border-line p-3"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="min-w-0 wrap-break-word font-medium">
-                    {doc.title}
-                  </span>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-xs ${BADGE_CLASS[doc.status]}`}
-                  >
-                    {BADGE_LABEL[doc.status]}
-                  </span>
-                  {doc.status === "ready" && doc.pageCount !== null ? (
-                    <span className="text-xs text-muted">
-                      {doc.pageCount} {doc.pageCount === 1 ? "page" : "pages"}
-                    </span>
-                  ) : null}
-                </div>
-
-                {doc.status === "failed" ? (
-                  <p className="mt-1 text-danger">
-                    {ingestFailureMessage(doc.errorReason)}
-                  </p>
-                ) : null}
-                {/* A note from the last Retry explains more than the generic text. */}
-                {stuck && doc.status !== "failed" && !isRetrying && !note ? (
-                  <p className="mt-1 text-ink">
-                    This is taking longer than expected. You can retry it.
-                  </p>
-                ) : null}
-                {note ? (
-                  <p role="status" className="mt-1 text-ink">
-                    {note}
-                  </p>
-                ) : null}
-
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {showRetry ? (
-                    <button
-                      type="button"
-                      disabled={isRetrying}
-                      onClick={() => void onRetry(doc.id)}
-                      className="rounded-md border border-control px-3 py-1 disabled:opacity-60"
-                    >
-                      {isRetrying ? "Retrying…" : "Retry"}
-                    </button>
-                  ) : null}
-                  {/* Any status, including processing: ingestion then fails cleanly (Task 4.7). */}
+                doc={doc}
+                now={now}
+                stuck={isStuck(doc, now)}
+                retrying={isRetrying}
+                showRetry={canRetry(doc, now) || isRetrying}
+                note={doc.status === "ready" ? undefined : notes[doc.id]}
+                onRetry={() => void onRetry(doc.id)}
+                deleteAction={
                   <DeleteDocumentButton
                     documentId={doc.id}
                     documentTitle={doc.title}
-                    onDeleted={() => setRetryToken((n) => n + 1)}
+                    onDeleted={() => onDeleted(doc.id)}
                   />
-                </div>
-              </li>
+                }
+              />
             );
           })}
         </ul>

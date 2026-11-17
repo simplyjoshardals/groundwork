@@ -2,29 +2,33 @@
 
 import Link from "next/link";
 import { useId, useState } from "react";
-import type { ChangeEvent } from "react";
+import { UploadDropzone } from "@/components/upload-dropzone";
+import { Banner } from "@/components/ui/banner";
+import { useToast } from "@/components/ui/toast";
+import { useDocumentsSource } from "@/lib/documents/source";
 import { ingestFailureMessage } from "@/lib/ingest/failure-messages";
+import { useOnlineStatus } from "@/lib/net/use-online-status";
 import { MAX_FILE_BYTES } from "@/lib/pdf/limits";
-import { createBrowserSupabase } from "@/lib/supabase/browser";
-import { createUploadPorts } from "@/lib/upload/create-upload-ports";
-import {
-  ACCEPT_ATTRIBUTE,
-  MAX_DOCS_PER_USER_HINT,
-} from "@/lib/upload/file-checks";
+import { MAX_DOCS_PER_USER_HINT } from "@/lib/upload/file-checks";
 import { ingestLimitMessage } from "@/lib/upload/ingest-limit";
 import { DOCUMENT_LIMIT_MESSAGE } from "@/lib/upload/limits";
-import { requestIngest } from "@/lib/upload/request-ingest";
-import {
-  uploadDocument,
-  type UploadFailureReason,
-} from "@/lib/upload/upload-document";
+import type { UploadFailureReason } from "@/lib/upload/upload-document";
 
+/** DESIGN section 8. */
+export const PRIVACY_NOTE =
+  "Don’t upload sensitive documents. Their text is sent to AI providers to answer questions.";
+export const OFFLINE_UPLOAD_NOTE = "Uploads need a connection.";
+export const CAP_UPLOAD_NOTE = "The shelf is full.";
+
+/**
+ * What the panel is doing, and the last outcome that needs a banner. Success
+ * (`ready`, `no_op`) is a toast and leaves the panel idle, because it leaves
+ * nothing else to read.
+ */
 type PanelState =
   | { status: "idle" }
   | { status: "uploading"; fileName: string }
   | { status: "processing"; fileName: string }
-  | { status: "ready"; fileName: string }
-  | { status: "no_op"; fileName: string }
   | { status: "ingest_failed"; fileName: string; message: string }
   | { status: "unconfirmed"; fileName: string }
   | { status: "ingest_limited"; message: string }
@@ -32,22 +36,24 @@ type PanelState =
   | { status: "error"; reason: UploadFailureReason | null; message: string };
 
 /**
- * Upload control (Tasks 4.3 and 4.4). One file at a time, straight to Storage
- * with the user's own session, then a call to `/api/ingest`, which answers when
- * processing has finished (it can take a minute or more). The outcome is
- * reported here and the document list (Task 4.6) shows the live status; the
- * optional callbacks tell the list to refresh. A failed or unreachable ingest
- * never undoes the upload: the file stays stored and queued. Demo sessions get
- * an explanation instead of a control that RLS would refuse.
+ * Upload control (Tasks 4.3 and 4.4, restyled in U5). One file at a time,
+ * straight to Storage with the user's own session, then a call to
+ * `/api/ingest`, which answers when processing has finished (it can take a
+ * minute or more). A failed or unreachable ingest never undoes the upload: the
+ * file stays stored and queued.
  *
- * A 429 from `/api/ingest` (Task 5.3) is shown as a distinct "uploaded, not
- * processed yet" status per limit reason, not as "unconfirmed".
+ * Where each outcome shows (DESIGN 5.2, 5.6, 5.8, 6.5): progress lives inside
+ * the dropzone, whose height does not change; success is a toast; failures,
+ * the cap and a paused budget are banners under the privacy note. The
+ * document list below shows the live status of every row either way.
  *
- * Cap and budget (Task 4.8): `atCap` (from the document list's count) disables
- * the control and says why. The global storage budget cannot be known up front
- * (clients cannot read `app_config`), so it shows as a neutral "uploads paused"
- * status after the server refuses an insert; the control stays enabled so the
- * user can try again later.
+ * Cap (Task 4.8): `atCap` disables the zone and shows a warn banner. The global
+ * storage budget cannot be known up front (clients cannot read `app_config`),
+ * so it shows as an "uploads are paused" banner after the server refuses an
+ * insert; the zone stays enabled so the user can try again later. Offline
+ * disables the zone with a note.
+ *
+ * Demo sessions get an explanation instead of a control that RLS would refuse.
  */
 export function UploadPanel({
   canUpload,
@@ -64,9 +70,13 @@ export function UploadPanel({
   onIngestSettled?: () => void;
 }) {
   const inputId = useId();
-  const hintId = useId();
-  const capId = useId();
+  const privacyId = useId();
+  const noteId = useId();
+  const source = useDocumentsSource();
+  const toast = useToast();
+  const online = useOnlineStatus();
   const [state, setState] = useState<PanelState>({ status: "idle" });
+  const [skipped, setSkipped] = useState(0);
   const busy = state.status === "uploading" || state.status === "processing";
 
   if (!canUpload) {
@@ -86,54 +96,57 @@ export function UploadPanel({
     );
   }
 
-  async function onChange(event: ChangeEvent<HTMLInputElement>) {
-    const input = event.currentTarget;
-    const file = input.files?.[0];
-    // Clear the input so picking the same file again fires `change` again.
-    input.value = "";
-    if (!file) return;
+  async function onFiles(files: File[]) {
+    const file = files[0];
+    if (!file || busy || atCap || !online) return;
+    setSkipped(files.length - 1);
 
     setState({ status: "uploading", fileName: file.name });
     try {
-      const result = await uploadDocument(
-        file,
-        createUploadPorts(createBrowserSupabase()),
-      );
+      const result = await source.upload(file);
       if (!result.ok) {
         setState(
           result.reason === "budget_exhausted"
             ? { status: "paused", message: result.message }
-            : {
-                status: "error",
-                reason: result.reason,
-                message: result.message,
-              },
+            : { status: "error", reason: result.reason, message: result.message },
         );
         return;
       }
 
       onUploaded?.();
       setState({ status: "processing", fileName: file.name });
-      const ingest = await requestIngest(result.documentId);
+      const ingest = await source.ingest(result.documentId);
       onIngestSettled?.();
-      if (ingest.status === "failed") {
-        setState({
-          status: "ingest_failed",
-          fileName: file.name,
-          message: ingestFailureMessage(ingest.reason),
-        });
-      } else if (ingest.status === "limit") {
-        // Stored and queued, but processing was refused by a usage limit.
-        setState({
-          status: "ingest_limited",
-          message: ingestLimitMessage({
+      switch (ingest.status) {
+        case "ready":
+          toast.show(`${file.name} is ready to search.`);
+          setState({ status: "idle" });
+          break;
+        case "no_op":
+          toast.show(`${file.name} is already processed or is being processed.`);
+          setState({ status: "idle" });
+          break;
+        case "failed":
+          setState({
+            status: "ingest_failed",
             fileName: file.name,
-            reason: ingest.reason,
-            resetsAt: ingest.resetsAt,
-          }),
-        });
-      } else {
-        setState({ status: ingest.status, fileName: file.name });
+            message: ingestFailureMessage(ingest.reason),
+          });
+          break;
+        case "limit":
+          // Stored and queued, but processing was refused by a usage limit.
+          setState({
+            status: "ingest_limited",
+            message: ingestLimitMessage({
+              fileName: file.name,
+              reason: ingest.reason,
+              resetsAt: ingest.resetsAt,
+            }),
+          });
+          break;
+        case "unconfirmed":
+          setState({ status: "unconfirmed", fileName: file.name });
+          break;
       }
     } catch (err) {
       console.error("[upload] unexpected failure:", err);
@@ -142,79 +155,64 @@ export function UploadPanel({
         reason: null,
         message: "Something went wrong. Please try again.",
       });
+    } finally {
+      setSkipped(0);
     }
   }
 
   const maxMb = MAX_FILE_BYTES / (1024 * 1024);
+  const disabled = busy || atCap || !online;
+  const disabledNote = !online ? OFFLINE_UPLOAD_NOTE : CAP_UPLOAD_NOTE;
 
   return (
-    <section aria-busy={busy} className="flex flex-col gap-2 text-sm">
-      <label htmlFor={inputId} className="font-medium">
-        Upload a document
-      </label>
-      <input
-        id={inputId}
-        type="file"
-        accept={ACCEPT_ATTRIBUTE}
-        disabled={busy || atCap}
-        onChange={onChange}
-        aria-describedby={atCap ? `${capId} ${hintId}` : hintId}
-        className="block w-full text-sm file:mr-3 file:rounded-md file:border file:border-control file:bg-transparent file:px-3 file:py-1 disabled:opacity-60"
+    <div aria-busy={busy} className="flex flex-col gap-3 text-sm">
+      <UploadDropzone
+        inputId={inputId}
+        describedBy={atCap ? `${noteId} ${privacyId}` : privacyId}
+        activity={
+          state.status === "uploading" || state.status === "processing"
+            ? { kind: state.status, fileName: state.fileName }
+            : { kind: "idle" }
+        }
+        disabled={disabled}
+        disabledNote={disabledNote}
+        skipped={skipped}
+        hint={`PDF, TXT or Markdown, up to ${maxMb} MB. You can keep up to ${MAX_DOCS_PER_USER_HINT} documents.`}
+        onFiles={(files) => void onFiles(files)}
       />
-      <p id={hintId} className="text-muted">
-        PDF, TXT or Markdown, up to {maxMb} MB. You can keep up to{" "}
-        {MAX_DOCS_PER_USER_HINT} documents.
+      {/* Always there, directly under the zone (DESIGN 6.5). */}
+      <p id={privacyId} className="text-xs text-muted text-pretty">
+        {PRIVACY_NOTE}
       </p>
+
       {atCap ? (
-        <p id={capId} role="status" className="text-warn">
+        <Banner tone="warn" id={noteId}>
           {DOCUMENT_LIMIT_MESSAGE}
-        </p>
-      ) : null}
-      {state.status === "uploading" ? (
-        <p role="status">Uploading {state.fileName}…</p>
-      ) : null}
-      {state.status === "processing" ? (
-        <p role="status">
-          Processing {state.fileName}… this can take a minute or more.
-        </p>
-      ) : null}
-      {state.status === "ready" ? (
-        <p role="status">{state.fileName} is ready to search.</p>
-      ) : null}
-      {state.status === "no_op" ? (
-        <p role="status">
-          {state.fileName} is already processed or is being processed.
-        </p>
-      ) : null}
-      {state.status === "ingest_failed" ? (
-        <p role="alert" className="text-danger">
-          Uploaded {state.fileName}, but it could not be processed.{" "}
-          {state.message}
-        </p>
-      ) : null}
-      {state.status === "unconfirmed" ? (
-        <p role="alert" className="text-danger">
-          Uploaded {state.fileName}, but we could not confirm that processing
-          finished. It may still complete. Check its status in the list below.
-        </p>
-      ) : null}
-      {state.status === "ingest_limited" ? (
-        <p role="status" className="text-warn">
-          {state.message}
-        </p>
+        </Banner>
       ) : null}
       {state.status === "paused" ? (
-        <p role="status" className="text-warn">
-          {state.message}
-        </p>
+        <Banner tone="warn">{state.message}</Banner>
       ) : null}
-      {/* At the cap the notice above already says it: no second copy. */}
+      {state.status === "ingest_limited" ? (
+        <Banner tone="warn">{state.message}</Banner>
+      ) : null}
+      {state.status === "unconfirmed" ? (
+        <Banner tone="warn">
+          Uploaded {state.fileName}, but we could not confirm that processing
+          finished. It may still complete. Check its status in the list below.
+        </Banner>
+      ) : null}
+      {state.status === "ingest_failed" ? (
+        <Banner tone="danger">
+          Uploaded {state.fileName}, but it could not be processed.{" "}
+          {state.message}
+        </Banner>
+      ) : null}
+      {/* At the cap the banner above already says it: no second copy. */}
       {state.status === "error" &&
       !(atCap && state.reason === "limit_reached") ? (
-        <p role="alert" className="text-danger">
-          {state.message}
-        </p>
+        <Banner tone="danger">{state.message}</Banner>
       ) : null}
-    </section>
+    </div>
   );
 }

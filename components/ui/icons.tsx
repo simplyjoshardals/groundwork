@@ -8,6 +8,7 @@ import {
   MonitorIcon as PhMonitorIcon,
   MoonIcon as PhMoonIcon,
   SunIcon as PhSunIcon,
+  UploadSimpleIcon as PhUploadSimpleIcon,
   WarningCircleIcon,
   WarningIcon as PhWarningIcon,
   WarningOctagonIcon,
@@ -52,6 +53,10 @@ export function MoonIcon({ size = 16, ...rest }: IconProps) {
 
 export function MonitorIcon({ size = 16, ...rest }: IconProps) {
   return <PhMonitorIcon size={size} weight="regular" {...HIDDEN} {...rest} />;
+}
+
+export function UploadIcon({ size = 16, ...rest }: IconProps) {
+  return <PhUploadSimpleIcon size={size} weight="regular" {...HIDDEN} {...rest} />;
 }
 
 // --- banner tones (fill): circle-i, triangle, octagon ------------------

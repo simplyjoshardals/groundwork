@@ -1,0 +1,243 @@
+From 695329639ceb09a55bab57f602dde79a907bf8a9 Mon Sep 17 00:00:00 2001
+From: U5 patch <dev@example.com>
+Date: Tue, 17 Nov 2026 23:46:58 +0000
+Subject: [PATCH] fix(u5): try-again feedback, scrim in dark mode, row action
+ layout, dropzone min height
+
+---
+ DESIGN.u5-additions.md              |  6 ++++-
+ app/globals.css                     |  6 +++++
+ components/document-list.tsx        | 41 ++++++++++++++++++++++++++---
+ components/document-row.tsx         | 15 +++++------
+ components/ui/confirm-dialog.tsx    |  2 +-
+ components/upload-dropzone.tsx      |  2 +-
+ lib/documents/dev-scenario-names.ts |  2 +-
+ lib/documents/dev-scenarios.ts      |  2 +-
+ 8 files changed, 59 insertions(+), 17 deletions(-)
+
+diff --git a/DESIGN.u5-additions.md b/DESIGN.u5-additions.md
+index 2d5578d..54c6059 100644
+--- a/DESIGN.u5-additions.md
++++ b/DESIGN.u5-additions.md
+@@ -4,10 +4,14 @@
+ 
+ **§5.2 Dropzone, additions.** The dropzone never moves: it sits under the "Your documents" heading and above the rows in every state, including empty. The empty card goes below it. Three text lines in every state (label "Upload a document", status or helper, hint), so idle, busy and disabled have equal height. Busy: line 2 says "Uploading {name}…" or "Processing {name}…"; line 3 says "Keep this tab open." / "This can take a minute or more." Disabled: `bg-sunken text-muted border-line`, line 2 gives the reason ("Uploads need a connection." offline, "The shelf is full." at the cap). The label is stretched over the zone; the hint lines are outside it and linked with `aria-describedby`. Only the first dropped file is taken; line 3 then says "One file at a time. The others were skipped."
+ 
+-**§5.10 Row, additions.** Retry is always visible (it is the next step on a failed or stuck row); only Delete is hidden until hover or focus-within on fine pointers (`pointer-fine:opacity-0`), visible on touch. Row structure: title and badge; meta and actions on one line (wraps, `min-h-8`); then at most one note. The badge crossfades only when the status changes after first paint. Progress lines of all processing rows share one keyframe and timing, so they move as one and count as one looping animation in the region. A stuck row has no progress line (nothing is moving). The loading skeleton uses the same structure as a real row.
++**§5.10 Row, additions.** Retry and Delete are always visible (hover-reveal dropped: it hid the next step on failed rows and did not behave the same across devices). Actions sit at the right end of the meta line and wrap to their own right-aligned line at 360 px. Row structure: title and badge; meta and actions on one line (wraps, `min-h-8`); then at most one note. The badge crossfades only when the status changes after first paint. Progress lines of all processing rows share one keyframe and timing, so they move as one and count as one looping animation in the region. A stuck row has no progress line (nothing is moving). The loading skeleton uses the same structure as a real row.
+ 
+ **§5.7 Dialog, additions.** One dialog per Delete button, mounted closed. Cancel ("Keep it") is first in the DOM and has initial focus. No backdrop-click close for destructive confirmations. A failed request keeps the dialog open and shows a danger banner inside it; the confirm button then retries. After a delete, the row is removed at once and focus moves to the "Your documents" heading (the trigger is gone).
+ 
+ **§5.8 Toast, additions.** Provider at the shell (`ToastProvider` in `app/page.tsx`); the live region is mounted from the start. One at a time; a new toast replaces the current one. U5 uses it for "{name} is ready to search." and "Document deleted". Upload failures, the cap and paused uploads are banners, never toasts.
+ 
+ **§6.5 states.** Offline: dropzone disabled with a note, stale-list warn banner on the shelf. Cap: warn banner under the privacy note, dropzone disabled. Paused: warn banner with the existing paused message; the dropzone stays enabled.
++
++**§5.7 scrim.** The dialog scrim is `rgb(0 0 0 / 0.5)` in both themes. `ink/40` flips to a light veil in dark mode and washes the page out.
++
++**§5.5 Banner action feedback.** A "Try again" button shows "Trying…" for at least 700 ms, then the banner text becomes "Still couldn't …" if it fails again; a polite live region says so for screen readers.
+diff --git a/app/globals.css b/app/globals.css
+index 620d4d0..3155611 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -572,3 +572,9 @@ body:has(dialog.confirm-dialog:modal) {
+   opacity: 0;
+   transition: opacity var(--dur-fast) var(--ease-settle);
+ }
++
++/* The dialog scrim is the same dark veil in both themes. `bg-ink` flips to a
++   light color in dark mode, which washed the page out instead of dimming it. */
++dialog.confirm-dialog::backdrop {
++  background: rgb(0 0 0 / 0.5);
++}
+diff --git a/components/document-list.tsx b/components/document-list.tsx
+index 50a6bb1..ddef535 100644
+--- a/components/document-list.tsx
++++ b/components/document-list.tsx
+@@ -26,6 +26,8 @@ export type InitialDocuments =
+   | { ok: false };
+ 
+ const HEADING_ID = "documents-heading";
++/** The least time "Trying…" stays on screen after a click on "Try again". */
++const MIN_TRYING_MS = 700;
+ 
+ /**
+  * The signed-in user's documents with live status (Task 4.6). Reads through the
+@@ -73,6 +75,10 @@ export function DocumentList({
+   const [retryToken, setRetryToken] = useState(0);
+   /** True from a click on "Try again" until that read finishes. */
+   const [reloading, setReloading] = useState(false);
++  /** Manual tries that failed in a row; resets on a success. */
++  const [tryFailures, setTryFailures] = useState(0);
++  /** When the last "Try again" was clicked, so "Trying…" shows long enough to see. */
++  const reloadStartedRef = useRef<number | null>(null);
+   const [retrying, setRetrying] = useState<ReadonlySet<string>>(new Set());
+   const [notes, setNotes] = useState<Readonly<Record<string, string>>>({});
+   // Read by the polling loop, which must not restart when a retry starts.
+@@ -90,7 +96,20 @@ export function DocumentList({
+     async function tick() {
+       const result = await source.list();
+       if (cancelled) return;
+-      setReloading(false);
++      const startedAt = reloadStartedRef.current;
++      if (startedAt === null) {
++        setReloading(false);
++      } else {
++        // A read that fails at once must still look like an attempt.
++        reloadStartedRef.current = null;
++        const settle = () => {
++          setReloading(false);
++          setTryFailures((n) => (result.ok ? 0 : n + 1));
++        };
++        const wait = MIN_TRYING_MS - (Date.now() - startedAt);
++        if (wait > 0) setTimeout(settle, wait);
++        else settle();
++      }
+ 
+       if (result.ok) {
+         const readAt = Date.now();
+@@ -160,6 +179,7 @@ export function DocumentList({
+   }
+ 
+   function reload() {
++    reloadStartedRef.current = Date.now();
+     setReloading(true);
+     setRetryToken((n) => n + 1);
+   }
+@@ -251,7 +271,7 @@ export function DocumentList({
+                   <Skeleton className="h-4 w-2/5" />
+                   <Skeleton shape="pill" className="h-5 w-16" />
+                 </div>
+-                <div className="flex min-h-8 items-center">
++                <div className="flex min-h-6 items-center">
+                   <Skeleton className="h-3 w-1/3" />
+                 </div>
+               </li>
+@@ -260,15 +280,28 @@ export function DocumentList({
+         </div>
+       ) : null}
+ 
++      {/* Tells a screen reader what the button did; sighted users see the label. */}
++      <span role="status" className="sr-only">
++        {reloading
++          ? "Trying again…"
++          : tryFailures > 0
++            ? "Still could not load. Try again."
++            : ""}
++      </span>
++
+       {documents === null && loadFailed ? (
+         <Banner tone="danger" action={tryAgain}>
+-          We couldn&apos;t load your documents.
++          {tryFailures > 0
++            ? "Still couldn't load your documents."
++            : "We couldn't load your documents."}
+         </Banner>
+       ) : null}
+ 
+       {stale ? (
+         <Banner tone="warn" action={tryAgain}>
+-          Couldn&apos;t refresh. Showing the last list we have.
++          {tryFailures > 0
++            ? "Still couldn't refresh. Showing the last list we have."
++            : "Couldn't refresh. Showing the last list we have."}
+         </Banner>
+       ) : null}
+ 
+diff --git a/components/document-row.tsx b/components/document-row.tsx
+index cb3c3f5..4db5980 100644
+--- a/components/document-row.tsx
++++ b/components/document-row.tsx
+@@ -16,9 +16,10 @@ export const STUCK_NOTE = "This is taking longer than expected. You can retry it
+  * line and the row actions, then at most one note. It is an `<li>`; the list
+  * owns the `<ul>`, the polling and the retry logic, and passes the results in.
+  *
+- * Retry is always visible, because it is the next step on a failed or stuck
+- * row. Delete is revealed on hover and focus-within on fine pointers and always
+- * visible on touch (opacity only, so nothing moves). A processing row that is
++ * Retry and Delete are always visible: Retry is the next step on a failed or
++ * stuck row, and a hidden Delete is hard to find and was not reliable across
++ * devices. The actions sit at the right end of the meta line and drop to their
++ * own right-aligned line when it is too long (360 px). A processing row that is
+  * not stuck carries the 2 px progress line along its bottom edge. The badge
+  * crossfades in place when the status changes; the first paint does not animate.
+  */
+@@ -68,11 +69,11 @@ export function DocumentRow({
+         />
+       </div>
+ 
+-      <div className="flex min-h-8 flex-wrap items-center justify-between gap-x-3">
++      <div className="flex flex-wrap items-center justify-between gap-x-3">
+         <p className="font-mono text-xs text-muted tabular-nums">
+           {documentMeta(doc, now)}
+         </p>
+-        <div className="-mr-2 flex items-center gap-1">
++        <div className="-mb-2 -mr-2 ml-auto flex items-center gap-1">
+           {showRetry ? (
+             <Button
+               variant="ghost"
+@@ -85,9 +86,7 @@ export function DocumentRow({
+               {retrying ? "Retrying…" : "Retry"}
+             </Button>
+           ) : null}
+-          <div className="transition-opacity duration-(--dur-fast) pointer-fine:opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
+-            {deleteAction}
+-          </div>
++          {deleteAction}
+         </div>
+       </div>
+ 
+diff --git a/components/ui/confirm-dialog.tsx b/components/ui/confirm-dialog.tsx
+index bebabce..7196a4c 100644
+--- a/components/ui/confirm-dialog.tsx
++++ b/components/ui/confirm-dialog.tsx
+@@ -73,7 +73,7 @@ export function ConfirmDialog({
+         event.preventDefault();
+         if (!busy) onCancel();
+       }}
+-      className="confirm-dialog m-auto w-[calc(100%-2rem)] max-w-sm rounded-xl border border-line bg-raised p-6 text-ink shadow-pop backdrop:bg-ink/40"
++      className="confirm-dialog m-auto w-[calc(100%-2rem)] max-w-sm rounded-xl border border-line bg-raised p-6 text-ink shadow-pop"
+     >
+       <h2 id={titleId} className="font-serif text-h3 wrap-break-word">
+         {title}
+diff --git a/components/upload-dropzone.tsx b/components/upload-dropzone.tsx
+index 338f557..0b17be2 100644
+--- a/components/upload-dropzone.tsx
++++ b/components/upload-dropzone.tsx
+@@ -130,7 +130,7 @@ export function UploadDropzone({
+       onDrop={onDrop}
+       data-dragging={dragging || undefined}
+       className={cn(
+-        "relative flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed p-6 text-center transition-colors duration-(--dur-fast) ease-(--ease-settle) has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus",
++        "relative flex min-h-32 flex-col items-center justify-center gap-1 rounded-lg border border-dashed p-6 text-center transition-colors duration-(--dur-fast) ease-(--ease-settle) has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus",
+         unavailable
+           ? "border-line bg-sunken text-muted"
+           : dragging
+diff --git a/lib/documents/dev-scenario-names.ts b/lib/documents/dev-scenario-names.ts
+index 0f5775c..6430d9e 100644
+--- a/lib/documents/dev-scenario-names.ts
++++ b/lib/documents/dev-scenario-names.ts
+@@ -27,7 +27,7 @@ export const DOC_SCENARIO_NOTES: Readonly<Record<DocScenario, string>> = {
+   empty: "Nothing on the shelf. Upload any file: it is processed in 3 s.",
+   slow: "No server data: the skeleton shows for 3 s. Upload takes 4 s, processing 8 s, delete 3 s.",
+   "load-error":
+-    "The first read failed: danger banner. Try again fails once more, then works.",
++    "The page's read failed: danger banner. Try again fails once more (the label changes to \"Still couldn't load\"), then works.",
+   "refresh-error":
+     "A list with a processing row whose refreshes always fail: the stale warn banner.",
+   stuck:
+diff --git a/lib/documents/dev-scenarios.ts b/lib/documents/dev-scenarios.ts
+index 003d09c..566c70f 100644
+--- a/lib/documents/dev-scenarios.ts
++++ b/lib/documents/dev-scenarios.ts
+@@ -149,7 +149,7 @@ function setupFor(name: DocScenario, now: number): Setup {
+         removeDelayMs: 3 * SECOND,
+       };
+     case "load-error":
+-      return { docs: [ready("r1", "Lease agreement", "lease.pdf", 12, 2 * DAY)], initial: "failed", listFailures: 1 };
++      return { docs: [ready("r1", "Lease agreement", "lease.pdf", 12, 2 * DAY)], initial: "failed", listFailures: 2 };
+     case "refresh-error":
+       return {
+         docs: [
+-- 
+2.43.0
+

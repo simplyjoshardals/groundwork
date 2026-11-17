@@ -472,3 +472,103 @@ dialog.viewer-sheet[open]::backdrop {
 body:has(dialog.viewer-sheet:modal) {
   overflow: hidden;
 }
+
+/* ------------------------------------------------------------------ */
+/* Documents (U5: DESIGN 5.7, 5.8, 5.10, 7)                            */
+/* Append to the end of app/globals.css.                               */
+/* ------------------------------------------------------------------ */
+
+/* Processing row progress line (5.10): a 2 px track along the bottom edge,
+   one bar sliding with `transform` only. Every row shares this keyframe and
+   timing, so several processing rows move as one. Static under reduced motion. */
+@keyframes row-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+.row-progress {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 2px;
+  overflow: hidden;
+  background: var(--accent-soft);
+}
+.row-progress__bar {
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: var(--accent);
+  animation: row-progress 1.2s var(--ease-settle) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .row-progress__bar {
+    animation: none;
+    transform: none;
+    width: 100%;
+  }
+}
+
+/* Confirm dialog (5.7, 7): opacity plus scale(0.98) to 1; backdrop opacity.
+   Same `@starting-style` and `allow-discrete` approach as the viewer sheet,
+   so the exit plays too. Reduced motion: fade only. */
+dialog.confirm-dialog {
+  opacity: 0;
+  transform: scale(0.98);
+  transition:
+    opacity var(--dur-base) var(--ease-paper),
+    transform var(--dur-base) var(--ease-paper),
+    overlay var(--dur-base) allow-discrete,
+    display var(--dur-base) allow-discrete;
+}
+dialog.confirm-dialog[open] {
+  opacity: 1;
+  transform: none;
+}
+@starting-style {
+  dialog.confirm-dialog[open] {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+dialog.confirm-dialog::backdrop {
+  opacity: 0;
+  transition:
+    opacity var(--dur-base) var(--ease-paper),
+    overlay var(--dur-base) allow-discrete,
+    display var(--dur-base) allow-discrete;
+}
+dialog.confirm-dialog[open]::backdrop {
+  opacity: 1;
+}
+@starting-style {
+  dialog.confirm-dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog.confirm-dialog,
+  dialog.confirm-dialog[open] {
+    transform: none;
+  }
+  @starting-style {
+    dialog.confirm-dialog[open] {
+      transform: none;
+    }
+  }
+}
+body:has(dialog.confirm-dialog:modal) {
+  overflow: hidden;
+}
+
+/* Toast (5.8, 7): enter is opacity plus translateY(8px); exit is opacity only. */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.toast-enter {
+  animation: toast-in var(--dur-base) var(--ease-paper) both;
+}
+.toast-leave {
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-settle);
+}

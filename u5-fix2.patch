@@ -1,0 +1,58 @@
+From 52fc3937b6163f562d67723be2c4bcf17ab76770 Mon Sep 17 00:00:00 2001
+From: U5 patch <dev@example.com>
+Date: Tue, 17 Nov 2026 22:27:41 +0000
+Subject: [PATCH] fix(u5): type errors in document-row and upload-panel tests
+
+---
+ tests/unit/document-row.test.tsx |  6 +++++-
+ tests/unit/upload-panel.test.tsx | 10 +++++++---
+ 2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/tests/unit/document-row.test.tsx b/tests/unit/document-row.test.tsx
+index 9e3f6e6..dec7f34 100644
+--- a/tests/unit/document-row.test.tsx
++++ b/tests/unit/document-row.test.tsx
+@@ -20,7 +20,11 @@ const DOC: OwnDocument = {
+   processingStartedAt: null,
+ };
+ 
+-function row(over: Partial<React.ComponentProps<typeof DocumentRow>> & { doc?: Partial<OwnDocument> } = {}) {
++type RowProps = Omit<Partial<React.ComponentProps<typeof DocumentRow>>, "doc"> & {
++  doc?: Partial<OwnDocument>;
++};
++
++function row(over: RowProps = {}) {
+   const { doc, ...rest } = over;
+   render(
+     <ul>
+diff --git a/tests/unit/upload-panel.test.tsx b/tests/unit/upload-panel.test.tsx
+index eb54d35..dbb1964 100644
+--- a/tests/unit/upload-panel.test.tsx
++++ b/tests/unit/upload-panel.test.tsx
+@@ -8,6 +8,7 @@ import {
+   defaultDocumentsSource,
+   type DocumentsSource,
+ } from "@/lib/documents/source";
++import type { RequestIngestResult } from "@/lib/upload/request-ingest";
+ import { ingestFailureMessage } from "@/lib/ingest/failure-messages";
+ import { DOCUMENT_LIMIT_MESSAGE, UPLOADS_PAUSED_MESSAGE } from "@/lib/upload/limits";
+ 
+@@ -56,9 +57,12 @@ describe("UploadPanel", () => {
+   });
+ 
+   it("shows progress in the zone, then a toast when the document is ready", async () => {
+-    let finish: (r: { status: "ready"; pageCount: number; chunkCount: number }) => void =
+-      () => undefined;
+-    setup({ ingest: vi.fn(() => new Promise((resolve) => (finish = resolve))) });
++    let finish: (r: RequestIngestResult) => void = () => undefined;
++    setup({
++      ingest: vi.fn(
++        () => new Promise<RequestIngestResult>((resolve) => (finish = resolve)),
++      ),
++    });
+     pick(pdf());
+     expect(await screen.findByText("Processing lease.pdf…")).toBeTruthy();
+     expect(input().disabled).toBe(true);
+-- 
+2.43.0
+
