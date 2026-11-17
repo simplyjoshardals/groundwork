@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ViewerHost } from "@/components/viewer-host";
 import { Button } from "@/components/ui/button";
 import type { ViewerLocation } from "@/lib/viewer-url/location";
@@ -17,7 +17,9 @@ const FILLER =
  */
 export function ViewerDrill({ scenario }: { scenario: ScenarioName }) {
   const config = SCENARIOS[scenario];
-  const source = useMemo(() => config.source(), [config]);
+  // A fresh scripted source on every open, so "fails once" fails once per
+  // open, not once per page load.
+  const [source, setSource] = useState(() => config.source());
   const [location, setLocation] = useState<ViewerLocation>({
     status: "closed",
   });
@@ -42,6 +44,7 @@ export function ViewerDrill({ scenario }: { scenario: ScenarioName }) {
                   ? config.location.chunkId
                   : null,
               );
+              setSource(config.source());
               setLocation(config.location);
             }}
           >

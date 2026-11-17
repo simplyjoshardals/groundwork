@@ -89,6 +89,23 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Counts attempts, not calls. Calls made at (nearly) the same moment count as
+ * one attempt: React StrictMode runs effects twice in `next dev`, and the
+ * first call's answer is thrown away, so a naive counter would spend a
+ * "fails once" on a call nobody sees. A Retry comes much later.
+ */
+function attemptCounter(): () => number {
+  let attempts = 0;
+  let lastCallAt = Number.NEGATIVE_INFINITY;
+  return () => {
+    const now = Date.now();
+    if (now - lastCallAt > 200) attempts += 1;
+    lastCallAt = now;
+    return attempts;
+  };
+}
+
 interface Config {
   document?: ViewerDocument;
   /** `fail-once` fails the first lookup and succeeds after Retry. */
@@ -109,32 +126,32 @@ function scripted(config: Config): ViewerSource {
     pdfUrl = "ok",
     delay = 250,
   } = config;
-  let documentCalls = 0;
-  let chunkCalls = 0;
-  let urlCalls = 0;
+  const documentAttempt = attemptCounter();
+  const chunkAttempt = attemptCounter();
+  const urlAttempt = attemptCounter();
   return {
     loadDocument: async (): Promise<ViewerDocumentResult> => {
+      const attempt = documentAttempt();
       await sleep(delay);
-      documentCalls += 1;
       if (documentResult === "not_found")
         return { ok: false, reason: "not_found" };
-      if (documentResult === "fail" || (documentResult === "fail-once" && documentCalls === 1))
+      if (documentResult === "fail" || (documentResult === "fail-once" && attempt === 1))
         return { ok: false, reason: "failed" };
       return { ok: true, document };
     },
     loadChunk: async (): Promise<ChunkResult> => {
+      const attempt = chunkAttempt();
       await sleep(delay);
-      chunkCalls += 1;
       if (chunkResult === "not_found" || chunk === null)
         return { ok: false, reason: "not_found" };
-      if (chunkResult === "fail-once" && chunkCalls === 1)
+      if (chunkResult === "fail-once" && attempt === 1)
         return { ok: false, reason: "failed" };
       return { ok: true, chunk };
     },
     createPdfUrl: async () => {
+      const attempt = urlAttempt();
       await sleep(delay);
-      urlCalls += 1;
-      if (pdfUrl === "fail-once" && urlCalls === 1) {
+      if (pdfUrl === "fail-once" && attempt === 1) {
         return { ok: false, reason: "failed", message: "x" } as const;
       }
       return { ok: true, url: PDF_URL, expiresAt: new Date(Date.now() + 3600_000) } as const;

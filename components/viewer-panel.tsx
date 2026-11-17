@@ -171,9 +171,11 @@ export function ViewerPanel({
     : null;
   // The fallback card says why itself; showing the note too would say it twice.
   const shownNote = fallback === null ? note : null;
-  // A link with a chunk will have a note: keep its line reserved from the
-  // start so the toolbar below does not move when it arrives.
-  const expectsNote = chunkId !== null;
+  // A link with a chunk will have a note while the document loads or has a
+  // viewer: keep its line reserved so the toolbar below does not move when it
+  // arrives. A document that failed to load or has no viewer never gets one,
+  // so nothing is reserved there (it would only push the banner down).
+  const expectsNote = chunkId !== null && (result === null || hasViewer);
 
   const page = location.status === "open" ? location.page : 1;
 
@@ -260,12 +262,16 @@ export function ViewerPanel({
   if (fallback !== null) {
     noteSlot = <PassageFallback passage={fallback} />;
   } else if (shownNote !== null && shownNote.tone === "error") {
-    noteSlot = (
+    // A retryable failure is a fault (danger). A passage that cannot be read
+    // is not: the page itself is fine, so it is a warning (DESIGN 6.6).
+    noteSlot = shownNote.retryable ? (
       <ViewerFailure
         message={shownNote.text}
-        transient={shownNote.retryable}
-        onRetry={shownNote.retryable ? retryChunk : undefined}
+        transient
+        onRetry={retryChunk}
       />
+    ) : (
+      <Banner tone="warn">{shownNote.text}</Banner>
     );
   } else if (shownNote !== null || expectsNote) {
     noteSlot = (
@@ -302,9 +308,11 @@ export function ViewerPanel({
       </header>
       <div
         data-viewer-scroll
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom))]"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom))] [scrollbar-color:var(--muted)_transparent] [scrollbar-width:thin]"
       >
-        {noteSlot === null ? null : <Inset>{noteSlot}</Inset>}
+        {noteSlot === null ? null : (
+          <div className="px-4 py-3">{noteSlot}</div>
+        )}
         {body}
       </div>
     </div>

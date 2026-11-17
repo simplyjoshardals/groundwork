@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { KeyboardEvent } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import type { PageTextItem } from "@/lib/pdf-highlight/match";
@@ -228,8 +235,12 @@ export function PdfViewer({
 
   // What the text-layer callback needs, kept in a ref so the callback handed
   // to react-pdf stays the same function.
+  // A layout effect, not a passive one: react-pdf can finish the text layer in
+  // a microtask, and a passive effect runs later than that. On a cached
+  // document the callback then saw a stale `expecting: false`, never checked
+  // the highlight, and the note stayed on "finding" for good.
   const latestRef = useRef({ expecting: false, passageText: "", planKey });
-  useEffect(() => {
+  useLayoutEffect(() => {
     latestRef.current = {
       expecting: ranges !== null,
       passageText: passage?.text ?? "",
@@ -237,24 +248,45 @@ export function PdfViewer({
     };
   }, [ranges, passage, planKey]);
 
-  const onTextLayerRendered = useCallback(() => {
-    const { expecting, passageText, planKey: key } = latestRef.current;
-    if (!expecting) return;
-    const marks = Array.from(
-      pageAreaRef.current?.querySelectorAll("mark[data-hl]") ?? [],
-    );
-    const ok = marksMatchPassage(
-      passageText,
-      marks.map((mark) => mark.textContent ?? ""),
-    );
-    setChecked((previous) =>
-      previous?.key === key && previous.ok === ok ? previous : { key, ok },
-    );
-    if (ok && scrolledKeyRef.current !== key) {
-      scrolledKeyRef.current = key;
-      void reveal(marks as HTMLElement[], key);
-    }
-  }, [reveal]);
+  // Checks the highlight the browser drew. `onlyIfDrawn` is for the safety net
+  // below: with no marks on the page yet it waits instead of calling that a
+  // mismatch (the text layer may simply not have reported back).
+  const verifyMarks = useCallback(
+    (onlyIfDrawn: boolean) => {
+      const { expecting, passageText, planKey: key } = latestRef.current;
+      if (!expecting) return;
+      const marks = Array.from(
+        pageAreaRef.current?.querySelectorAll("mark[data-hl]") ?? [],
+      );
+      if (onlyIfDrawn && marks.length === 0) return;
+      const ok = marksMatchPassage(
+        passageText,
+        marks.map((mark) => mark.textContent ?? ""),
+      );
+      setChecked((previous) =>
+        previous?.key === key && previous.ok === ok ? previous : { key, ok },
+      );
+      if (ok && scrolledKeyRef.current !== key) {
+        scrolledKeyRef.current = key;
+        void reveal(marks as HTMLElement[], key);
+      }
+    },
+    [reveal],
+  );
+  const onTextLayerRendered = useCallback(
+    () => verifyMarks(false),
+    [verifyMarks],
+  );
+
+  // Safety net: a highlight that is drawn but was never verified (no report
+  // from the text layer) is verified here, so the note cannot stay on
+  // "finding" with the highlight already on the page.
+  const unverified = ranges !== null && checkedHere === null;
+  useEffect(() => {
+    if (!unverified) return;
+    const timer = setTimeout(() => verifyMarks(true), 600);
+    return () => clearTimeout(timer);
+  }, [unverified, planKey, verifyMarks]);
 
   const failed =
     currentFailure !== null || (currentUrl !== null && !currentUrl.ok);
@@ -397,7 +429,12 @@ export function PdfViewer({
                         key: textKey,
                         items: toPageTextItems(textContent.items),
                       });
-                      setChecked(null);
+                      // No reset of `checked` here: it is keyed by page and
+                      // passage, so it can only ever count for its own page.
+                      // PDF.js may deliver the same text twice (StrictMode
+                      // does it in dev); clearing a verified check then left
+                      // the note on "finding" for good, because an unchanged
+                      // text layer never reports again.
                     }}
                     onRenderSuccess={(rendered: { height: number }) =>
                       setRenderedHeight(Math.round(rendered.height))
