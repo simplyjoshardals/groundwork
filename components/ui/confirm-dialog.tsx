@@ -49,7 +49,13 @@ export function ConfirmDialog({
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
+    const root = document.documentElement;
     if (open && !dialog.open) {
+      // Measure before the page scroll is locked: afterwards the scrollbar is gone.
+      root.style.setProperty(
+        "--scrollbar-w",
+        `${Math.max(0, window.innerWidth - root.clientWidth)}px`,
+      );
       returnFocusTo.current =
         document.activeElement instanceof HTMLElement
           ? document.activeElement
@@ -57,11 +63,20 @@ export function ConfirmDialog({
       dialog.showModal();
     } else if (!open && dialog.open) {
       dialog.close();
+      root.style.removeProperty("--scrollbar-w");
       const target = returnFocusTo.current;
       returnFocusTo.current = null;
       if (target?.isConnected) target.focus();
     }
   }, [open]);
+
+  // A dialog removed while it is open (its row deleted) must not leave the width behind.
+  useEffect(() => {
+    const root = document.documentElement;
+    return () => {
+      root.style.removeProperty("--scrollbar-w");
+    };
+  }, []);
 
   return (
     <dialog
@@ -73,7 +88,7 @@ export function ConfirmDialog({
         event.preventDefault();
         if (!busy) onCancel();
       }}
-      className="confirm-dialog m-auto w-[calc(100%-2rem)] max-w-sm rounded-xl border border-line bg-raised p-6 text-ink shadow-pop backdrop:bg-ink/40"
+      className="confirm-dialog m-auto w-[calc(100%-2rem)] max-w-sm rounded-xl border border-line bg-raised p-6 text-ink shadow-pop"
     >
       <h2 id={titleId} className="font-serif text-h3 wrap-break-word">
         {title}

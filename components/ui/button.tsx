@@ -5,6 +5,7 @@ export type ButtonVariant =
   | "primary"
   | "secondary"
   | "ghost"
+  | "quiet"
   | "danger"
   | "danger-solid"
   | "link";
@@ -21,6 +22,9 @@ const VARIANTS: Record<Exclude<ButtonVariant, "link">, string> = {
   primary: `bg-accent text-accent-fg enabled:hover:bg-accent-hover ${DISABLED_FILLED}`,
   secondary: `border border-control bg-surface text-ink enabled:hover:bg-sunken ${DISABLED_FILLED}`,
   ghost: "text-ink enabled:hover:bg-sunken disabled:text-muted",
+  // A secondary action that should not compete with the content: muted until
+  // hovered (U5: Delete on a document row).
+  quiet: "text-muted enabled:hover:bg-sunken enabled:hover:text-ink disabled:text-muted",
   danger: `border border-danger text-danger enabled:hover:bg-danger-soft ${DISABLED_FILLED}`,
   "danger-solid": `bg-danger text-danger-fg ${DISABLED_FILLED}`,
 };

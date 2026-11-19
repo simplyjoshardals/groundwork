@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PendingUpload } from "@/components/pending-row";
+import type { OwnDocument } from "@/lib/documents/list-own-documents";
 import { UploadPanel } from "@/components/upload-panel";
 import { ToastProvider } from "@/components/ui/toast";
 import {
@@ -26,7 +28,12 @@ const OK = { ok: true as const, documentId: "d1", storagePath: "u/d1", title: "L
 
 function setup(
   over: Partial<DocumentsSource> = {},
-  props: { atCap?: boolean } = {},
+  props: {
+    atCap?: boolean;
+    onPendingChange?: (p: PendingUpload | null) => void;
+    shelf?: OwnDocument[] | null;
+    pending?: PendingUpload | null;
+  } = {},
 ) {
   const source: DocumentsSource = {
     ...defaultDocumentsSource,
@@ -37,7 +44,13 @@ function setup(
   render(
     <DocumentsSourceContext value={source}>
       <ToastProvider>
-        <UploadPanel canUpload atCap={props.atCap} />
+        <UploadPanel
+          canUpload
+          atCap={props.atCap}
+          onPendingChange={props.onPendingChange}
+          shelf={props.shelf}
+          pending={props.pending}
+        />
       </ToastProvider>
     </DocumentsSourceContext>,
   );
@@ -74,8 +87,10 @@ describe("UploadPanel", () => {
   it("shows a danger alert when processing fails", async () => {
     setup({ ingest: vi.fn(async () => ({ status: "failed" as const, reason: "scanned_pdf" as const })) });
     pick(pdf());
+    // The banner points at the row; the reason itself is shown once, on the row.
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain(ingestFailureMessage("scanned_pdf"));
+    expect(alert.textContent).toContain("could not be processed");
+    expect(alert.textContent).not.toContain(ingestFailureMessage("scanned_pdf"));
   });
 
   it("shows a refused file as an alert and never calls ingest", async () => {
@@ -108,7 +123,8 @@ describe("UploadPanel", () => {
     setup({}, { atCap: true });
     expect(input().disabled).toBe(true);
     expect(screen.getByText(DOCUMENT_LIMIT_MESSAGE)).toBeTruthy();
-    expect(screen.getByText("The shelf is full.")).toBeTruthy();
+    // The banner says why once; the line under the button keeps the rules.
+    expect(screen.queryByText("The shelf is full.")).toBeNull();
   });
 
   it("offline: disables the zone with a note and ignores a drop", () => {
@@ -133,5 +149,89 @@ describe("UploadPanel", () => {
     expect((source.upload as ReturnType<typeof vi.fn>).mock.calls[0][0].name).toBe("a.pdf");
     finish(OK);
     await waitFor(() => expect(screen.queryByText("One file at a time. The others were skipped.")).toBeNull());
+  });
+  it("reports the file being added so the shelf can show a row for it", async () => {
+    const calls: Array<PendingUpload | null> = [];
+    setup({}, { onPendingChange: (p) => calls.push(p) });
+    pick(pdf());
+    await waitFor(() => expect(calls.at(-1)).toBeNull());
+    expect(calls[0]).toEqual({ fileName: "lease.pdf", documentId: null });
+    expect(calls[1]).toEqual({ fileName: "lease.pdf", documentId: "d1" });
+  });
+
+  it("clears the pending file when the upload is refused", async () => {
+    const calls: Array<PendingUpload | null> = [];
+    setup(
+      {
+        upload: vi.fn(async () => ({
+          ok: false as const,
+          reason: "unsupported_type" as const,
+          message: "Only PDF, TXT and Markdown files are supported.",
+        })),
+      },
+      { onPendingChange: (p) => calls.push(p) },
+    );
+    pick(pdf("photo.png"));
+    await screen.findByRole("alert");
+    expect(calls.at(-1)).toBeNull();
+  });
+
+  it("takes a file dropped anywhere on the page, and says so while dragging", async () => {
+    const source = setup();
+    const files = { types: ["Files"], files: [pdf("dropped.pdf")] };
+    fireEvent.dragEnter(document.body, { dataTransfer: files });
+    expect(await screen.findByText("Drop to shelve it.")).toBeTruthy();
+    fireEvent.drop(document.body, { dataTransfer: files });
+    await waitFor(() => expect(source.upload).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("Drop to shelve it.")).toBeNull();
+  });
+
+  it("does not take a drop while a dialog is open", () => {
+    const source = setup();
+    const dialog = document.createElement("dialog");
+    dialog.setAttribute("open", "");
+    document.body.appendChild(dialog);
+    fireEvent.drop(document.body, {
+      dataTransfer: { types: ["Files"], files: [pdf()] },
+    });
+    expect(source.upload).not.toHaveBeenCalled();
+    dialog.remove();
+  });
+
+  const shelfDoc = (id: string, over: Partial<OwnDocument> = {}): OwnDocument => ({
+    id,
+    title: `Title ${id}`,
+    originalFilename: `${id}.pdf`,
+    status: "ready",
+    errorReason: null,
+    pageCount: 4,
+    chunkCount: 8,
+    createdAt: "2026-11-17T12:00:00.000Z",
+    processingStartedAt: null,
+    ...over,
+  });
+
+  it("counts the shelf under the strip, with a spine for each document", () => {
+    setup({}, { shelf: [shelfDoc("a"), shelfDoc("b", { status: "failed", pageCount: null })] });
+    expect(screen.getByText("2 of 10 on your shelf")).toBeTruthy();
+    expect(screen.getByTitle("Title a")).toBeTruthy();
+    expect(screen.getByTitle("Title b")).toBeTruthy();
+  });
+
+  it("counts a file on its way as already on the shelf", () => {
+    setup({}, { shelf: [shelfDoc("a")], pending: { fileName: "new.pdf", documentId: null } });
+    expect(screen.getByText("2 of 10 on your shelf")).toBeTruthy();
+  });
+
+  it("says nothing about the count while the shelf is loading", () => {
+    setup({}, { shelf: null });
+    expect(screen.queryByText(/on your shelf/)).toBeNull();
+  });
+
+  it("at the cap the strip is full and the button is disabled", () => {
+    const full = Array.from({ length: 10 }, (_, i) => shelfDoc(`d${i}`));
+    setup({}, { atCap: true, shelf: full });
+    expect(screen.getByText("10 of 10 on your shelf")).toBeTruthy();
+    expect(input().disabled).toBe(true);
   });
 });

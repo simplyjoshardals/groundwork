@@ -48,7 +48,7 @@ export function DeleteDocumentButton({
   return (
     <>
       <Button
-        variant="ghost"
+        variant="quiet"
         size="sm"
         aria-label={`Delete ${documentTitle}`}
         onClick={() => {

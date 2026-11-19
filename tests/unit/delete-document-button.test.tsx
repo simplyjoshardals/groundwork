@@ -44,9 +44,12 @@ describe("DeleteDocumentButton", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     open();
     expect(screen.getByRole("dialog", { name: "Delete “Lease”?" })).toBeTruthy();
+    // The page scrollbar's width is measured for the scroll lock, and released after.
+    expect(document.documentElement.style.getPropertyValue("--scrollbar-w")).not.toBe("");
     expect(screen.getByText(/can’t be undone/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Keep it" }));
     expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.documentElement.style.getPropertyValue("--scrollbar-w")).toBe("");
     expect(remove).not.toHaveBeenCalled();
     expect(onDeleted).not.toHaveBeenCalled();
   });

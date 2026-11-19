@@ -364,6 +364,7 @@ Base: `inline-flex items-center justify-center gap-2 rounded-md font-sans font-m
 | primary | `bg-accent text-accent-fg hover:bg-accent-hover` |
 | secondary | `border border-control bg-surface text-ink hover:bg-sunken` |
 | ghost | `text-ink hover:bg-sunken` |
+| quiet | `text-muted hover:bg-sunken hover:text-ink` (a secondary action that must not compete with the content next to it: Delete on a document row. Hover classes are `enabled:hover:` like the rest.) |
 | danger (outline) | `border border-danger text-danger hover:bg-danger-soft` |
 | danger (solid, confirm only) | `bg-danger text-danger-fg` |
 | link | `text-accent underline underline-offset-4 hover:text-accent-hover` (inline text only; never as a stand-in for a button) |
@@ -386,7 +387,15 @@ Input: `h-10 w-full rounded-md border border-control bg-surface px-3 text-base t
 
 **Composer (the ask box):** a `rounded-lg border border-control bg-surface` container, auto-growing `<textarea>` (1 to 4 lines, Enter submits, Shift+Enter newline) set in `font-serif text-read`. The primary submit button sits inside, bottom right. A character counter (mono, `text-xs`) appears only past 80% of the limit. The composer is 56 px tall at rest. **The focus ring sits on the container, not the textarea** (`focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/40`; the textarea has `outline-none`), because the textarea is not the visual edge. A one-line helper row under the box is always present (offline note on the left, counter on the right, counter hidden with `invisible` until 80%), so neither shifts the page. Enter is ignored while an input method is composing. The box clears on submit; the question is echoed above the answer.
 
-**File dropzone:** `rounded-lg border border-dashed border-control bg-surface p-6 text-center`, hover and drag-over `bg-accent-soft border-accent`, with a real `<input type="file">` underneath (keyboard and screen readers use it). Hint line: types, size, count.
+**Upload control: the shelf strip (U5).** The dashed dropzone (a dashed box with "drag a file here") is what every upload screen looks like, so it is not used. The shelf holds at most 10 documents, so the control is drawn as that shelf: ten slots in a row on a shelf line, with the upload button beside it. The slot count is the document cap (`SHELF_SLOTS` in `lib/documents/shelf.ts` reads `MAX_DOCS_PER_USER_HINT`), never a second copy of it.
+
+- **Spines.** A document stands in its slot as a spine, oldest on the left, so the newest is last. Height is 36 px plus 0.8 px per page and width is 16 px plus 0.55 px per page, both up to 30 pages (about 60 × 32 px at the top). Everything without a trusted page count (processing, queued, failed, text) is 44 × 24 px, as is an empty slot. The shelf is only as wide as its books and never wider than its column; when the books are wider than the column they shrink in proportion, so a spine stays book-shaped (never a wide tile). The shelf line is a 2 px `bg-control` rule under the slots; spines have `rounded-t-[3px]` and a 4 px gap.
+- **Status on the spine.** Ready `bg-accent`. Processing `bg-accent/35`, pulsing (a tint of the accent, because `accent-soft` is near-black in dark mode and the spine disappeared). Queued: dashed `border-control`, no fill. Failed `bg-danger`, leaning 5 degrees. A file on its way (no row yet): a dashed spine that lands in the next slot. Empty slots: dashed `border-line`, 44 px tall (the default spine height, so an empty shelf has no dead space above it).
+- **Next slot.** The first empty slot is where an upload goes. It lights up (`border-accent bg-accent-soft`) while the person hovers or focuses the upload button, and a taller ghost spine rises in it while a file is dragged over the page. Hovering or focusing a document row lifts its own spine 6 px.
+- **Decorative.** The strip is `aria-hidden`: every fact in it is also in the caption, the button and the list. A spine's `title` is the document's name, for sighted people hovering it. It is not clickable.
+- **Caption and button.** Under the shelf: a mono `text-xs text-muted tabular-nums` caption, "{n} of 10 on your shelf" (a file on its way counts; blank while the shelf loads). The button is a real `<input type="file">` (`sr-only`) under a label styled like a secondary button: `h-10 pointer-coarse:h-11 rounded-lg border border-control bg-surface px-4 text-sm font-medium` with the upload glyph, hover `bg-sunken`; unavailable `border-line bg-sunken text-muted cursor-not-allowed`. The focus ring is on the wrapper (`has-[:focus-visible]`), because the input is the invisible one. From `sm` the button sits beside the shelf, bottom-aligned with the caption; below `sm` it sits under it.
+- **Hint line.** Under the button, one `text-xs` line with its height reserved (two lines below `sm`, one from `sm`), made of up to two spans so nothing shifts when the text changes: the file rules when idle; "Uploading {name}…" then "Keep this tab open." (or "One file at a time. The others were skipped.") while uploading; "Processing {name}…" then "This can take a minute or more." while processing; "Drop to shelve it." while dragging; "Uploads need a connection." offline. At the cap the banner says why, so the line keeps the file rules. A visually hidden `role="status"` repeats progress for screen readers.
+- **Drop anywhere.** A file can be dropped anywhere on the page (window listeners, files only). Every file drag has its default cancelled, so a miss never makes the browser open the file and leave the app. A drop is refused (`dropEffect: none`) while uploads are unavailable or a modal dialog is open. Only the first file is taken.
 
 **Example chip** (idle ask state, 6.4): `rounded-full border border-control bg-surface px-3 py-1.5 text-sm text-ink`, hover `bg-sunken`, `pointer-coarse:min-h-11`, disabled while asking or offline. A click asks immediately with the chip's full question (its `title`). The chip that cannot be answered is set apart by `border-dashed` as well as by its label.
 
@@ -428,13 +437,20 @@ Retry actions are a `secondary` `sm` button inside the banner.
 
 ### 5.7 Dialog
 
-Native `<dialog>` with `showModal()`. `w-full max-w-sm rounded-xl border border-line bg-raised p-6 shadow-pop backdrop:bg-ink/40`. Title in serif `text-h3`, one sentence of consequence, buttons right-aligned. Initial focus is the **safe** action (Cancel). Escape cancels. Focus returns to the trigger. Used for delete confirmation (replaces the inline "Are you sure?" group).
+Native `<dialog>` with `showModal()` (`components/ui/confirm-dialog.tsx`). `m-auto w-[calc(100%-2rem)] max-w-sm rounded-xl border border-line bg-raised p-6 shadow-pop` (`m-auto` because the Tailwind reset zeroes margins, which un-centers a modal dialog). Title in serif `text-h3`, one sentence of consequence, buttons right-aligned: a `secondary` Cancel first and a `danger (solid)` confirm with a fixed `min-w`, so the label can swap to "Deleting…".
+
+- **Focus.** Cancel is first in the DOM and has initial focus (the **safe** action). Escape cancels, except while a request is running. Focus returns to the element that opened it, if it is still there; if it is gone (a deleted row), the caller moves focus (the shelf heading, `tabIndex={-1}`).
+- **No backdrop-click close.** For a destructive confirmation a stray click must not decide anything.
+- **Failure.** A failed request keeps the dialog open with a danger banner inside it, and the confirm button retries.
+- **Scrim.** `rgb(0 0 0 / 0.5)` in both themes (`dialog.confirm-dialog::backdrop`). `bg-ink/40` flips to a light veil in dark mode, which washes the page out instead of dimming it.
+- **Scroll lock.** With `scrollbar-gutter: stable` on `html`, hiding the scrollbar leaves an empty band that a scrim never covers (a scrim covers neither a scrollbar nor a reserved gutter). While a modal dialog is open the gutter is released and its measured width is added as `padding-right` on `html` (`--scrollbar-w`, set by `ConfirmDialog` just before `showModal()`), so the scrim covers the whole window and the page does not move. The viewer sheet's own lock (`body:has(dialog.viewer-sheet:modal)`) has the same band on platforms with classic scrollbars and could use the same approach.
+- One dialog per Delete button, mounted closed. Used for delete confirmation (replaces the inline "Are you sure?" group).
 
 ### 5.8 Toast
 
-One region, bottom center, `max-w-sm`, `rounded-lg bg-toast text-toast-fg shadow-pop px-4 py-3 text-sm`, `role="status"`, `aria-live="polite"`. Auto-dismisses after 4 s (pauses on hover and focus). Only one visible at a time.
+One region, bottom center, `max-w-sm`, `rounded-lg bg-toast text-toast-fg shadow-pop px-4 py-3 text-sm`, `role="status"`, `aria-live="polite"`. Auto-dismisses after 4 s (pauses on hover and focus), with a 120 ms opacity exit. Only one visible at a time: a new toast replaces the current one. The region is mounted from the start (a live region must exist before its content changes to be announced) and lives in `ToastProvider`, at the shell (`app/page.tsx`); `useToast()` outside a provider is a no-op with a development warning, so a component renders on its own in a test. Colors: light is the inverted `toast-bg` slab; dark uses the `toast-bg` token (`#25221C`, a slab slightly lighter than the page), so it is a dark slab in both themes, which is intended.
 
-**Use for:** completed actions that leave no other trace ("Document deleted", "Link copied").
+**Use for:** completed actions that leave no other trace ("{name} is ready to search.", "Document deleted", "Link copied").
 **Do not use for:** errors that need action (those stay inline as banners), or anything the user must read.
 
 ### 5.9 Skeleton
@@ -445,14 +461,21 @@ One region, bottom center, `max-w-sm`, `rounded-lg bg-toast text-toast-fg shadow
 |---|---|
 | Answer | 3 lines at `text-read` height, last line 60% wide |
 | Sources | 2 source-card shapes |
-| Document row | 56 px row: title bar 40% wide, badge pill, meta bar |
+| Document row | the same structure as a real row: title bar 40% wide and a badge pill on one line, a meta bar on a 24 px line (so rows do not jump when they arrive) |
 | Viewer | a paper-colored rectangle at 8.5 : 11 with 8 faint text bars (the `skeleton` utility, with `--sunken` and `--skeleton-band` redefined on `.paper-skeleton` so the bars stay faint on paper in dark mode) |
 | Header counter | 80 × 16 px bar |
 
 ### 5.10 Document list (a list, not a table)
 
-Each row: `rounded-lg border border-line bg-surface p-4`, grid: title (`font-medium`, wraps), status badge, meta in mono `text-xs text-muted` ("6 pages · PDF · added 2 days ago"). Row actions (Retry, Delete) are ghost `sm` buttons, visible on hover and focus-within on desktop, always visible on touch. A processing row shows a 2 px indeterminate progress line along its bottom edge (static fill under reduced motion). Status changes update the badge in place with a `--dur-base` crossfade. The row does not change height.
+Each row is an `<li>`: `relative flex flex-col gap-1 overflow-hidden rounded-lg border border-line bg-surface p-4`. Line one: the title (`font-medium`, wraps) and the status badge. Line two, always 24 px tall: the meta in mono `text-xs text-muted` ("6 pages · PDF · added 2 days ago"; the page count only once ready; the kind from the file extension; relative time from the clock of the last read, so the server and the browser print the same) and the row actions at the right end. Below that, at most one note.
 
+- **Actions.** Retry is a `ghost` `sm` button, Delete a `quiet` `sm` button. Both are always visible: Retry is the next step on a failed or stuck row, and a Delete that appears on hover is hard to find and did not behave the same across devices. The actions drop to their own right-aligned line when the meta is too long (360 px); because the meta line and the action area are both 24 px tall (`h-6`, the 32 px buttons overflow it evenly), the meta sits at the same height either way.
+- **Notes.** A failed row shows its failure message in `text-sm text-danger`. A stuck row shows "This is taking longer than expected. You can retry it." in `text-sm text-muted`; the outcome of the last Retry (`no_op`, unconfirmed, limit) replaces it. A scanned PDF has no Retry: it needs a different file.
+- **Progress.** A processing row that is not stuck shows a 2 px indeterminate progress line along its bottom edge (`.row-progress`): all rows share one keyframe and timing, so several move as one and count as one looping animation. A stuck row has none (nothing is moving). Static, full width, under reduced motion.
+- **Badge.** It crossfades in place with `--dur-base` when the status changes after first paint; the first paint does not animate. The row does not change height when the status changes.
+- **Pending row.** From the moment a file is chosen, the shelf shows a row for it at the top (dashed "Uploading" pill, then "Queued" once the row exists, with the progress line). It has the same structure and height as a real row, is `aria-hidden` (the upload control's live region announces the progress) and is replaced by the real row without a jump once the list holds its id. The shelf is never "empty" while a file is being added.
+- **Strip link.** Hovering or focusing a row lifts its spine in the shelf strip (5.2).
+- **Delete.** Opens the dialog (5.7). On success the row is removed at once, a reload reconciles, the toast "Document deleted" shows, and focus moves to the "Your documents" heading.
 
 ### 5.11 Icons
 
@@ -555,17 +578,17 @@ Header per 4.2, two-column body per 4.2. Contains Ask, Shelf, Viewer below.
 
 ### 6.5 Documents shelf
 
-Right column on `xl` (below it on smaller screens). Heading "Your documents" (signed in) or "Sample documents" (demo).
+Right column on `xl` (below it on smaller screens). Heading "Your documents" (signed in) or "Sample documents" (demo). Signed in, the order is: heading, the shelf strip with its caption and the upload button, the hint line, the privacy note, any banner, then the rows. The upload control never moves between states.
 
 | | Treatment |
 |---|---|
-| L | 3 skeleton rows. Only appears on refresh failures or after an action, because first paint is server data. |
-| E | Signed in, none yet: a card with serif "Nothing on the shelf yet." one sentence, and the dropzone. Demo: the sample documents are listed with the "Sample" badge, plus a quiet card "Uploading needs an account" with a link. |
-| X | Danger banner "We couldn't load your documents." with "Try again". Per-row failures show the existing failure message under the row. |
-| S | Rows with badges. Upload success: toast "{name} is ready to search." Delete: toast "Document deleted". |
-| P | Processing row (progress line), stuck row ("This is taking longer than expected. You can retry it." plus Retry), retry notes (`no_op`, unconfirmed, limit) as small `text-sm text-muted` lines. Stale list after a failed refresh: warn banner "Couldn't refresh. Showing the last list we have." with "Try again". |
-| O | Stale list plus warn banner. Dropzone disabled with "Uploads need a connection." |
-| D | Demo: cannot upload (explainer card above). At the 10-document cap: dropzone disabled, warn banner with the existing cap message. Budget exhausted: warn banner "Uploads are paused" with the existing message. Privacy note ("Don't upload sensitive documents. Text is sent to AI providers.") sits directly under the dropzone. |
+| L | 3 skeleton rows with a real row's structure. Only appears on refresh failures or after an action, because first paint is server data. |
+| E | Signed in, none yet: ten empty slots (0 of 10), the upload button, and below them a card with serif "Nothing on the shelf yet." and one sentence. The strip stays where it is, so the first upload does not move it. Demo: the sample documents are listed with the "Sample" badge, plus a quiet card "Uploading needs an account" with a link. |
+| X | Danger banner "We couldn't load your documents." with "Try again"; after another failure "Still couldn't load your documents." Per-row failures show the existing failure message under the row. |
+| S | Rows with badges and matching spines. Upload success: toast "{name} is ready to search." (the spine has landed and the pending row has become the real one). Delete: toast "Document deleted". |
+| P | Uploading and processing: the arriving spine, the pending row, and the hint line ("Uploading {name}…", "Processing {name}…"). Processing row (progress line), stuck row (note plus Retry), retry notes (`no_op`, unconfirmed, limit) as small `text-sm text-muted` lines. A failed ingest: a danger banner under the button, "Uploaded {name}, but it could not be processed. The reason is on its row below.", and the reason once, on the row. Stale list after a failed refresh: warn banner "Couldn't refresh. Showing the last list we have." with "Try again", which shows "Trying…" for at least 700 ms and, if it fails again, changes to "Still couldn't refresh. Showing the last list we have." |
+| O | Stale list plus warn banner. Upload button unavailable, hint line "Uploads need a connection." |
+| D | Demo: cannot upload (explainer card above). At the 10-document cap: the strip is full ("10 of 10 on your shelf"), the button is unavailable, and a warn banner carries the existing cap message (the hint line keeps the file rules; the cap is said once). Budget exhausted: warn banner with the existing paused message ("Uploads are paused right now. …"); the button stays enabled so the person can try again later. Privacy note ("Don't upload sensitive documents. Their text is sent to AI providers to answer questions.") sits directly under the hint line, always present. |
 
 ### 6.6 Viewer (docked panel or sheet)
 
@@ -621,7 +644,8 @@ Motion makes state changes legible. It never decorates.
 | Docked viewer / shelf swap | crossfade only; the grid never reflows | `--dur-base` |
 | **Highlight wipe** (signature) | the highlight background grows left to right once over the cited passage, after the page has scrolled into place and settled | `--dur-highlight` / `--ease-paper`; animate `background-size` on a flat single-colour layer, play once, never loop. The marks are drawn hidden (`data-wipe="pending"` on the paper sheet), the viewer's own scroll region scrolls to them, and when it settles (`scrollend`, or a 700 ms timer) `data-wipe="play"` starts the wipe; a passage over several lines staggers 80 ms per line, capped at 400 ms. A safety timer plays it after 2.5 s regardless: a highlight is never left hidden. Reduced motion: shown at once |
 | Skeleton shimmer | a soft light band moves across, `background-position` | 1.4 s linear, infinite, only while loading |
-| Processing row progress line | indeterminate slide (the badge itself is static) | 1.2 s ease-in-out, infinite; static under reduced motion |
+| Processing row progress line | indeterminate slide (the badge itself is static); every row uses one keyframe and timing, so they move as one | 1.2 s ease-in-out, infinite; static under reduced motion |
+| Shelf spines | a row hover or focus lifts its spine (`translateY(-6px)`); a processing spine pulses (opacity); an arriving file lands (`translateY(-34px)` to 0 plus opacity); a ghost spine rises while a file is dragged over the page | lift `--dur-fast` / `--ease-settle`; land `--dur-base` / `--ease-paper`; pulse 1.4 s and rise 0.9 s alternate, only while in progress or dragging; none under reduced motion |
 | Streaming text | **no per-character animation.** Render text as it arrives. An optional 1 px caret blinks at the end while streaming. | caret: 1 s steps |
 
 Rules:
@@ -641,7 +665,7 @@ Rules:
   }
 }
 ```
-Plus: skeletons are static (`bg-sunken`, no shimmer), the highlight appears instantly at full strength, the caret is solid, sheets and dialogs fade only (no translate or scale), and `scrollIntoView` uses `behavior: "auto"`.
+Plus: skeletons are static (`bg-sunken`, no shimmer), spines do not pulse, rise, land or lift (a failed spine keeps its lean: it is a position, not motion), the row progress line is a static full bar, the highlight appears instantly at full strength, the caret is solid, sheets and dialogs fade only (no translate or scale), and `scrollIntoView` uses `behavior: "auto"`.
 
 ---
 
@@ -675,9 +699,20 @@ Rules:
 | Shelf: empty (signed in) | **Nothing on the shelf yet.** Add a PDF, text, or Markdown file. Answers will cite the exact page. |
 | Shelf: demo | **Sample documents.** Ask anything about these. |
 | Shelf: demo upload | Uploading needs an account. Create an account to add your own documents. |
-| Upload: scanned PDF | This PDF has no selectable text, so I can't read it. Try a text-based PDF. *(keep the existing failure-message mapping; adjust wording only to match the voice)* |
-| Upload: cap | You've reached 10 documents. Delete one to add another. |
+| Upload: scanned PDF | The row shows the existing failure message (`INGEST_FAILURE_MESSAGES.scanned_pdf`, no Retry); the banner under the button is short: "Uploaded {name}, but it could not be processed. The reason is on its row below." The reason is written once. |
+| Upload: cap | You already have 10 documents. Delete one before uploading another. *(the existing `DOCUMENT_LIMIT_MESSAGE`; shown once, in the banner)* |
 | Upload: privacy note | Don't upload sensitive documents. Their text is sent to AI providers to answer questions. |
+| Shelf caption | {n} of 10 on your shelf |
+| Upload: busy | Uploading {name}… Keep this tab open. / Processing {name}… This can take a minute or more. |
+| Upload: dragging | Drop to shelve it. |
+| Upload: several files | One file at a time. The others were skipped. |
+| Upload: offline | Uploads need a connection. |
+| Upload: ready (toast) | {name} is ready to search. |
+| Upload: paused | Uploads are paused right now. Your existing documents still work. Please try again later. *(the existing message)* |
+| Delete: toast | Document deleted |
+| Stuck row | This is taking longer than expected. You can retry it. |
+| Shelf: load failed | We couldn't load your documents. / Still couldn't load your documents. |
+| Shelf: refresh failed | Couldn't refresh. Showing the last list we have. / Still couldn't refresh. Showing the last list we have. |
 | Delete: dialog | **Delete "{name}"?** This removes the file and everything made from it. It can't be undone. *(buttons: Delete document / Keep it)* |
 | Viewer: fallback passage | Cited passage, page 7. Shown as text because it couldn't be pinpointed on the page. |
 | Viewer: unavailable | That document isn't available. It may have been deleted. |
@@ -740,6 +775,9 @@ Typographic finish (applies everywhere): `text-wrap: balance` on headings, `pret
 - No centered-hero-plus-three-icon-cards template. The landing page earns its layout from the specimen.
 - No full-page spinners. No modal for something that can be inline. No dropdown menus.
 - No new colors, fonts, or shadows. If something is missing from the tokens, propose a token first.
+- No stock upload pattern (a dashed box saying "drag a file here"): the upload control is drawn from the product, the shelf (5.2).
+- Never hide a row's next step behind hover, and never use `bg-ink/*` for a scrim (it flips to a light veil in dark mode).
+- No decorative marks that look like data: a mark on a spine or row means something or is not there.
 
 ---
 
@@ -750,3 +788,17 @@ Typographic finish (applies everywhere): `text-wrap: balance` on headings, `pret
 - **Focus.** On open, focus goes to the document title (`tabIndex={-1}`), which names what appeared. On close it returns to the control that opened the viewer (a citation marker or a source card's Open button); if that button is gone, to the marker or card with the same `data-citation-chunk`, else nowhere.
 - **Layout.** Note or fallback passage, then the sticky page toolbar, then the page on a `bg-sunken` desk. The toolbar is part of the scroll region so a long page scrolls under it; the highlight scroll accounts for its height. Crossing `xl` while open swaps shells and reloads the page once; that is accepted.
 - **Dev drill.** `/dev-states/viewer/<scenario>` (a 404 outside `next dev`) runs the real viewer against a scripted `ViewerSource` and a small generated PDF (`public/dev/viewer-sample.pdf`); `/dev-states/viewer/index` lists the scenarios.
+
+---
+
+## Appendix: documents implementation notes (U5)
+
+- **Data seam.** `lib/documents/source.ts` defines `DocumentsSource` (`list`, `upload`, `ingest`, `remove`) with the real backend as the default, provided through `DocumentsSourceContext`. The shelf, the upload control and the delete button all read through it; nothing above it calls Supabase or `fetch`. `DocumentsPanel` takes an optional `source`; only the dev drill passes one. No backend or contract change.
+- **Shared state.** `DocumentsPanel` is the hub: it holds the pending upload, the documents the list last read (`onDocumentsChange`) and the hovered row (`onRowActiveChange`), and passes them to the upload control (which draws the strip) and to the list. The pending placeholder logic is `isPendingShown` in `lib/documents/shelf.ts`, used by both.
+- **Page-wide drop.** `components/use-file-drop.ts` listens on `window` for file drags only; see 5.2.
+- **Online status.** The existing `useOnlineStatus` hook is used; nothing was duplicated.
+- **Strings kept.** Existing user-facing strings in `lib/` (the cap message, the paused message, the failure messages) are unchanged; DESIGN §8 now quotes them. The scanned-PDF banner was shortened and the e2e assertion changed with it.
+- **Try again.** `DocumentList` keeps "Trying…" on screen for at least 700 ms (`MIN_TRYING_MS`) and counts consecutive failed tries; the banner text and a polite live region follow. In `next dev`, React StrictMode runs the page's effect twice and the second run reads on mount, so scripted "fails once" drill scenarios fail one extra time.
+- **CSS.** `app/globals.css` gained `.row-progress`, `dialog.confirm-dialog` (and its scrim and the `html:has(...)` scroll lock), `.toast-enter` and `.toast-leave`, and the `.spine*` classes. No token was added; the scrim is a literal `rgb(0 0 0 / 0.5)` because a token that flips with the theme is the bug.
+- **Dev drill.** `/dev-states/documents/index` and `/dev-states/documents/<scenario>` (a 404 outside `next dev`) run the real shelf against an in-memory `DocumentsSource` (real file checks, scripted outcomes). Scenarios: `mixed`, `empty`, `slow`, `load-error`, `refresh-error`, `stuck`, `retry-notes`, `cap`, `paused`, `scanned`, `ingest-limit`, `delete-error`, `session-ended`. Offline is DevTools.
+- **Constants.** Spine sizes and the shelf's slot count live in `lib/documents/shelf.ts` with unit tests; change them there, not in the component.

@@ -27,7 +27,7 @@ export const DOC_SCENARIO_NOTES: Readonly<Record<DocScenario, string>> = {
   empty: "Nothing on the shelf. Upload any file: it is processed in 3 s.",
   slow: "No server data: the skeleton shows for 3 s. Upload takes 4 s, processing 8 s, delete 3 s.",
   "load-error":
-    "The first read failed: danger banner. Try again fails once more, then works.",
+    "The page's read failed: danger banner. Try again fails once more (the label changes to \"Still couldn't load\"), then works.",
   "refresh-error":
     "A list with a processing row whose refreshes always fail: the stale warn banner.",
   stuck:

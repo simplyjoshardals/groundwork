@@ -5,6 +5,8 @@ import {
   DocumentList,
   type InitialDocuments,
 } from "@/components/document-list";
+import type { PendingUpload } from "@/components/pending-row";
+import type { OwnDocument } from "@/lib/documents/list-own-documents";
 import { UploadPanel } from "@/components/upload-panel";
 import {
   DocumentsSourceContext,
@@ -41,6 +43,9 @@ export function DocumentsPanel({
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((n) => n + 1), []);
   const [documentCount, setDocumentCount] = useState<number | null>(null);
+  const [pending, setPending] = useState<PendingUpload | null>(null);
+  const [documents, setDocuments] = useState<OwnDocument[] | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   return (
     <DocumentsSourceContext value={source}>
@@ -48,12 +53,19 @@ export function DocumentsPanel({
         refreshKey={refreshKey}
         onCountChange={setDocumentCount}
         initial={initial}
+        pending={pending}
+        onDocumentsChange={setDocuments}
+        onRowActiveChange={setActiveId}
         aboveList={
           <UploadPanel
             canUpload
             atCap={isAtDocumentCap(documentCount)}
             onUploaded={refresh}
             onIngestSettled={refresh}
+            onPendingChange={setPending}
+            shelf={documents}
+            pending={pending}
+            activeId={activeId}
           />
         }
       />

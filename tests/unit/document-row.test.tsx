@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { DocumentRow, STUCK_NOTE } from "@/components/document-row";
 import type { OwnDocument } from "@/lib/documents/list-own-documents";
@@ -78,5 +78,15 @@ describe("DocumentRow", () => {
     expect(retry.textContent).toBe("Retrying…");
     expect(screen.queryByText(STUCK_NOTE)).toBeNull();
     expect(screen.getByRole("status").textContent).toBe("It is still being processed.");
+  });
+
+  it("tells the shelf strip when it is pointed at or focused", () => {
+    const calls: boolean[] = [];
+    row({ onActiveChange: (active) => calls.push(active) });
+    const item = screen.getByRole("listitem");
+    fireEvent.mouseEnter(item);
+    fireEvent.mouseLeave(item);
+    fireEvent.focus(screen.getByRole("button", { name: "Delete" }));
+    expect(calls).toEqual([true, false, true]);
   });
 });

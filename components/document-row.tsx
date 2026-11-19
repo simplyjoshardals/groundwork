@@ -16,9 +16,10 @@ export const STUCK_NOTE = "This is taking longer than expected. You can retry it
  * line and the row actions, then at most one note. It is an `<li>`; the list
  * owns the `<ul>`, the polling and the retry logic, and passes the results in.
  *
- * Retry is always visible, because it is the next step on a failed or stuck
- * row. Delete is revealed on hover and focus-within on fine pointers and always
- * visible on touch (opacity only, so nothing moves). A processing row that is
+ * Retry and Delete are always visible: Retry is the next step on a failed or
+ * stuck row, and a hidden Delete is hard to find and was not reliable across
+ * devices. The actions sit at the right end of the meta line and drop to their
+ * own right-aligned line when it is too long (360 px). A processing row that is
  * not stuck carries the 2 px progress line along its bottom edge. The badge
  * crossfades in place when the status changes; the first paint does not animate.
  */
@@ -31,6 +32,7 @@ export function DocumentRow({
   note,
   onRetry,
   deleteAction,
+  onActiveChange,
 }: {
   doc: OwnDocument;
   /** The clock of the last successful read, so server and browser agree. */
@@ -42,6 +44,8 @@ export function DocumentRow({
   note?: string;
   onRetry: () => void;
   deleteAction: ReactNode;
+  /** Pointer or keyboard focus is on the row: the shelf strip lifts its spine. */
+  onActiveChange?: (active: boolean) => void;
 }) {
   // Derive "the status just changed" during render, not in an effect.
   const [shownStatus, setShownStatus] = useState(doc.status);
@@ -55,6 +59,10 @@ export function DocumentRow({
 
   return (
     <li
+      onMouseEnter={() => onActiveChange?.(true)}
+      onMouseLeave={() => onActiveChange?.(false)}
+      onFocus={() => onActiveChange?.(true)}
+      onBlur={() => onActiveChange?.(false)}
       className={cardClasses({
         className: "group relative flex flex-col gap-1 overflow-hidden",
       })}
@@ -68,11 +76,13 @@ export function DocumentRow({
         />
       </div>
 
-      <div className="flex min-h-8 flex-wrap items-center justify-between gap-x-3">
-        <p className="font-mono text-xs text-muted tabular-nums">
+      <div className="flex flex-wrap items-center justify-between gap-x-3">
+        <p className="flex h-6 items-center font-mono text-xs text-muted tabular-nums">
           {documentMeta(doc, now)}
         </p>
-        <div className="-mr-2 flex items-center gap-1">
+        {/* 24 px tall like the meta line, so the line is the same height with or
+            without actions beside it; the 32 px buttons overflow it evenly. */}
+          <div className="-mr-2 ml-auto flex h-6 items-center gap-1">
           {showRetry ? (
             <Button
               variant="ghost"
@@ -85,9 +95,7 @@ export function DocumentRow({
               {retrying ? "Retrying…" : "Retry"}
             </Button>
           ) : null}
-          <div className="transition-opacity duration-(--dur-fast) pointer-fine:opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
-            {deleteAction}
-          </div>
+          {deleteAction}
         </div>
       </div>
 

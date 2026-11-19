@@ -73,11 +73,11 @@ test("a scanned PDF shows the scanned-PDF message", async ({ page }) => {
   await waitForHydration(fileInput);
   await fileInput.setInputFiles(fixturePath(SCANNED_PDF_NAME));
 
-  // The upload panel reports it once ingestion has failed...
+  // The upload panel reports it once ingestion has failed, and points at the row...
   await expect(
-    page.getByRole("alert").filter({ hasText: message }),
+    page.getByRole("alert").filter({ hasText: "could not be processed" }),
   ).toBeVisible({ timeout: INGEST_TIMEOUT_MS });
-  // ...and the document list shows the same reason on the row, with no Retry:
+  // ...where the reason is shown once, with no Retry:
   // a scanned file needs a different file, not another attempt.
   const row = page.getByRole("listitem").filter({ hasText: title });
   await expect(row.getByText("Failed", { exact: true })).toBeVisible();

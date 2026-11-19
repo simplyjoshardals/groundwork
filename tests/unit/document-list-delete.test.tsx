@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { DocumentList } from "@/components/document-list";
+import type { PendingUpload } from "@/components/pending-row";
 import { ToastProvider } from "@/components/ui/toast";
 import {
   DocumentsSourceContext,
@@ -39,7 +40,11 @@ const mk = (id: string, title: string): OwnDocument => ({
   processingStartedAt: null,
 });
 
-function setup(docs: OwnDocument[], over: Partial<DocumentsSource> = {}) {
+function setup(
+  docs: OwnDocument[],
+  over: Partial<DocumentsSource> = {},
+  pending: PendingUpload | null = null,
+) {
   let current = docs;
   const source: DocumentsSource = {
     ...defaultDocumentsSource,
@@ -57,6 +62,7 @@ function setup(docs: OwnDocument[], over: Partial<DocumentsSource> = {}) {
           refreshKey={0}
           onCountChange={() => undefined}
           initial={{ ok: true, documents: docs, fetchedAt: NOW }}
+          pending={pending}
           aboveList={<p>upload control</p>}
         />
       </ToastProvider>
@@ -95,5 +101,19 @@ describe("DocumentList (U5)", () => {
     online = false;
     setup([mk("a", "Alpha")]);
     expect(screen.getByText(/Showing the last list we have/)).toBeTruthy();
+  });
+
+  it("shows the file being added as the first row, and not the empty card", () => {
+    setup([], {}, { fileName: "new-lease.pdf", documentId: null });
+    expect(screen.getByText("new-lease")).toBeTruthy();
+    expect(screen.getByText("Uploading")).toBeTruthy();
+    expect(screen.queryByText("Nothing on the shelf yet.")).toBeNull();
+  });
+
+  it("hands over to the real row once the shelf has it", () => {
+    setup([mk("a", "Alpha")], {}, { fileName: "alpha.pdf", documentId: "a" });
+    // Only the real row remains: one title, no placeholder badge.
+    expect(screen.getAllByText("Alpha")).toHaveLength(1);
+    expect(screen.queryByText("Queued")).toBeNull();
   });
 });

@@ -149,7 +149,7 @@ function setupFor(name: DocScenario, now: number): Setup {
         removeDelayMs: 3 * SECOND,
       };
     case "load-error":
-      return { docs: [ready("r1", "Lease agreement", "lease.pdf", 12, 2 * DAY)], initial: "failed", listFailures: 1 };
+      return { docs: [ready("r1", "Lease agreement", "lease.pdf", 12, 2 * DAY)], initial: "failed", listFailures: 2 };
     case "refresh-error":
       return {
         docs: [

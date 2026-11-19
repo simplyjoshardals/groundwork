@@ -118,8 +118,13 @@ describe("DocumentList states", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     });
-    expect(screen.getByRole("alert")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+    // "Trying…" stays for at least 700 ms so a failed try is visible; wait it out.
+    expect(
+      await screen.findByRole("button", { name: "Try again" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Still couldn't load your documents.",
+    );
   });
 
   it("keeps the last list and says so when a refresh fails", async () => {

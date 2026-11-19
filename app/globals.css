@@ -556,8 +556,16 @@ dialog.confirm-dialog[open]::backdrop {
     }
   }
 }
-body:has(dialog.confirm-dialog:modal) {
+/* Lock page scroll while the dialog is open without leaving a strip the scrim
+   cannot cover. The page reserves its scrollbar (`scrollbar-gutter: stable`),
+   and a scrim never covers a scrollbar or a reserved gutter, so hiding the
+   scrollbar left an undimmed band where it was. Instead the gutter is released
+   (the scrim then covers the whole window) and the same width is added as
+   padding, so the page does not move. `ConfirmDialog` sets --scrollbar-w. */
+html:has(dialog.confirm-dialog:modal) {
   overflow: hidden;
+  scrollbar-gutter: auto;
+  padding-right: var(--scrollbar-w, 0px);
 }
 
 /* Toast (5.8, 7): enter is opacity plus translateY(8px); exit is opacity only. */
@@ -571,4 +579,44 @@ body:has(dialog.confirm-dialog:modal) {
 .toast-leave {
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease-settle);
+}
+
+/* The dialog scrim is the same dark veil in both themes. `bg-ink` flips to a
+   light color in dark mode, which washed the page out instead of dimming it. */
+dialog.confirm-dialog::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+/* Shelf strip (U5): motion on the spines. Transform and opacity only; the
+   lean of a failed document is a position, so it stays under reduced motion. */
+.spine {
+  transform-origin: bottom right;
+  transition: transform var(--dur-fast) var(--ease-settle);
+}
+.spine--lift {
+  transform: translateY(-6px);
+}
+.spine--failed {
+  transform: rotate(5deg);
+}
+.spine--failed.spine--lift {
+  transform: rotate(5deg) translateY(-6px);
+}
+@keyframes spine-pulse {
+  50% { opacity: 0.5; }
+}
+@keyframes spine-rise {
+  from { transform: translateY(6px); }
+  to { transform: translateY(-2px); }
+}
+@keyframes spine-land {
+  from { opacity: 0; transform: translateY(-34px); }
+  to { opacity: 1; transform: none; }
+}
+.spine--pulse { animation: spine-pulse 1.4s ease-in-out infinite; }
+.spine--ghost { animation: spine-rise 0.9s ease-in-out infinite alternate; }
+.spine--land { animation: spine-land var(--dur-base) var(--ease-paper) both; }
+@media (prefers-reduced-motion: reduce) {
+  .spine { transition: none; }
+  .spine--pulse, .spine--ghost, .spine--land { animation: none; }
 }
