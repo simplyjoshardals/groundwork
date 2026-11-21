@@ -2,6 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
+import {
+  releaseScrollbarWidth,
+  reserveScrollbarWidth,
+} from "@/lib/viewer/scrollbar-lock";
 
 /** Longest the exit transition may take to report back (`--dur-slow` is 280 ms). */
 const EXIT_FALLBACK_MS = 450;
@@ -71,7 +75,8 @@ function DockedShell({
  * open and close motion is CSS (`dialog.viewer-sheet` in globals.css); on
  * close the shell calls `dialog.close()` and reports `onExited` when the exit
  * transition ends (or after a fallback timer), and only then is the content
- * unmounted. Body scroll is locked in CSS while the dialog is modal.
+ * unmounted. The page scroll is locked in CSS while the dialog is modal, without an
+ * undimmed band where the scrollbar was (see `scrollbar-lock.ts`).
  */
 function SheetShell({
   open,
@@ -92,10 +97,15 @@ function SheetShell({
     const dialog = ref.current;
     if (dialog === null) return;
     if (open) {
-      if (!dialog.open) dialog.showModal();
+      if (!dialog.open) {
+        // Measure before the page scroll is locked: afterwards the scrollbar is gone.
+        reserveScrollbarWidth();
+        dialog.showModal();
+      }
       return;
     }
     if (dialog.open) dialog.close();
+    releaseScrollbarWidth();
 
     let done = false;
     function finish() {
@@ -117,6 +127,9 @@ function SheetShell({
       clearTimeout(timer);
     };
   }, [open, onExited]);
+
+  // A sheet removed while it is open must not leave the width behind.
+  useEffect(() => releaseScrollbarWidth, []);
 
   useEffect(() => {
     if (open) focusTitle(ref.current);

@@ -456,7 +456,7 @@ export function PdfViewer({
             </PaperSheet>
           </div>
           {ready ? (
-            <p className="mt-3 text-xs text-muted">
+            <p className="mt-3 text-xs text-muted pointer-coarse:sr-only">
               Focus the viewer and use the left and right arrow keys to change
               page.
             </p>

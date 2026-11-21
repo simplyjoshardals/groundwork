@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectNoSeriousViolations, settle } from "./helpers/axe";
 
 const ANSWER_TIMEOUT_MS = 60_000;
 
@@ -44,6 +45,12 @@ test("an example chip asks at once, returns a cited answer with source cards, an
   await expect(
     docked.getByRole("paragraph").filter({ hasText: /^Page \d+ of \d+$/ }),
   ).toBeVisible({ timeout: ANSWER_TIMEOUT_MS });
+  // U6: the whole screen (answer, sources and the docked viewer) passes axe.
+  await settle(page);
+  await expectNoSeriousViolations(
+    page,
+    "workspace, cited answer and docked viewer",
+  );
   await page.keyboard.press("Escape");
   await expect(docked).toBeHidden();
   await expect(marker).toBeFocused();

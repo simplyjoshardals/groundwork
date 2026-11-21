@@ -87,12 +87,12 @@ export function Composer({
           autoComplete="off"
           placeholder="Ask a question…"
           aria-describedby={helperId}
-          className="min-h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-1 font-serif text-read text-ink outline-none placeholder:text-muted"
+          className="min-h-10 min-w-0 flex-1 pointer-coarse:min-h-11 resize-none bg-transparent px-2 py-1 font-serif text-read text-ink outline-none placeholder:text-muted"
         />
         <Button
           type="submit"
           disabled={!canSubmit}
-          className="min-w-20 shrink-0"
+          className="min-w-24 shrink-0"
         >
           {busy ? "Asking…" : "Ask"}
         </Button>

@@ -10,6 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:e2e": "playwright test",
+"bundle:size": "tsx scripts/bundle-size.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:types": "supabase gen types typescript --local > types/database.ts",
@@ -42,6 +43,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@playwright/test": "1.64.1",
     "@tailwindcss/turbopack": "^4",
     "@testing-library/dom": "10.4.2",
@@ -52,6 +54,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
     "jsdom": "31.0.1",
+    "playwright-core": "1.64.1",
     "prettier": "^3.9.10",
     "supabase": "3.0.0",
     "tailwindcss": "^4",

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Instrument_Sans, Newsreader } from "next/font/google";
+import { siteUrl } from "@/lib/brand/site-url";
 import { THEME_SCRIPT } from "@/lib/theme/theme-script";
 import "./globals.css";
 
@@ -28,12 +29,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Absolute origin for the social image URLs (lib/brand/site-url.ts).
+  metadataBase: siteUrl(),
   title: {
     default: "Groundwork: ask your documents, see the source",
     template: "%s | Groundwork",
   },
   description:
     "Ask your documents a question. Every claim links to the exact page, highlighted. If it isn’t in your documents, it says so.",
+  // The image itself is app/opengraph-image.tsx; Next adds it to both.
+  openGraph: { type: "website", siteName: "Groundwork" },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

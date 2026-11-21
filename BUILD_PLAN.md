@@ -24,7 +24,7 @@ Companion to `REQUIREMENTS.md`, `ARCHITECTURE.md`, `DATA_MODEL.md`, and `DESIGN.
 - [ ] **Slice 3:** Verify a citation: PDF viewer with highlight (~17 h)
 - [ ] **Slice 4:** Your own documents: sign-up, upload, ingest, delete (~26 h)
 - [ ] **Slice 5:** Public-ready: limits, CAPTCHA, fallback, hardening (~24 h)
-- [ ] **UI slices U0 to U6:** Frontend redesign: tokens, landing, workspace, ask, viewer, documents, polish (~41 h, rough)
+- [x] **UI slices U0 to U6:** Frontend redesign: tokens, landing, workspace, ask, viewer, documents, polish (~41 h, rough)
 - [ ] **Slice 6:** Ship: accessibility, polish, README, demo (~23 h)
 
 ---
@@ -641,17 +641,28 @@ Each task has an ID, estimate, dependencies, what to build, and acceptance crite
     - [x] The cap-reached and paused states are reached by hand and look designed. (`cap` and `paused` in the drill.)
     - [x] The upload, delete and isolation Playwright tests still pass.
 
-- [ ] **U6 Polish and proof** · 5 h · deps: U3, U4, U5
+- [x] **U6 Polish and proof** · 5 h · deps: U3, U4, U5
   - **Build:** A dark-mode pass on every screen; the motion pass (DESIGN §7); the responsive pass at 375 px, 768 px and desktop; the accessibility pass with axe (DESIGN §10); the bundle check against the targets (about 100 kB gzipped first-load JS on the landing page, about 170 kB on the app route, PDF.js chunk lazy; these are targets, not measurements; add `@next/bundle-analyzer` as a dev dependency if `next build` doesn't print per-route sizes); the OG image; screenshots and short clips for the README and the demo video.
+  - **Built (code complete, reviewed against screenshots in light and dark at 375, 768 and 1280 px; no backend, route or contract change; lint, typecheck, unit tests and all Playwright specs pass, as reported by the project owner):**
+    - [x] Verification specs, each a measurement and not a look: `a11y-matrix` (axe on every public page, the ask, documents and viewer drills and the demo workspace, in light and dark at 375 and 1280 px), `layout-and-motion` (no horizontal scroll at 320, 375, 768 and 1280 px; no layout shift outside the sources block while an answer streams; looping animations limited to the documented ones; 44 px targets on a coarse pointer), `keyboard-flow` (demo, ask and citation with the keyboard alone) and an axe scan of the cited answer with the docked viewer in `ask-experience`. Helpers in `tests/e2e/helpers/`. `@axe-core/playwright` 4.14.0 and `playwright-core` 1.64.1 are pinned.
+    - [x] What the specs found, fixed: the composer textarea was 40 px tall on touch (now 44 px), the Ask button grew when its label became "Asking…" (`min-w-24`), the viewer sheet's scroll lock left the classic-scrollbar band (it now shares the delete dialog's `html:has(...)` rule and gutter handling, `lib/viewer/scrollbar-lock.ts`), and the arrow-key hint under the page is screen-reader-only on touch devices.
+    - [x] Social image (`app/opengraph-image.tsx`, `lib/brand/og.ts`, `lib/brand/site-url.ts`, `metadataBase`, `openGraph`, `twitter`) and `token-sync`, which keeps its colours and `PAPER_CANVAS` equal to the tokens.
+    - [x] Bundle check (`scripts/bundle-size.ts`, `yarn bundle:size`): measured and recorded in `docs/decisions.md`; both targets missed, with the reason and a follow-up.
+    - [x] README media (`capture.e2e.ts`, only with `CAPTURE=1`): stills in light and dark at 375 and 1280 px, plus live hero shots and clips; drill stills are element shots or cropped so no drill text shows; the dev indicator is hidden.
+    - [x] DESIGN.md: rule 9, §2, §5.2, §7, §10 and a U6 appendix.
+  - **Decisions:** the title template keeps its pipe (DESIGN §2 follows the layout). The pulsing processing spine stays as the one documented exception to rule 9 and the one-loop rule. `@next/bundle-analyzer` was not used because it does not support Turbopack; a script measures first-load JS instead. The header and the hero both carry "Try demo" and "Sign in" on purpose: the header is sticky, so its pair is the persistent one. See `docs/decisions.md`, 2026-11-21, U6.
+  - **Found in review, fixed and confirmed:** the landing stills were taken while the hero button still read "Preparing demo…" and the shelf still before its strip had filled in, and the drill stills included the drills' own text; the text viewer's first highlighted line leaves its 12 px (checked by hand).
+  - **§9 sleekness checklist:** ticked by the specs and the screenshot review: item 1 (the CTA does not move when Turnstile loads, in `landing`; demo to first answer in two clicks, in `keyboard-flow`), item 2 (nothing above the sources shifts), item 3 (matched, fallback, text and failure drills, and keyboard only), item 5 (the states the drills force, the rest in U3 to U5) and item 6 (the dark palette, 44 px targets, no horizontal scroll at 320 px). Typographic finish: balance and pretty are global in `globals.css` and the answer paragraphs carry `text-pretty`. Consciously deferred: the Slow 4G walk-through of item 4, the full demo flow on a real phone in item 6 (Slice 6 already says to confirm it there) and the five-second stranger test in item 1.
+  - **Known gaps, left for later:** the highlight is the whole cited chunk, so on real documents it can cover a section or a whole page (the handbook's annual-leave section, the one-page FAQ) while the landing specimen shows one phrase; narrowing it to the supporting sentence is a retrieval and highlighting change. Loading the Supabase browser client on demand would take about 68 kB off `/` (see the bundle entry). The dark-mode toast was still not seen. Nothing was checked in Safari or Firefox (the dialog exits rely on `@starting-style`). The viewer's fallback card pushing the page down about 120 px (U4) was not measured. The cause of one failure of the "shared document link survives Try demo" spec was not identified. Spines are still not clickable.
   - **Done when:**
-    - [ ] Every screen has been checked in light and dark, at 375 px and on desktop.
-    - [ ] The whole `DESIGN.md` sleekness checklist (§9) is ticked or consciously deferred.
-    - [ ] axe reports no serious or critical violations on the main screens, and demo, ask, citation works with the keyboard alone.
-    - [ ] Bundle sizes are measured and recorded in `docs/decisions.md`, with a note if a target was missed.
-    - [ ] The 5.8 API checks and the client-bundle secret inspection are re-run with nothing regressed (the Turnstile provider moved).
-    - [ ] Screenshots, a GIF and clips are saved for 6.6 and 6.7.
+    - [x] Every screen has been checked in light and dark, at 375 px and on desktop. (Every screen by the axe matrix and the overflow checks; the landing page, workspace, ask answer and refusal, viewer, shelf and a 768 px pair by eye.)
+    - [x] The whole `DESIGN.md` sleekness checklist (§9) is ticked or consciously deferred. (Three items deferred, listed above.)
+    - [x] axe reports no serious or critical violations on the main screens, and demo, ask, citation works with the keyboard alone.
+    - [x] Bundle sizes are measured and recorded in `docs/decisions.md`, with a note if a target was missed.
+    - [x] The 5.8 API checks and the client-bundle secret inspection are re-run with nothing regressed (the Turnstile provider moved). (`yarn security:api` and `yarn security:bundle`, re-run by the project owner.)
+    - [x] Screenshots, a GIF and clips are saved for 6.6 and 6.7.
 
-**UI slices done:** [ ] UI DoD ticked for each slice · [ ] Clips saved for the README
+**UI slices done:** [x] UI DoD ticked for each slice · [x] Clips saved for the README
 
 ---
 

@@ -467,11 +467,9 @@ dialog.viewer-sheet[open]::backdrop {
     }
   }
 }
-/* Lock the page behind the modal sheet; it unlocks when the dialog closes or
-   unmounts. */
-body:has(dialog.viewer-sheet:modal) {
-  overflow: hidden;
-}
+/* The page behind the modal sheet is locked by the `html:has(...)` rule next
+   to the confirm dialog's (one rule for both). It unlocks when the dialog closes
+   or unmounts. `ViewerShell` sets --scrollbar-w. */
 
 /* ------------------------------------------------------------------ */
 /* Documents (U5: DESIGN 5.7, 5.8, 5.10, 7)                            */
@@ -561,8 +559,9 @@ dialog.confirm-dialog[open]::backdrop {
    and a scrim never covers a scrollbar or a reserved gutter, so hiding the
    scrollbar left an undimmed band where it was. Instead the gutter is released
    (the scrim then covers the whole window) and the same width is added as
-   padding, so the page does not move. `ConfirmDialog` sets --scrollbar-w. */
-html:has(dialog.confirm-dialog:modal) {
+   padding, so the page does not move. `ConfirmDialog` and `ViewerShell` set --scrollbar-w. */
+html:has(dialog.confirm-dialog:modal),
+html:has(dialog.viewer-sheet:modal) {
   overflow: hidden;
   scrollbar-gutter: auto;
   padding-right: var(--scrollbar-w, 0px);
